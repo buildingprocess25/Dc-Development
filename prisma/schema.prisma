@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model dc_users {
+  id         Int       @id @default(autoincrement())
+  email      String    @unique
+  nama       String
+  cabang     String
+  role       String
+  nama_pt    String?
+  last_login DateTime?
+}
+
+model dc_project {
+  id              Int      @id @default(autoincrement())
+  nomor_ulok      String?  @unique
+  nama_toko       String?
+  cabang          String?
+  kode_toko       String?
+  dokumen         dc_document[]
+}
+
+model dc_document {
+  id                  Int       @id @default(autoincrement())
+  project_id          Int?
+  kategori            String?
+  jenis               String?
+  file_id             String?
+  file_url            String?
+  status              String?
+  created_at          DateTime? @default(now())
+  updated_at          DateTime? @default(now())
+  project             dc_project? @relation(fields: [project_id], references: [id])
+  versions            dc_document_version[]
+  custom_items        dc_document_custom_item[]
+}
+
+model dc_document_version {
+  id               Int       @id @default(autoincrement())
+  document_id      Int?
+  versi            Int?
+  file_id          String?
+  file_url         String?
+  created_at       DateTime? @default(now())
+  document         dc_document? @relation(fields: [document_id], references: [id], onDelete: Cascade)
+}
+
+model dc_document_custom_item {
+  id               Int       @id @default(autoincrement())
+  document_id      Int?
+  nama_item        String?
+  nilai            String?
+  document         dc_document? @relation(fields: [document_id], references: [id], onDelete: Cascade)
+}
