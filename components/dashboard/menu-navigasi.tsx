@@ -7,126 +7,45 @@ import {
   BadgeCheck,
   ChevronRight,
   ChevronDown,
-  ClipboardList,
   Database,
   FolderArchive,
-  FileSignature,
-  HardHat,
-  Share2,
   LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/context/SessionContext";
-import {
-  BUILDING_DEVELOPMENT_GM_ROLE,
-  DC_BUILDING_DEVELOPMENT_MANAGER_ROLE,
-  DC_BUILDING_DEVELOPMENT_SPECIALIST_ROLE,
-  DC_CONTRACTOR_ROLE,
-  DC_DOCUMENT_ADMIN_ROLE,
-  DC_PLANNER_CONSULTANT_ROLE,
-  DC_SOIL_CONSULTANT_ROLE,
-  DC_SUPERVISOR_MK_ROLE,
-  LOCATION_DEVELOPMENT_GM_ROLE,
-  PROPERTY_DEVELOPMENT_DIRECTOR_ROLE,
-  ROLE_CONFIG,
-  SUPER_HUMAN_ROLE,
-  normalizeRoles,
-} from "@/lib/constants";
 
-type DcMenuId =
-  | "dc-projects"
-  | "dc-tender-soil"
-  | "dc-tender-planner"
-  | "dc-tender-mk"
-  | "dc-tender-contractor"
-  | "dc-monitoring"
-  | "dc-supervision"
-  | "dc-terms"
-  | "dc-bast"
-  | "dc-documents"
-  | "dc-users"
-  | "dc-vendors";
+type DcMenuId = "dc-profile" | "dc-documents";
 
 type DcMenuItem = {
-  id: DcMenuId | "shared-approval" | "shared-documents";
+  id: DcMenuId;
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  group: "Master Data" | "Tender" | "Pelaksanaan" | "Administrasi" | "Shared";
+  group: "Master Data";
 };
 
 const dcMenus: DcMenuItem[] = [
-  { id: "dc-documents", title: "Dokumen DC", href: "/dc-development/documents", icon: FolderArchive, group: "Master Data" },
+  { id: "dc-profile", title: "Profile DC", href: "/dc-development/profile", icon: Database, group: "Master Data" },
+  { id: "dc-documents", title: "Dokumen DC", href: "/dc-development/dokumen-dc", icon: FolderArchive, group: "Master Data" },
 ];
-
-const internalDcRoles = [
-  DC_BUILDING_DEVELOPMENT_SPECIALIST_ROLE,
-  DC_BUILDING_DEVELOPMENT_MANAGER_ROLE,
-  BUILDING_DEVELOPMENT_GM_ROLE,
-  LOCATION_DEVELOPMENT_GM_ROLE,
-  PROPERTY_DEVELOPMENT_DIRECTOR_ROLE,
-  SUPER_HUMAN_ROLE,
-];
-
-const dcMenuAccessByRole: Record<string, DcMenuId[]> = {
-  [DC_SOIL_CONSULTANT_ROLE]: ["dc-projects", "dc-tender-soil", "dc-documents"],
-  [DC_PLANNER_CONSULTANT_ROLE]: ["dc-projects", "dc-tender-planner", "dc-documents"],
-  [DC_SUPERVISOR_MK_ROLE]: ["dc-projects", "dc-tender-mk", "dc-supervision", "dc-documents"],
-  [DC_CONTRACTOR_ROLE]: ["dc-projects", "dc-tender-contractor", "dc-monitoring", "dc-terms", "dc-bast", "dc-documents"],
-  [DC_DOCUMENT_ADMIN_ROLE]: ["dc-documents"],
-  "ADMIN_DC": ["dc-documents"], // Support for ADMIN_DC role
-};
-
-internalDcRoles.forEach((role) => {
-  dcMenuAccessByRole[role] = dcMenus
-    .map((menu) => menu.id)
-    .filter((id): id is DcMenuId => id.startsWith("dc-") && id !== "dc-users");
-});
-
-dcMenuAccessByRole[SUPER_HUMAN_ROLE] = dcMenus.map((menu) => menu.id).filter((id): id is DcMenuId => id.startsWith("dc-"));
-
-const sharedMenus: DcMenuItem[] = [];
-
-const getAccessibleDcMenus = (roles: string | string[] | undefined) => {
-  const normalizedRoles = normalizeRoles(roles);
-  const menuIds = new Set<DcMenuId>();
-  normalizedRoles.forEach((role) => {
-    dcMenuAccessByRole[role]?.forEach((menuId) => menuIds.add(menuId));
-  });
-  return dcMenus.filter((menu) => menuIds.has(menu.id as DcMenuId));
-};
-
-const getAccessibleSharedMenus = (roles: string | string[] | undefined) => {
-  const normalizedRoles = normalizeRoles(roles);
-  const allowedIds = new Set<string>();
-  normalizedRoles.forEach((role) => {
-    ROLE_CONFIG[role]?.forEach((menuId) => allowedIds.add(menuId));
-  });
-
-  return sharedMenus.filter((menu) =>
-    (menu.id === "shared-approval" && allowedIds.has("menu-approval"))
-    || (menu.id === "shared-documents" && allowedIds.has("menu-daftardokumen"))
-  );
-};
 
 export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void }) {
   const pathname = usePathname();
   const { user, logout } = useSession();
 
-  const roleSource = user?.roles?.length ? user.roles : user?.role;
-  const accessibleDcMenus = useMemo(() => getAccessibleDcMenus(roleSource), [roleSource]);
-  const accessibleSharedMenus = useMemo(() => getAccessibleSharedMenus(roleSource), [roleSource]);
-  const sidebarMenus = useMemo(
-    () => [...accessibleDcMenus, ...accessibleSharedMenus],
-    [accessibleDcMenus, accessibleSharedMenus]
-  );
-  
+  // Hanya izinkan ADMIN_DC untuk saat ini
+  const isAllowed = user?.role === "ADMIN_DC" || user?.role === "ADMIN";
+
   const sidebarGroups = useMemo(() => {
-    const order: DcMenuItem["group"][] = ["Master Data", "Tender", "Pelaksanaan", "Administrasi", "Shared"];
-    return order
-      .map((group) => ({ group, items: sidebarMenus.filter((item) => item.group === group) }))
-      .filter((entry) => entry.items.length > 0);
-  }, [sidebarMenus]);
+    if (!isAllowed) return [];
+    
+    return [
+      {
+        group: "Master Data",
+        items: dcMenus
+      }
+    ];
+  }, [isAllowed]);
 
   return (
     <>
@@ -161,11 +80,7 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
         <nav className="flex-1 overflow-y-auto py-3">
           <div className="flex flex-col gap-4">
             {sidebarGroups.map(({ group, items }) => {
-              const GroupIcon = 
-                group === "Master Data" ? Database :
-                group === "Tender" ? FileSignature :
-                group === "Pelaksanaan" ? HardHat :
-                group === "Administrasi" ? ClipboardList : Share2;
+                const GroupIcon = Database;
 
               return (
                 <section key={group} className="mx-4 rounded-[14px] overflow-hidden bg-[#2A2A2A] shadow-md border border-white/5">
@@ -207,7 +122,7 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
               );
             })}
           </div>
-          {sidebarMenus.length === 0 && (
+          {sidebarGroups.length === 0 && (
             <div className="px-3 py-8 text-center">
               <BadgeCheck className="mx-auto mb-2 h-7 w-7 text-slate-300" />
               <p className="text-xs text-slate-400">Tidak ada menu tersedia</p>

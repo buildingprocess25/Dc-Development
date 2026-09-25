@@ -1,0 +1,169 @@
+"use client";
+
+import React, { useEffect, useState, useMemo } from "react";
+import Dashboard from "@/components/dashboard/dashboard";
+import { Search, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ProfileTable, DcProfile } from "@/components/profile-dc/ProfileTable";
+import { ViewProfileModal } from "@/components/profile-dc/ViewProfileModal";
+import { EditProfileModal } from "@/components/profile-dc/EditProfileModal";
+
+const TIPE_ORDER = ["DC", "WAREHOUSE", "DEPO", "BULKY", "STORE-HUB", "GUDANG ANAK"];
+
+export default function ProfileDcPage() {
+  const [profiles, setProfiles] = useState<DcProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [branchFilter, setBranchFilter] = useState("all");
+
+  const [selectedViewProfile, setSelectedViewProfile] = useState<DcProfile | null>(null);
+  const [selectedEditProfile, setSelectedEditProfile] = useState<DcProfile | null>(null);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/dc-development/profile");
+      const json = await res.json();
+      if (!res.ok || json.status !== 'success') throw new Error(json.message || "Gagal memuat profile");
+      setProfiles(json.data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const uniqueBranches = useMemo(() => {
+    const branches = new Set(profiles.map(p => {
+      if (!p.cabang) return "";
+      return p.cabang.charAt(0).toUpperCase() + p.cabang.slice(1).toLowerCase();
+    }).filter(Boolean));
+    return Array.from(branches).sort();
+  }, [profiles]);
+
+  const uniqueTypes = useMemo(() => {
+    const types = new Set(profiles.map(p => p.tipe).filter(Boolean));
+    return Array.from(types).sort((a, b) => {
+      const indexA = TIPE_ORDER.indexOf(a);
+      const indexB = TIPE_ORDER.indexOf(b);
+      const orderA = indexA !== -1 ? indexA : 99;
+      const orderB = indexB !== -1 ? indexB : 99;
+      return orderA - orderB;
+    });
+  }, [profiles]);
+
+  const filteredProfiles = useMemo(() => {
+    let result = profiles;
+
+    if (query) {
+      const normalized = query.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.kode?.toLowerCase().includes(normalized) ||
+          p.nama_proyek?.toLowerCase().includes(normalized) ||
+          p.cabang?.toLowerCase().includes(normalized)
+      );
+    }
+    
+    if (typeFilter !== "all") {
+       result = result.filter(p => p.tipe === typeFilter);
+    }
+
+    if (branchFilter !== "all") {
+       result = result.filter(p => p.cabang?.toLowerCase() === branchFilter.toLowerCase());
+    }
+
+    // Sort result by TIPE_ORDER then alphabetical
+    result.sort((a, b) => {
+      const indexA = TIPE_ORDER.indexOf(a.tipe);
+      const indexB = TIPE_ORDER.indexOf(b.tipe);
+      const orderA = indexA !== -1 ? indexA : 99;
+      const orderB = indexB !== -1 ? indexB : 99;
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return (a.nama_proyek || "").localeCompare(b.nama_proyek || "");
+    });
+
+    return result;
+  }, [profiles, query, typeFilter, branchFilter]);
+
+  return (
+    <Dashboard title="Profile DC">
+      <div className="flex flex-col bg-[#FAFAFA] p-4 md:p-6 lg:p-8 animate-in fade-in duration-500 overflow-y-auto h-[calc(100vh-80px)]">
+        
+        {/* Toolbar Section */}
+        <div className="bg-white p-3 lg:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-3 mb-6 items-center sticky top-0 z-20">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input
+              placeholder="Cari kode, nama proyek, DC induk, atau cabang.."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-11 w-full rounded-xl border-slate-200 focus-visible:ring-orange-500 h-12 bg-slate-50/50"
+            />
+          </div>
+          <div className="flex gap-3 w-full lg:w-auto">
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-full lg:w-[150px] rounded-xl h-12 border-slate-200 bg-white">
+                <SelectValue placeholder="Semua Tipe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Tipe</SelectItem>
+                {uniqueTypes.map(t => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="w-full lg:w-[180px] rounded-xl h-12 border-slate-200 bg-white">
+                <SelectValue placeholder="Semua Cabang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Cabang</SelectItem>
+                {uniqueBranches.map(b => (
+                  <SelectItem key={b} value={b}>{b}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Table Section */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <ProfileTable 
+            loading={loading}
+            error={error}
+            profiles={filteredProfiles}
+            onView={(p) => setSelectedViewProfile(p)}
+            onEdit={(p) => setSelectedEditProfile(p)}
+          />
+        </div>
+
+        <ViewProfileModal 
+          open={!!selectedViewProfile} 
+          onOpenChange={(open) => !open && setSelectedViewProfile(null)}
+          profile={selectedViewProfile}
+        />
+
+        <EditProfileModal 
+          open={!!selectedEditProfile}
+          onOpenChange={(open) => !open && setSelectedEditProfile(null)}
+          profile={selectedEditProfile}
+          onSuccess={loadData}
+        />
+      </div>
+    </Dashboard>
+  );
+}
