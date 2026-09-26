@@ -57,39 +57,39 @@ export function ProfileTable({ profiles, loading, error, onView, onEdit }: Profi
       <table className="w-full text-sm text-left border-collapse">
         <thead className="text-[10px] text-slate-500 bg-slate-50/80 backdrop-blur-md uppercase tracking-widest font-black sticky top-0 z-10 shadow-sm">
           <tr>
-            <th scope="col" className="px-6 py-5 w-16 whitespace-nowrap">No</th>
-            <th scope="col" className="px-6 py-5 w-32 whitespace-nowrap">Kode</th>
-            <th scope="col" className="px-6 py-5 min-w-[200px]">Nama Proyek</th>
-            <th scope="col" className="px-6 py-5 w-32 whitespace-nowrap">Tipe</th>
-            <th scope="col" className="px-6 py-5 w-32 whitespace-nowrap">DC Induk</th>
-            <th scope="col" className="px-6 py-5 w-32 whitespace-nowrap">Luas (m²)</th>
-            <th scope="col" className="px-6 py-5 text-right w-32 whitespace-nowrap">Aksi</th>
+            <th scope="col" className="px-4 py-3.5 w-16 whitespace-nowrap">No</th>
+            <th scope="col" className="px-4 py-3.5 w-32 whitespace-nowrap">Kode</th>
+            <th scope="col" className="px-4 py-3.5 min-w-[200px]">Nama Proyek</th>
+            <th scope="col" className="px-4 py-3.5 w-32 whitespace-nowrap">Tipe</th>
+            <th scope="col" className="px-4 py-3.5 w-32 whitespace-nowrap">DC Induk</th>
+            <th scope="col" className="px-4 py-3.5 w-32 whitespace-nowrap">Luas (m²)</th>
+            <th scope="col" className="px-4 py-3.5 text-right w-32 whitespace-nowrap">Aksi</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {profiles.map((prof, index) => (
             <tr key={prof.id} className="hover:bg-slate-50/80 transition-colors duration-150">
-              <td className="px-6 py-5 font-bold text-slate-400">{index + 1}</td>
-              <td className="px-6 py-5 font-bold text-slate-800">{prof.kode}</td>
-              <td className="px-6 py-5 font-bold text-slate-800">{prof.nama_proyek}</td>
-              <td className="px-6 py-5">
-                <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold tracking-wide">
+              <td className="px-4 py-3 font-bold text-slate-400">{index + 1}</td>
+              <td className="px-4 py-3 font-bold text-slate-800">{prof.kode}</td>
+              <td className="px-4 py-3 font-bold text-slate-800">{prof.nama_proyek}</td>
+              <td className="px-4 py-3">
+                <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide">
                   {prof.tipe}
                 </span>
               </td>
-              <td className="px-6 py-5">
+              <td className="px-4 py-3">
                 {prof.tipe === "DC" ? (
-                  <span className="text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full font-bold text-xs uppercase tracking-wide border border-emerald-100 whitespace-nowrap">DC Induk Utama</span>
+                  <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold text-[11px] uppercase tracking-wide border border-emerald-100 whitespace-nowrap">DC Induk Utama</span>
                 ) : prof.dc_induk ? (
                   <span className="font-bold text-slate-800 uppercase">{prof.dc_induk}</span>
                 ) : (
                   <span className="text-slate-400">-</span>
                 )}
               </td>
-              <td className="px-6 py-5 text-slate-600 font-medium">
+              <td className="px-4 py-3 text-slate-600 font-medium">
                 {prof.total_luas_bangunan ? prof.total_luas_bangunan.toLocaleString('id-ID') : '-'}
               </td>
-              <td className="px-6 py-5 text-right">
+              <td className="px-4 py-3 text-right">
                 <div className="flex justify-end gap-2">
                   <Button 
                     variant="outline" 

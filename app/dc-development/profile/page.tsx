@@ -73,13 +73,13 @@ export default function ProfileDcPage() {
           p.cabang?.toLowerCase().includes(normalized)
       );
     }
-    
+
     if (typeFilter !== "all") {
-       result = result.filter(p => p.tipe === typeFilter);
+      result = result.filter(p => p.tipe === typeFilter);
     }
 
     if (branchFilter !== "all") {
-       result = result.filter(p => p.cabang?.toLowerCase() === branchFilter.toLowerCase());
+      result = result.filter(p => p.cabang?.toLowerCase() === branchFilter.toLowerCase());
     }
 
     // Sort result by TIPE_ORDER then alphabetical
@@ -88,7 +88,7 @@ export default function ProfileDcPage() {
       const indexB = TIPE_ORDER.indexOf(b.tipe);
       const orderA = indexA !== -1 ? indexA : 99;
       const orderB = indexB !== -1 ? indexB : 99;
-      
+
       if (orderA !== orderB) {
         return orderA - orderB;
       }
@@ -100,22 +100,22 @@ export default function ProfileDcPage() {
 
   return (
     <Dashboard title="Profile DC">
-      <div className="flex flex-col bg-[#FAFAFA] p-4 md:p-6 lg:p-8 animate-in fade-in duration-500 overflow-y-auto h-[calc(100vh-80px)]">
-        
+      <div className="flex flex-col bg-[#FAFAFA] p-3 md:p-4 lg:p-5 animate-in fade-in duration-500 overflow-y-auto h-[calc(100vh-60px)]">
+
         {/* Toolbar Section */}
-        <div className="bg-white p-3 lg:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-3 mb-6 items-center sticky top-0 z-20">
+        <div className="bg-white p-2.5 lg:p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-2.5 mb-4 items-center sticky top-0 z-20">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
               placeholder="Cari kode, nama proyek, DC induk, atau cabang.."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-11 w-full rounded-xl border-slate-200 focus-visible:ring-orange-500 h-12 bg-slate-50/50"
+              className="pl-9 w-full rounded-lg border-slate-200 focus-visible:ring-orange-500 h-10 text-sm bg-slate-50/50"
             />
           </div>
           <div className="flex gap-3 w-full lg:w-auto">
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full lg:w-[150px] rounded-xl h-12 border-slate-200 bg-white">
+              <SelectTrigger className="w-full lg:w-[140px] rounded-lg h-10 text-sm border-slate-200 bg-white">
                 <SelectValue placeholder="Semua Tipe" />
               </SelectTrigger>
               <SelectContent>
@@ -127,7 +127,7 @@ export default function ProfileDcPage() {
             </Select>
 
             <Select value={branchFilter} onValueChange={setBranchFilter}>
-              <SelectTrigger className="w-full lg:w-[180px] rounded-xl h-12 border-slate-200 bg-white">
+              <SelectTrigger className="w-full lg:w-[160px] rounded-lg h-10 text-sm border-slate-200 bg-white">
                 <SelectValue placeholder="Semua Cabang" />
               </SelectTrigger>
               <SelectContent>
@@ -141,8 +141,8 @@ export default function ProfileDcPage() {
         </div>
 
         {/* Table Section */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <ProfileTable 
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <ProfileTable
             loading={loading}
             error={error}
             profiles={filteredProfiles}
@@ -151,13 +151,13 @@ export default function ProfileDcPage() {
           />
         </div>
 
-        <ViewProfileModal 
-          open={!!selectedViewProfile} 
+        <ViewProfileModal
+          open={!!selectedViewProfile}
           onOpenChange={(open) => !open && setSelectedViewProfile(null)}
           profile={selectedViewProfile}
         />
 
-        <EditProfileModal 
+        <EditProfileModal
           open={!!selectedEditProfile}
           onOpenChange={(open) => !open && setSelectedEditProfile(null)}
           profile={selectedEditProfile}

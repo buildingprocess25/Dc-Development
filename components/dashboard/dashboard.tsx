@@ -26,19 +26,19 @@ export default function Dashboard({ children, title, headerActions }: DashboardL
   return (
     <div className="h-screen flex flex-row overflow-hidden bg-[#1F1F1F] font-sans text-slate-800 p-2 md:p-3 gap-3">
       <MenuNavigasi sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-      
+
       {/* FLOATING MAIN CONTENT CARD */}
       <main className="flex-1 flex flex-col overflow-hidden bg-[#F1F2F4] rounded-2xl md:rounded-[32px] shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] relative border border-gray-200/60 m-1 md:my-3 md:mr-3 md:ml-0">
-        
+
         {/* Subtle Background Pattern */}
-        <div 
-          className="absolute inset-0 pointer-events-none opacity-[0.35]" 
-          style={{ 
-            backgroundImage: 'radial-gradient(#9CA3AF 1px, transparent 1px)', 
-            backgroundSize: '20px 20px' 
-          }} 
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.35]"
+          style={{
+            backgroundImage: 'radial-gradient(#9CA3AF 1px, transparent 1px)',
+            backgroundSize: '20px 20px'
+          }}
         />
-        
+
         {/* LOCAL HEADER */}
         <header className="h-24 shrink-0 flex items-center justify-between px-6 md:px-12 bg-transparent relative z-10">
           <div className="flex items-center gap-5">
@@ -51,7 +51,7 @@ export default function Dashboard({ children, title, headerActions }: DashboardL
               title
             )}
           </div>
-          
+
           <div className="flex items-center gap-4">
             {headerActions}
           </div>
