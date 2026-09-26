@@ -51,7 +51,7 @@ export default function Dashboard({ children, title, headerActions }: DashboardL
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-gray-900 leading-none">{user.namaLengkap?.toUpperCase() || "DC USER"}</span>
-                <span className="text-[10px] font-semibold text-[#E65F2B] uppercase tracking-wider mt-1">{user.role} &bull; {user.cabang}</span>
+                <span className="text-[10px] font-semibold text-[#E65F2B] uppercase tracking-wider mt-1">{user.role.replace(/_/g, ' ')} &bull; {user.cabang}</span>
               </div>
             </div>
           </div>

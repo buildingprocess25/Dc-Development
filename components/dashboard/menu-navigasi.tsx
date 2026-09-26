@@ -33,19 +33,27 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
   const pathname = usePathname();
   const { user, logout } = useSession();
 
-  // Hanya izinkan ADMIN_DC untuk saat ini
-  const isAllowed = user?.role === "ADMIN_DC" || user?.role === "ADMIN";
+  const role = user?.role?.toUpperCase();
+  // Pisahkan string berdasarkan koma, misalnya "dc-profile,dc-documents"
+  const userMenus = (user as any)?.akses_menu 
+    ? (user as any).akses_menu.split(',').map((m: string) => m.trim()) 
+    : [];
 
   const sidebarGroups = useMemo(() => {
-    if (!isAllowed) return [];
+    if (!role) return [];
+    
+    // Filter menu dcMenus berdasarkan yang ada di akses_menu user
+    const allowedMenus = dcMenus.filter(menu => userMenus.includes(menu.id));
+    
+    if (allowedMenus.length === 0) return [];
     
     return [
       {
         group: "Master Data",
-        items: dcMenus
+        items: allowedMenus
       }
     ];
-  }, [isAllowed]);
+  }, [role, userMenus.join(',')]);
 
   return (
     <>

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 
 const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-dc-dev');
 
-export async function createSession(user: { id: number; email: string; cabang: string; role: string; nama_pt?: string }) {
+export async function createSession(user: { id: number; email: string; cabang: string; role: string; nama_pt?: string; akses_menu?: string | null }) {
     const token = await new SignJWT({ user })
         .setProtectedHeader({ alg: 'HS256' })
         .setExpirationTime('24h')

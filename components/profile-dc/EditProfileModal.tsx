@@ -3,6 +3,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { X, Save, Trash2, Loader2, AlertTriangle, Layers, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FeedbackModal } from "@/components/ui/feedback-modal";
+import { DiscardWarningModal } from "@/components/ui/discard-warning-modal";
 
 interface EditProfileModalProps {
   open: boolean;
@@ -18,6 +20,7 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const [feedback, setFeedback] = useState<{ open: boolean; type: "success" | "error"; title: string; message: string }>({ open: false, type: "success", title: "", message: "" });
 
   useEffect(() => {
     if (profile) {
@@ -71,10 +74,9 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
       const json = await res.json();
       if (!res.ok || json.status !== 'success') throw new Error(json.message);
       
-      onSuccess();
-      onOpenChange(false);
+      setFeedback({ open: true, type: "success", title: "Berhasil Disimpan", message: "Perubahan data profile berhasil disimpan ke database." });
     } catch (err: any) {
-      alert(err.message || 'Gagal menyimpan perubahan');
+      setFeedback({ open: true, type: "error", title: "Gagal Menyimpan", message: err.message || 'Terjadi kesalahan saat menyimpan perubahan.' });
     } finally {
       setSaving(false);
     }
@@ -89,10 +91,9 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
       const json = await res.json();
       if (!res.ok || json.status !== 'success') throw new Error(json.message);
       
-      onSuccess();
-      onOpenChange(false);
+      setFeedback({ open: true, type: "success", title: "Berhasil Dihapus", message: "Data profile berhasil dihapus secara permanen." });
     } catch (err: any) {
-      alert(err.message || 'Gagal menghapus data');
+      setFeedback({ open: true, type: "error", title: "Gagal Menghapus", message: err.message || 'Terjadi kesalahan saat menghapus data.' });
     } finally {
       setDeleting(false);
     }
@@ -133,6 +134,29 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-[1000px] w-full p-0 overflow-hidden bg-white rounded-[24px] border border-[#EAEAEA] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] [&>button]:hidden">
         
+        <DiscardWarningModal 
+          open={showCloseWarning}
+          onContinueEdit={() => setShowCloseWarning(false)}
+          onDiscard={() => {
+            setShowCloseWarning(false);
+            onOpenChange(false);
+          }}
+        />
+
+        <FeedbackModal
+          open={feedback.open}
+          type={feedback.type}
+          title={feedback.title}
+          message={feedback.message}
+          onClose={() => {
+            setFeedback(prev => ({ ...prev, open: false }));
+            if (feedback.type === "success") {
+              onSuccess();
+              onOpenChange(false);
+            }
+          }}
+        />
+
         {/* Custom Close Button */}
         <div className="absolute top-6 right-6 z-20">
           <button onClick={() => handleOpenChange(false)} className="w-8 h-8 bg-white border border-[#EAEAEA] hover:bg-[#F7F7F7] text-[#666666] rounded-full flex items-center justify-center transition-all shadow-sm">
@@ -140,39 +164,7 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
           </button>
         </div>
 
-        {/* UNSAVED CHANGES WARNING OVERLAY */}
-        {showCloseWarning && (
-          <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
-            <div className="bg-white border border-[#EAEAEA] rounded-[24px] shadow-2xl p-8 max-w-sm w-full text-center scale-in-95 duration-200">
-              <div className="w-14 h-14 bg-[#FFF8F8] rounded-full flex items-center justify-center mx-auto mb-5 text-[#D32F2F]">
-                <AlertTriangle className="w-7 h-7" />
-              </div>
-              <h3 className="text-xl font-extrabold text-[#111111] mb-2">Buang perubahan?</h3>
-              <p className="text-[14px] text-[#666666] mb-8 font-medium leading-relaxed">
-                Anda memiliki data yang belum disimpan. Yakin ingin keluar tanpa menyimpan perubahan ini?
-              </p>
-              <div className="flex gap-3 justify-center">
-                <Button 
-                  variant="outline" 
-                  className="h-11 px-5 rounded-xl font-bold border-[#EAEAEA] text-[#111111] hover:bg-[#F9F9F9]"
-                  onClick={() => setShowCloseWarning(false)}
-                >
-                  Lanjut Edit
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  className="h-11 px-6 rounded-xl font-bold bg-[#D32F2F] text-white hover:bg-[#B71C1C]"
-                  onClick={() => {
-                    setShowCloseWarning(false);
-                    onOpenChange(false);
-                  }}
-                >
-                  Ya, Buang
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         <div className="p-10 max-h-[80vh] overflow-y-auto custom-scrollbar">
           

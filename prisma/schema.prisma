@@ -15,76 +15,66 @@ model dc_users {
   role       String
   nama_pt    String?
   last_login DateTime?
+  akses_menu String?
 }
 
 model dc_project {
-  id          Int       @id @default(autoincrement())
-  kode        String    @unique
-  nama_proyek String
-  dc_induk    String?   // Bisa null jika dia sendiri adalah DC Induk
-  tipe        String    // DC, GUDANG ANAK, DEPO, BULKY, STORE-HUB
-  cabang      String
-
-  // === PROFILE FIELDS (Single Table Architecture) ===
-  inisial                  String?
-  tanggal_go               DateTime? @db.Date
-  masa_sewa_start          DateTime? @db.Date
-  masa_sewa_finish         DateTime? @db.Date
-  
-  kapasitas_toko           Int?
-  luas_lahan               Float?
-  total_luas_bangunan      Float?
-  
-  luas_office_lt1          Float?
-  luas_office_lt2          Float?
-  luas_warehouse           Float?
-  luas_mezanine            Float?
-  luas_cold_storage        Float?
-  luas_bangunan_penunjang  Float?
-  luas_area_parkir         Float?
-  luas_tapak_terbangun     Float?
-  
-  kdb_persen               Float?
-  sisa_lahan               Float?
-  
-  main_kontraktor          String?
-  daya_listrik             String?
-  genset                   String?
-  sumber_air               String?
-  
-  spek_lantai_tonase       Float?
-  spek_lantai_tebal        Float?
-  spek_lantai_mutu_beton   String?
-
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-
-  dokumen     dc_document[]
+  id                      Int           @id @default(autoincrement())
+  kode                    String        @unique
+  nama_proyek             String
+  dc_induk                String?
+  tipe                    String
+  cabang                  String
+  inisial                 String?
+  tanggal_go              DateTime?     @db.Date
+  masa_sewa_start         DateTime?     @db.Date
+  masa_sewa_finish        DateTime?     @db.Date
+  kapasitas_toko          Int?
+  luas_lahan              Float?
+  total_luas_bangunan     Float?
+  luas_office_lt1         Float?
+  luas_office_lt2         Float?
+  luas_warehouse          Float?
+  luas_mezanine           Float?
+  luas_cold_storage       Float?
+  luas_bangunan_penunjang Float?
+  luas_area_parkir        Float?
+  luas_tapak_terbangun    Float?
+  kdb_persen              Float?
+  sisa_lahan              Float?
+  main_kontraktor         String?
+  daya_listrik            String?
+  genset                  String?
+  sumber_air              String?
+  spek_lantai_tonase      Float?
+  spek_lantai_tebal       Float?
+  spek_lantai_mutu_beton  String?
+  created_at              DateTime      @default(now())
+  updated_at              DateTime      @updatedAt
+  dokumen                 dc_document[]
 }
 
 model dc_document {
-  id               Int       @id @default(autoincrement())
-  project_id       Int
-  tahap_pekerjaan  String    // PEMBANGUNAN, RENOVASI, PERLUASAN
-  kode_item        String    // A_1, B_2, SITEPLAN_1, dll (merujuk ke config)
-  tipe_file        String    // PDF/JPEG, AUTOCAD, EXCEL
-  
-  project          dc_project @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  versions         dc_document_version[]
+  id              Int                   @id @default(autoincrement())
+  project_id      Int
+  tahap_pekerjaan String
+  kode_item       String
+  tipe_file       String
+  project         dc_project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  versions        dc_document_version[]
 
-  @@unique([project_id, tahap_pekerjaan, kode_item, tipe_file]) // Satu project, tahap, item, dan tipe file hanya boleh punya 1 dokumen aktif
+  @@unique([project_id, tahap_pekerjaan, kode_item, tipe_file])
 }
 
 model dc_document_version {
-  id          Int       @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   document_id Int
-  versi       Int       @default(1)
+  versi       Int         @default(1)
   file_url    String
   file_name   String
-  catatan     String?   @db.Text
-  is_current  Boolean   @default(true)
+  catatan     String?
+  is_current  Boolean     @default(true)
   uploaded_by String
-  created_at  DateTime  @default(now())
-
+  created_at  DateTime    @default(now())
   document    dc_document @relation(fields: [document_id], references: [id], onDelete: Cascade)
 }

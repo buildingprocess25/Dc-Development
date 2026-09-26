@@ -29,7 +29,8 @@ export async function POST(request: Request) {
             email: user.email,
             cabang: user.cabang,
             role: user.role,
-            nama_pt: user.nama_pt || ''
+            nama_pt: user.nama_pt || '',
+            akses_menu: user.akses_menu
         });
 
         return NextResponse.json({ status: 'success', data: user });

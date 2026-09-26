@@ -16,6 +16,7 @@ export interface UserSession {
   isSuperHuman: boolean;
   isRegionalManager: boolean;
   isStoreControlling: boolean;
+  akses_menu?: string | null;
 }
 
 interface SessionContextValue {
@@ -79,6 +80,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               isSuperHuman: false,
               isRegionalManager: false,
               isStoreControlling: false,
+              akses_menu: fetchedUser.akses_menu || null,
             };
             if (!ignore) {
               setUser(sessionUser);
