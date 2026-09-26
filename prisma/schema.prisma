@@ -13,9 +13,10 @@ model dc_users {
   nama       String
   cabang     String
   role       String
-  nama_pt    String?
-  last_login DateTime?
-  akses_menu String?
+  nama_pt         String?
+  last_login      DateTime?
+  akses_menu      String?
+  coverage_cabang String?
 }
 
 model dc_project {

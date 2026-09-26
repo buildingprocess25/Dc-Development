@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,28 +10,62 @@ import {
   Database,
   FolderArchive,
   LogOut,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/context/SessionContext";
 
-type DcMenuId = "dc-profile" | "dc-documents";
+type DcMenuId = "dc-profile" | "dc-documents" | "manajemen-user";
 
 type DcMenuItem = {
   id: DcMenuId;
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  group: "Master Data";
+  group: "Master Data" | "Administrator";
 };
 
 const dcMenus: DcMenuItem[] = [
   { id: "dc-profile", title: "Profile DC", href: "/dc-development/profile", icon: Database, group: "Master Data" },
   { id: "dc-documents", title: "Dokumen DC", href: "/dc-development/dokumen-dc", icon: FolderArchive, group: "Master Data" },
+  { id: "manajemen-user", title: "Manajemen User", href: "/dc-development/manajemen-user", icon: Users, group: "Administrator" },
 ];
 
 export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void }) {
   const pathname = usePathname();
   const { user, logout } = useSession();
+  
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ 
+    "Master Data": true, 
+    "Administrator": true 
+  });
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    const saved = localStorage.getItem("sidebarOpenGroups");
+    if (saved) {
+      try {
+        setOpenGroups(JSON.parse(saved));
+      } catch (e) {}
+    } else {
+      const activeGroup = dcMenus.find(m => pathname.includes(m.href))?.group;
+      const initial = { 
+        "Master Data": true,
+        ...(activeGroup ? { [activeGroup]: true } : {})
+      };
+      setOpenGroups(initial);
+      localStorage.setItem("sidebarOpenGroups", JSON.stringify(initial));
+    }
+  }, [pathname]);
+
+  const toggleGroup = (group: string) => {
+    setOpenGroups(prev => {
+      const next = { ...prev, [group]: !prev[group] };
+      localStorage.setItem("sidebarOpenGroups", JSON.stringify(next));
+      return next;
+    });
+  };
 
   const role = user?.role?.toUpperCase();
   // Pisahkan string berdasarkan koma, misalnya "dc-profile,dc-documents"
@@ -43,16 +77,21 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
     if (!role) return [];
     
     // Filter menu dcMenus berdasarkan yang ada di akses_menu user
-    const allowedMenus = dcMenus.filter(menu => userMenus.includes(menu.id));
+    const isAll = userMenus.includes("all") || userMenus.includes("ALL");
+    const allowedMenus = dcMenus.filter(menu => isAll || userMenus.includes(menu.id));
     
     if (allowedMenus.length === 0) return [];
     
-    return [
-      {
-        group: "Master Data",
-        items: allowedMenus
-      }
-    ];
+    const grouped = allowedMenus.reduce((acc, curr) => {
+      if (!acc[curr.group]) acc[curr.group] = [];
+      acc[curr.group].push(curr);
+      return acc;
+    }, {} as Record<string, DcMenuItem[]>);
+
+    return Object.keys(grouped).map(group => ({
+      group,
+      items: grouped[group]
+    }));
   }, [role, userMenus.join(',')]);
 
   return (
@@ -93,16 +132,21 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
               return (
                 <section key={group} className="mx-4 rounded-[14px] overflow-hidden bg-[#2A2A2A] shadow-md border border-white/5">
                   {/* Header Group */}
-                  <div className="flex items-center justify-between bg-gradient-to-r from-[#E65F2B] to-[#D3501F] px-4 py-3 text-white">
+                  <div 
+                    className={`flex items-center justify-between px-4 py-3 text-white cursor-pointer select-none transition-colors hover:brightness-110 ${
+                      group === "Administrator" ? "bg-gradient-to-r from-gray-700 to-gray-800" : "bg-gradient-to-r from-[#E65F2B] to-[#D3501F]"
+                    }`}
+                    onClick={() => toggleGroup(group)}
+                  >
                     <div className="flex items-center gap-3">
                       <GroupIcon className="h-4 w-4 opacity-90" />
                       <p className="text-[13px] font-bold tracking-wide uppercase">{group}</p>
                     </div>
-                    <ChevronDown className="w-4 h-4 opacity-70" />
+                    <ChevronDown className={`w-4 h-4 opacity-70 transition-transform duration-200 ${(!isClient || openGroups[group]) ? "rotate-180" : ""}`} />
                   </div>
                   
                   {/* Items Group */}
-                  <div className="flex flex-col px-2 py-2 gap-1">
+                  <div className={`flex flex-col px-2 gap-1 overflow-hidden transition-all duration-300 ${!isClient || openGroups[group] ? "max-h-[500px] py-2" : "max-h-0 py-0"}`}>
                   {items.map((item) => {
                     const Icon = item.icon;
                     const hrefPath = item.href.split("?")[0];
@@ -138,12 +182,27 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
           )}
         </nav>
 
-        <div className="px-6 py-6 mt-auto shrink-0 space-y-4">
-          <Button variant="outline" onClick={logout} className="w-full justify-start h-11 bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white rounded-xl">
+        <div className="px-6 pb-6 mt-auto shrink-0 flex flex-col gap-4">
+          
+          {/* USER PROFILE IN SIDEBAR */}
+          <div className="flex items-center gap-3 bg-white/5 rounded-[16px] p-2 pr-4 border border-white/10 transition-colors hover:bg-white/10">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E65F2B] to-[#D3501F] text-white flex items-center justify-center font-extrabold text-[15px] shadow-sm shrink-0">
+              {user?.namaLengkap ? user.namaLengkap.charAt(0).toUpperCase() : "D"}
+            </div>
+            <div className="flex flex-col min-w-0 overflow-hidden">
+              <span className="text-[13px] font-bold text-white leading-tight truncate">
+                {user?.namaLengkap?.toUpperCase() || "DC USER"}
+              </span>
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-0.5 truncate">
+                {user?.role?.replace(/_/g, ' ')} &bull; {user?.cabang}
+              </span>
+            </div>
+          </div>
+
+          <Button variant="outline" onClick={logout} className="w-full justify-start h-11 bg-transparent border-white/10 text-gray-300 hover:bg-[#D32F2F] hover:text-white hover:border-[#D32F2F] rounded-[14px] transition-all">
             <LogOut className="w-4 h-4 mr-3" />
-            Keluar Sistem
+            <span className="font-semibold text-[13px]">Keluar Sistem</span>
           </Button>
-          <p className="text-[10px] text-gray-500 font-medium tracking-wide uppercase">&copy; {new Date().getFullYear()} PT Sumber Alfaria Trijaya Tbk.</p>
         </div>
       </aside>
     </>

@@ -28,36 +28,38 @@ export default function Dashboard({ children, title, headerActions }: DashboardL
       <MenuNavigasi sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       
       {/* FLOATING MAIN CONTENT CARD */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-[#FAFAFA] rounded-2xl md:rounded-3xl shadow-2xl relative border border-white/10 m-1 md:my-0 md:mr-0">
+      <main className="flex-1 flex flex-col overflow-hidden bg-[#F1F2F4] rounded-2xl md:rounded-[32px] shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] relative border border-gray-200/60 m-1 md:my-3 md:mr-3 md:ml-0">
+        
+        {/* Subtle Background Pattern */}
+        <div 
+          className="absolute inset-0 pointer-events-none opacity-[0.35]" 
+          style={{ 
+            backgroundImage: 'radial-gradient(#9CA3AF 1px, transparent 1px)', 
+            backgroundSize: '20px 20px' 
+          }} 
+        />
         
         {/* LOCAL HEADER */}
-        <header className="h-20 shrink-0 flex items-center justify-between px-6 md:px-10 border-b border-gray-100 bg-white">
-          <div className="flex items-center gap-4">
-            <button className="md:hidden p-2 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100" onClick={() => setSidebarOpen(!sidebarOpen)}>
+        <header className="h-24 shrink-0 flex items-center justify-between px-6 md:px-12 bg-transparent relative z-10">
+          <div className="flex items-center gap-5">
+            <button className="md:hidden p-2 rounded-xl bg-white border border-[#EAEAEA] text-[#666666] hover:bg-[#F9F9F9] shadow-sm transition-all" onClick={() => setSidebarOpen(!sidebarOpen)}>
               <ChevronRight className="w-5 h-5" />
             </button>
             {typeof title === "string" ? (
-              <h2 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">{title}</h2>
+              <h2 className="text-2xl md:text-[28px] font-extrabold text-[#111111] tracking-tight">{title}</h2>
             ) : (
               title
             )}
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             {headerActions}
-            <div className="items-center gap-3 bg-gray-50 rounded-full p-1.5 pr-4 border border-gray-100 ml-2 hidden sm:flex">
-              <div className="w-9 h-9 rounded-full bg-[#1F1F1F] text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                {user.namaLengkap ? user.namaLengkap.charAt(0).toUpperCase() : "D"}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-gray-900 leading-none">{user.namaLengkap?.toUpperCase() || "DC USER"}</span>
-                <span className="text-[10px] font-semibold text-[#E65F2B] uppercase tracking-wider mt-1">{user.role.replace(/_/g, ' ')} &bull; {user.cabang}</span>
-              </div>
-            </div>
           </div>
         </header>
 
-        {children}
+        <div className="flex-1 overflow-hidden px-6 md:px-12 pb-6 md:pb-12 flex flex-col relative z-10">
+          {children}
+        </div>
       </main>
     </div>
   );
