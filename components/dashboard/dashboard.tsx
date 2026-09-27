@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Menu, PanelLeftClose } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
 import MenuNavigasi from "./menu-navigasi";
 
@@ -42,8 +42,12 @@ export default function Dashboard({ children, title, headerActions }: DashboardL
         {/* LOCAL HEADER */}
         <header className="h-24 shrink-0 flex items-center justify-between px-6 md:px-12 bg-transparent relative z-10">
           <div className="flex items-center gap-5">
-            <button className="md:hidden p-2 rounded-xl bg-white border border-[#EAEAEA] text-[#666666] hover:bg-[#F9F9F9] shadow-sm transition-all" onClick={() => setSidebarOpen(!sidebarOpen)}>
-              <ChevronRight className="w-5 h-5" />
+            <button 
+              className="p-2 rounded-xl bg-white border border-[#EAEAEA] text-[#666666] hover:bg-[#F9F9F9] shadow-sm transition-all" 
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              title={sidebarOpen ? "Sembunyikan Menu" : "Tampilkan Menu"}
+            >
+              {sidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             {typeof title === "string" ? (
               <h2 className="text-2xl md:text-[28px] font-extrabold text-[#111111] tracking-tight">{title}</h2>

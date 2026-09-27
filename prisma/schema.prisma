@@ -52,30 +52,39 @@ model dc_project {
   spek_lantai_mutu_beton  String?
   created_at              DateTime      @default(now())
   updated_at              DateTime      @updatedAt
-  dokumen                 dc_document[]
+  dokumen                 dc_dokumen[]
 }
 
-model dc_document {
-  id              Int                   @id @default(autoincrement())
+model dc_dokumen {
+  id              Int      @id @default(autoincrement())
   project_id      Int
-  tahap_pekerjaan String
-  kode_item       String
-  tipe_file       String
-  project         dc_project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  versions        dc_document_version[]
-
-  @@unique([project_id, tahap_pekerjaan, kode_item, tipe_file])
+  fase_proyek     String   // "PEMBANGUNAN", "RENOVASI", "PERLUASAN"
+  kategori        String
+  nama_item       String
+  jenis_file      String   // "PDF/JPEG", "AUTOCAD", dll
+  
+  file_url        String?
+  file_name       String?
+  catatan         String?
+  is_custom       Boolean  @default(false)
+  
+  updated_by      String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  
+  project         dc_project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  riwayat         dc_dokumen_riwayat[]
+  
+  @@unique([project_id, fase_proyek, kategori, nama_item])
 }
 
-model dc_document_version {
-  id          Int         @id @default(autoincrement())
-  document_id Int
-  versi       Int         @default(1)
-  file_url    String
-  file_name   String
-  catatan     String?
-  is_current  Boolean     @default(true)
-  uploaded_by String
-  created_at  DateTime    @default(now())
-  document    dc_document @relation(fields: [document_id], references: [id], onDelete: Cascade)
+model dc_dokumen_riwayat {
+  id              Int        @id @default(autoincrement())
+  dokumen_id      Int
+  action          String     // "UPLOAD_FILE", "UPDATE_CATATAN", "ADD_CUSTOM_ITEM", "DELETE_FILE"
+  deskripsi_log   String
+  created_by      String
+  created_at      DateTime   @default(now())
+  
+  dokumen         dc_dokumen @relation(fields: [dokumen_id], references: [id], onDelete: Cascade)
 }

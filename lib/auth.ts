@@ -18,7 +18,7 @@ export async function createSession(user: { id: number; email: string; cabang: s
     });
 }
 
-export async function getSession() {
+export async function getSession(): Promise<{ id: number; email: string; cabang: string; role: string; nama_pt?: string; akses_menu?: string | null } | null> {
     const cookieStore = await cookies();
     const token = cookieStore.get('token');
     
@@ -26,7 +26,7 @@ export async function getSession() {
 
     try {
         const verified = await jwtVerify(token.value, SECRET_KEY);
-        return verified.payload.user;
+        return verified.payload.user as any;
     } catch (e) {
         return null;
     }
