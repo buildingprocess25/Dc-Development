@@ -7,31 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FeedbackModal } from "@/components/ui/feedback-modal";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-
-const CABANG_TUNGGAL = [
-  "LUWU", "REMBANG", "TEGAL", "GORONTALO", "PONTIANAK", "CIANJUR", "JEMBER", 
-  "BALI", "KLATEN", "MAKASSAR", "PLUMBON", "PEKANBARU", "JAMBI", "HEAD OFFICE", 
-  "CILACAP", "SEMARANG", "MALANG", "MANADO", "BATAM", "MADIUN"
-];
-
-const CABANG_GRUP: Record<string, string[]> = {
-  "BANDUNG RAYA": ["BANDUNG RAYA", "BANDUNG", "BANDUNG 1", "BANDUNG 2"],
-  "LOMBOK": ["LOMBOK", "SUMBAWA"],
-  "MEDAN": ["MEDAN", "ACEH"],
-  "LAMPUNG": ["LAMPUNG", "KOTABUMI"],
-  "PALEMBANG": ["PALEMBANG", "BENGKULU", "BANGKA", "BELITUNG"],
-  "SIDOARJO": ["SIDOARJO", "SIDOARJO BPN SMD", "MANOKWARI", "NTT", "SORONG"],
-  "BANJARMASIN": ["BANJARMASIN", "PALANGKARAYA"],
-  "CIKOKOL": ["CIKOKOL", "PARUNG", "BALARAJA", "SERANG", "BINTAN"],
-  "CILEUNGSI": ["CILEUNGSI", "BOGOR", "BEKASI", "KARAWANG"]
-};
-
-const ALL_INDUK_CABANG = [...CABANG_TUNGGAL, ...Object.keys(CABANG_GRUP)].sort();
-
-const ALL_BRANCHES = Array.from(new Set([
-  ...CABANG_TUNGGAL,
-  ...Object.values(CABANG_GRUP).flat()
-])).sort();
+import { ALL_BRANCHES, ALL_INDUK_CABANG, CABANG_GRUP } from "@/lib/branches";
 
 const ROLES = [
   "DC DOCUMENT ADMIN",
@@ -40,11 +16,14 @@ const ROLES = [
   "DC ADMIN"
 ];
 
-const AVAILABLE_MENUS = [
-  { id: "dc-profile", label: "Profile DC" },
-  { id: "dc-documents", label: "Dokumen DC" },
-  { id: "manajemen-user", label: "Manajemen User" }
-];
+import { dcMenus } from "@/components/dashboard/menu-navigasi";
+import { SearchableSelectInput } from "@/components/ui/searchable-select";
+import { MultiSelectInput } from "@/components/ui/multi-select";
+
+const AVAILABLE_MENUS = dcMenus.map(m => ({
+  id: m.id,
+  label: m.title
+}));
 
 export default function ManajemenUser() {
   const [users, setUsers] = useState<any[]>([]);
@@ -55,7 +34,6 @@ export default function ManajemenUser() {
   const [openModal, setOpenModal] = useState(false);
   const [formData, setFormData] = useState<any>({});
   const [isEditing, setIsEditing] = useState(false);
-  const [menuDropdownOpen, setMenuDropdownOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Feedback state
@@ -144,6 +122,13 @@ export default function ManajemenUser() {
     (u.role?.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const toTitleCase = (str: string) => {
+    return str.replace(
+      /\w\S*/g,
+      (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
+    );
+  };
+
   const handleCabangChange = (val: string) => {
     let coverage = val;
     if (CABANG_GRUP[val]) {
@@ -152,49 +137,10 @@ export default function ManajemenUser() {
     setFormData({ ...formData, cabang: val, coverage_cabang: coverage });
   };
 
-  const handleCoverageToggle = (child: string) => {
-    let current = formData.coverage_cabang ? formData.coverage_cabang.split(",").map((s:string) => s.trim()) : [];
-    
-    let affectedBranches = [child];
-    if (formData.cabang === "HEAD OFFICE" && CABANG_GRUP[child]) {
-      affectedBranches = CABANG_GRUP[child];
-    }
-
-    const isChecked = current.includes(child);
-
-    if (isChecked) {
-      current = current.filter((c:string) => !affectedBranches.includes(c));
-    } else {
-      current = [...new Set([...current, ...affectedBranches])];
-    }
-    
-    setFormData({ ...formData, coverage_cabang: current.join(", ") });
-  };
-
   const handleRoleChange = (val: string) => {
     let akses = formData.akses_menu;
     if (val === "DC ADMIN") akses = "all";
     setFormData({ ...formData, role: val, akses_menu: akses });
-  };
-
-  const handleMenuToggle = (menuId: string) => {
-    if (formData.role === "DC ADMIN") return;
-    
-    let current = formData.akses_menu === "all" 
-      ? AVAILABLE_MENUS.map(m => m.id)
-      : (formData.akses_menu ? formData.akses_menu.split(",").map((s:string) => s.trim()).filter(Boolean) : []);
-    
-    if (current.includes(menuId)) {
-      current = current.filter((m: string) => m !== menuId);
-    } else {
-      current.push(menuId);
-    }
-
-    if (current.length === AVAILABLE_MENUS.length) {
-      setFormData({ ...formData, akses_menu: "all" });
-    } else {
-      setFormData({ ...formData, akses_menu: current.join(", ") });
-    }
   };
 
   return (
@@ -267,9 +213,13 @@ export default function ManajemenUser() {
                         {u.akses_menu === "all" ? (
                           <span className="px-2 py-1 bg-green-50 text-green-700 rounded text-[10px] font-bold uppercase tracking-wider">Akses Penuh</span>
                         ) : u.akses_menu ? (
-                          u.akses_menu.split(',').map((m: string) => (
-                            <span key={m} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-[10px] font-bold uppercase tracking-wider">{m.trim()}</span>
-                          ))
+                          u.akses_menu.split(',').map((m: string) => {
+                            const found = AVAILABLE_MENUS.find(x => x.id === m.trim());
+                            const label = found ? found.label : m.trim();
+                            return (
+                              <span key={m} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-[10px] font-bold uppercase tracking-wider">{label}</span>
+                            );
+                          })
                         ) : (
                           <span className="text-gray-400 text-xs italic">Tidak ada akses</span>
                         )}
@@ -294,180 +244,125 @@ export default function ManajemenUser() {
       </div>
 
       <Dialog open={openModal} onOpenChange={setOpenModal}>
-        <DialogContent className="max-w-md w-full p-6 bg-white rounded-[24px] border border-[#EAEAEA] shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-          <div className="mb-6 shrink-0">
-            <h3 className="text-xl font-extrabold text-gray-900">{isEditing ? "Edit User" : "Tambah User Baru"}</h3>
-            <p className="text-[13px] text-gray-500 font-medium mt-1">Kelola data informasi akun dan hak akses menu.</p>
+        <DialogContent className="max-w-3xl w-full p-8 bg-white rounded-[24px] border border-[#EAEAEA] shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="mb-8 shrink-0">
+            <h3 className="text-2xl font-extrabold text-gray-900">{isEditing ? "Edit User" : "Tambah User Baru"}</h3>
+            <p className="text-[13px] text-gray-500 font-medium mt-1">Kelola data informasi akun, wilayah cabang, dan hak akses menu.</p>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">Nama Lengkap</label>
-              <Input 
-                value={formData.nama || ""} 
-                onChange={e => setFormData({...formData, nama: e.target.value})} 
-                placeholder="e.g. Budi Santoso"
-                className="h-11 bg-gray-50 rounded-xl"
-              />
-            </div>
-            
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">Email Akun</label>
-              <Input 
-                value={formData.email || ""} 
-                onChange={e => setFormData({...formData, email: e.target.value})} 
-                type="email"
-                placeholder="e.g. budi.santoso@alfamart.com"
-                className="h-11 bg-gray-50 rounded-xl"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* KOLOM KIRI: Data Profil */}
+            <div className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">Nama Lengkap</label>
+                <Input 
+                  value={formData.nama || ""} 
+                  onChange={e => setFormData({...formData, nama: toTitleCase(e.target.value)})} 
+                  placeholder="e.g. Budi Santoso"
+                  className="h-11 bg-gray-50 rounded-xl"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">Email Akun</label>
+                <Input 
+                  value={formData.email || ""} 
+                  onChange={e => setFormData({...formData, email: e.target.value})} 
+                  type="email"
+                  placeholder="e.g. budi.santoso@alfamart.com"
+                  className="h-11 bg-gray-50 rounded-xl"
+                />
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">Induk Cabang</label>
-                <select 
+                <SearchableSelectInput 
                   value={formData.cabang || ""} 
-                  onChange={e => handleCabangChange(e.target.value)} 
-                  className="h-11 w-full bg-gray-50 border-gray-200 rounded-xl px-3 text-sm focus:ring-[#E65F2B] outline-none"
-                >
-                  <option value="" disabled>-- Pilih Cabang --</option>
-                  {ALL_INDUK_CABANG.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                  onChange={val => handleCabangChange(val)} 
+                  options={ALL_INDUK_CABANG.map(c => ({ value: c, label: c }))}
+                  placeholder="Pilih Induk Cabang..."
+                />
               </div>
+
               <div className="space-y-1.5">
-                <label className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">Role</label>
-                <select 
+                <label className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">Role (Jabatan)</label>
+                <SearchableSelectInput 
                   value={formData.role || ""} 
-                  onChange={e => handleRoleChange(e.target.value)} 
-                  className="h-11 w-full bg-gray-50 border-gray-200 rounded-xl px-3 text-sm focus:ring-[#E65F2B] outline-none"
-                >
-                  <option value="" disabled>-- Pilih Jabatan --</option>
-                  {ROLES.map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
+                  onChange={val => handleRoleChange(val)} 
+                  options={ROLES.map(r => ({ value: r, label: r }))}
+                  placeholder="Pilih Role..."
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">Nama PT</label>
+                <Input 
+                  value={formData.nama_pt || ""} 
+                  onChange={e => setFormData({...formData, nama_pt: toTitleCase(e.target.value)})} 
+                  placeholder="e.g. PT SUMBER ALFARIA TRIJAYA TBK"
+                  className="h-11 bg-gray-50 rounded-xl"
+                />
               </div>
             </div>
 
-            {formData.cabang === "HEAD OFFICE" ? (
-              <div className="space-y-2 bg-gray-50 p-3 rounded-xl border border-gray-100 max-h-[300px] flex flex-col">
-                <div className="flex items-center justify-between">
-                  <label className="text-[12px] font-bold text-[#E65F2B] uppercase tracking-wider">Coverage Cabang (Nasional)</label>
-                  <button 
-                    onClick={() => {
-                      const currentLength = formData.coverage_cabang ? formData.coverage_cabang.split(",").length : 0;
-                      if (currentLength >= ALL_BRANCHES.length) {
-                        setFormData({ ...formData, coverage_cabang: "" });
-                      } else {
-                        setFormData({ ...formData, coverage_cabang: ALL_BRANCHES.join(", ") });
+            {/* KOLOM KANAN: Hak Akses & Cakupan */}
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[12px] font-bold text-[#E65F2B] uppercase tracking-wider flex items-center gap-2">
+                  <Key className="w-4 h-4" /> Hak Akses Menu
+                </label>
+                <div className="bg-[#E65F2B]/5 p-4 rounded-xl border border-[#E65F2B]/20">
+                  <p className="text-[11px] text-gray-600 font-medium mb-3">Tentukan menu apa saja yang bisa diakses oleh user ini.</p>
+                  
+                  {formData.role === "DC ADMIN" ? (
+                    <div className="h-11 bg-green-50 text-green-700 flex items-center px-4 rounded-xl font-bold text-sm border border-green-200">
+                      <Shield className="w-4 h-4 mr-2" /> Akses Penuh (Semua Menu)
+                    </div>
+                  ) : (
+                    <MultiSelectInput
+                      value={formData.akses_menu === "all" ? AVAILABLE_MENUS.map(m => m.id) : (formData.akses_menu ? formData.akses_menu.split(",").map((s:string) => s.trim()).filter(Boolean) : [])}
+                      onChange={(vals) => {
+                        if (vals.length === AVAILABLE_MENUS.length) {
+                          setFormData({ ...formData, akses_menu: "all" });
+                        } else {
+                          setFormData({ ...formData, akses_menu: vals.join(", ") });
+                        }
+                      }}
+                      options={AVAILABLE_MENUS.map(m => ({ value: m.id, label: m.label }))}
+                      placeholder="Pilih menu..."
+                    />
+                  )}
+                </div>
+              </div>
+
+              {formData.cabang && (
+                <div className="space-y-2">
+                  <label className="text-[12px] font-bold text-[#E65F2B] uppercase tracking-wider flex items-center gap-2">
+                    <MapPin className="w-4 h-4" /> Coverage Cabang
+                  </label>
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <p className="text-[11px] text-gray-600 font-medium mb-3">
+                      {formData.cabang === "HEAD OFFICE" ? "Pilih cabang mana saja yang bisa diakses (Nasional):" : `Pilih area cakupan untuk ${formData.cabang}:`}
+                    </p>
+                    <MultiSelectInput
+                      value={formData.coverage_cabang ? formData.coverage_cabang.split(",").map((s:string) => s.trim()).filter(Boolean) : []}
+                      onChange={(vals) => {
+                        setFormData({ ...formData, coverage_cabang: vals.join(", ") });
+                      }}
+                      options={
+                        formData.cabang === "HEAD OFFICE" 
+                          ? ALL_BRANCHES.map(b => ({ value: b, label: b }))
+                          : (CABANG_GRUP[formData.cabang] || [formData.cabang]).map((b: string) => ({ value: b, label: b }))
                       }
-                    }}
-                    className="text-[10px] font-bold text-[#E65F2B] bg-[#E65F2B]/10 px-2 py-1 rounded hover:bg-[#E65F2B]/20 transition-colors"
-                  >
-                    Pilih / Hapus Semua
-                  </button>
-                </div>
-                <p className="text-[11px] text-gray-500 font-medium">Pilih area cakupan (Pusat / Nasional):</p>
-                <div className="flex flex-wrap gap-2 mt-2 overflow-y-auto custom-scrollbar flex-1 pb-2">
-                  {ALL_INDUK_CABANG.map(child => {
-                    const isChecked = (formData.coverage_cabang || "").includes(child);
-                    return (
-                      <label key={child} className="flex items-center gap-2 cursor-pointer bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:border-[#E65F2B] transition-colors">
-                        <input 
-                          type="checkbox" 
-                          checked={isChecked}
-                          onChange={() => handleCoverageToggle(child)}
-                          className="rounded text-[#E65F2B] focus:ring-[#E65F2B]"
-                        />
-                        <span className="text-[12px] font-bold text-gray-700">{child}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : formData.cabang && CABANG_GRUP[formData.cabang] ? (
-              <div className="space-y-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                <label className="text-[12px] font-bold text-[#E65F2B] uppercase tracking-wider">Coverage Cabang (Grup)</label>
-                <p className="text-[11px] text-gray-500 font-medium">Pilih area cakupan untuk pengguna ini:</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {CABANG_GRUP[formData.cabang].map(child => {
-                    const isChecked = (formData.coverage_cabang || "").includes(child);
-                    return (
-                      <label key={child} className="flex items-center gap-2 cursor-pointer bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:border-[#E65F2B] transition-colors">
-                        <input 
-                          type="checkbox" 
-                          checked={isChecked}
-                          onChange={() => handleCoverageToggle(child)}
-                          className="rounded text-[#E65F2B] focus:ring-[#E65F2B]"
-                        />
-                        <span className="text-[12px] font-bold text-gray-700">{child}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">Nama PT</label>
-              <Input 
-                value={formData.nama_pt || ""} 
-                onChange={e => setFormData({...formData, nama_pt: e.target.value})} 
-                placeholder="e.g. PT SUMBER ALFARIA TRIJAYA TBK"
-                className="h-11 bg-gray-50 rounded-xl"
-              />
-            </div>
-
-            <div className="space-y-1.5 relative">
-              <label className="text-[12px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                <Key className="w-4 h-4" /> Hak Akses Menu
-              </label>
-              
-              <div 
-                onClick={() => {
-                  if (formData.role !== "DC ADMIN") setMenuDropdownOpen(!menuDropdownOpen)
-                }}
-                className={`h-11 bg-gray-50 rounded-xl px-3 flex items-center justify-between border ${formData.role === "DC ADMIN" ? "opacity-50 cursor-not-allowed border-transparent" : "cursor-pointer border-gray-200 hover:border-[#E65F2B] transition-colors"}`}
-              >
-                <span className="text-sm text-gray-700 font-medium line-clamp-1">
-                  {formData.akses_menu === "all" ? "Akses Penuh (Semua Menu)" : (formData.akses_menu || "Pilih menu...")}
-                </span>
-                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${menuDropdownOpen ? "rotate-180" : ""}`} />
-              </div>
-
-              {menuDropdownOpen && formData.role !== "DC ADMIN" && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 shadow-2xl rounded-xl z-50 p-2 overflow-hidden flex flex-col gap-1">
-                  <div className="flex items-center justify-between px-2 pb-2 mb-1 border-b border-gray-100">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pilih Akses Menu</span>
-                    <button 
-                      onClick={() => setFormData({ ...formData, akses_menu: formData.akses_menu === "all" ? "" : "all" })}
-                      className="text-[10px] font-bold text-[#E65F2B] bg-[#E65F2B]/10 hover:bg-[#E65F2B]/20 px-2 py-1 rounded transition-colors"
-                    >
-                      {formData.akses_menu === "all" ? "Hapus Semua" : "Pilih Semua"}
-                    </button>
+                      placeholder="Pilih coverage cabang..."
+                    />
                   </div>
-                  {AVAILABLE_MENUS.map(menu => {
-                    const isChecked = formData.akses_menu === "all" || (formData.akses_menu || "").includes(menu.id);
-                    return (
-                      <label key={menu.id} className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                        <input 
-                          type="checkbox" 
-                          checked={isChecked}
-                          onChange={() => handleMenuToggle(menu.id)}
-                          className="rounded text-[#E65F2B] focus:ring-[#E65F2B] w-4 h-4"
-                        />
-                        <span className="text-[13px] font-bold text-gray-700">{menu.label}</span>
-                      </label>
-                    );
-                  })}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="flex gap-3 justify-end mt-8 shrink-0">
+          <div className="flex gap-3 justify-end mt-10 shrink-0 pt-6 border-t border-gray-100">
             <Button variant="outline" onClick={() => setOpenModal(false)} className="h-11 rounded-xl px-5 font-bold">Batal</Button>
             <Button onClick={handleSave} disabled={saving} className="h-11 rounded-xl px-6 font-bold bg-[#111111] hover:bg-[#333333] text-white">
               {saving ? "Menyimpan..." : "Simpan Data"}

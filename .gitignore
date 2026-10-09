@@ -43,3 +43,7 @@ next-env.d.ts
 # credentials
 token.json
 token_doc.json
+
+.agents
+.claude
+skills-lock.json

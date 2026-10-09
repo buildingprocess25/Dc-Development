@@ -146,6 +146,7 @@ export default function ProfileDcPage() {
             loading={loading}
             error={error}
             profiles={filteredProfiles}
+            allProfiles={profiles}
             onView={(p) => setSelectedViewProfile(p)}
             onEdit={(p) => setSelectedEditProfile(p)}
           />

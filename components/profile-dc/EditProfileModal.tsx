@@ -99,24 +99,31 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
     }
   };
 
-  const renderInput = (label: string, field: string, type: "text" | "number" | "date" = "text") => (
-    <div className="space-y-1.5 mb-4">
+  const renderInput = (label: string, field: string, type: "text" | "number" | "date" = "text", suffix?: string) => (
+    <div className="space-y-1.5 mb-4 w-full">
       <label className="text-[12px] font-bold text-[#878787] uppercase tracking-wider">{label}</label>
-      <Input 
-        type={type}
-        value={
-          type === 'date' 
-            ? parseDateForInput(formData[field]) 
-            : formData[field] === null || formData[field] === undefined ? "" : formData[field]
-        }
-        onChange={e => {
-          if (type === 'date') handleDateChange(field, e.target.value);
-          else if (type === 'number') handleNumberChange(field, e.target.value);
-          else handleChange(field, e.target.value);
-        }}
-        onWheel={type === 'number' ? disableScroll : undefined}
-        className="bg-[#F9F9F9] border-[#EAEAEA] hover:border-[#D0D0D0] focus-visible:ring-[#111111] rounded-xl h-11 text-[14px] font-medium text-[#111111] shadow-none transition-colors"
-      />
+      <div className="relative w-full">
+        <Input 
+          type={type}
+          value={
+            type === 'date' 
+              ? parseDateForInput(formData[field]) 
+              : formData[field] === null || formData[field] === undefined ? "" : formData[field]
+          }
+          onChange={e => {
+            if (type === 'date') handleDateChange(field, e.target.value);
+            else if (type === 'number') handleNumberChange(field, e.target.value);
+            else handleChange(field, e.target.value);
+          }}
+          onWheel={type === 'number' ? disableScroll : undefined}
+          className={`bg-[#F9F9F9] border-[#EAEAEA] hover:border-[#D0D0D0] focus-visible:ring-[#111111] rounded-xl h-11 text-[14px] font-medium text-[#111111] shadow-none transition-colors w-full ${suffix ? "pr-12" : ""}`}
+        />
+        {suffix && (
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-bold text-[#878787] pointer-events-none">
+            {suffix}
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -197,53 +204,60 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
 
           <div className="w-full h-px bg-[#EAEAEA] mb-10"></div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-12">
+          <div className="flex flex-col gap-10">
             
             {/* IDENTITAS */}
-            <div>
+            <div className="w-full">
               <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6">Identitas & Ops</h3>
-              {renderInput("Kode Proyek", "kode")}
-              {renderInput("Nama Proyek", "nama_proyek")}
-              {renderInput("Inisial", "inisial")}
-              {renderInput("Cabang", "cabang")}
-              
-              <div className="mt-8 mb-6 h-px w-full bg-[#F0F0F0]"></div>
-              
-              {renderInput("Tanggal GO", "tanggal_go", "date")}
-              {renderInput("Masa Sewa Start", "masa_sewa_start", "date")}
-              {renderInput("Masa Sewa Finish", "masa_sewa_finish", "date")}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
+                {renderInput("Kode Proyek", "kode")}
+                {renderInput("Nama Proyek", "nama_proyek")}
+                {renderInput("Inisial", "inisial")}
+                {renderInput("Cabang", "cabang")}
+                {renderInput("Tanggal GO", "tanggal_go", "date")}
+                {renderInput("Masa Sewa Start", "masa_sewa_start", "date")}
+                {renderInput("Masa Sewa Finish", "masa_sewa_finish", "date")}
+              </div>
             </div>
+
+            <div className="w-full h-px bg-[#F0F0F0]"></div>
 
             {/* LUASAN */}
-            <div>
-              <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6">Metrik Luasan (m²)</h3>
-              {renderInput("Luas Lahan", "luas_lahan", "number")}
-              {renderInput("Total Luas Bangunan", "total_luas_bangunan", "number")}
-              {renderInput("Luas Warehouse", "luas_warehouse", "number")}
-              {renderInput("Luas Mezanine", "luas_mezanine", "number")}
-              {renderInput("Luas Office Lt 1", "luas_office_lt1", "number")}
-              {renderInput("Luas Office Lt 2", "luas_office_lt2", "number")}
-              {renderInput("KDB (%)", "kdb_persen", "number")}
-              {renderInput("Sisa Lahan", "sisa_lahan", "number")}
+            <div className="w-full">
+              <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6">Metrik Luasan & Fasilitas</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
+                {renderInput("Luas Lahan", "luas_lahan", "number", "m²")}
+                {renderInput("Total Luas Bangunan", "total_luas_bangunan", "number", "m²")}
+                {renderInput("Luas Warehouse", "luas_warehouse", "number", "m²")}
+                {renderInput("Luas Mezanine", "luas_mezanine", "number", "m²")}
+                {renderInput("Luas Office Lt 1", "luas_office_lt1", "number", "m²")}
+                {renderInput("Luas Office Lt 2", "luas_office_lt2", "number", "m²")}
+                {renderInput("KDB (%)", "kdb_persen", "number", "%")}
+                {renderInput("Sisa Lahan", "sisa_lahan", "number", "m²")}
+              </div>
             </div>
 
+            <div className="w-full h-px bg-[#F0F0F0]"></div>
+
             {/* INFRA & SPEK */}
-            <div>
+            <div className="w-full">
               <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6">Infrastruktur & Lainnya</h3>
-              {renderInput("Kapasitas Toko", "kapasitas_toko", "number")}
-              {renderInput("Main Kontraktor", "main_kontraktor")}
-              {renderInput("Daya Listrik", "daya_listrik")}
-              {renderInput("Genset", "genset")}
-              {renderInput("Sumber Air", "sumber_air")}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
+                {renderInput("Kapasitas Toko", "kapasitas_toko", "number")}
+                {renderInput("Main Kontraktor", "main_kontraktor")}
+                {renderInput("Daya Listrik", "daya_listrik")}
+                {renderInput("Genset", "genset")}
+                {renderInput("Sumber Air", "sumber_air")}
+              </div>
               
-              <div className="mt-8 mb-6 h-px w-full bg-[#F0F0F0]"></div>
+              <div className="mt-6 mb-6 h-px w-full bg-[#F0F0F0]"></div>
               
               <h3 className="text-[11px] font-bold tracking-widest text-[#878787] uppercase mb-4">Spesifikasi Lantai</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
                 {renderInput("Tonase", "spek_lantai_tonase", "number")}
                 {renderInput("Tebal (cm)", "spek_lantai_tebal", "number")}
+                {renderInput("Mutu Beton", "spek_lantai_mutu_beton")}
               </div>
-              {renderInput("Mutu Beton", "spek_lantai_mutu_beton")}
             </div>
 
           </div>

@@ -11,23 +11,26 @@ import {
   FolderArchive,
   LogOut,
   Users,
+  Calculator,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/context/SessionContext";
 
-type DcMenuId = "dc-profile" | "dc-documents" | "manajemen-user";
+export type DcMenuId = "dc-profile" | "dc-documents" | "manajemen-user" | "master-harga" | "katalog-harga";
 
-type DcMenuItem = {
+export type DcMenuItem = {
   id: DcMenuId;
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  group: "Master Data" | "Administrator";
+  group: "Master Data" | "Administrator" | "Laporan & Katalog";
 };
 
-const dcMenus: DcMenuItem[] = [
+export const dcMenus: DcMenuItem[] = [
   { id: "dc-profile", title: "Profile DC", href: "/dc-development/profile", icon: Database, group: "Master Data" },
   { id: "dc-documents", title: "Dokumen DC", href: "/dc-development/dokumen-dc", icon: FolderArchive, group: "Master Data" },
+  { id: "master-harga", title: "Master Harga", href: "/dc-development/master-harga", icon: Calculator, group: "Master Data" },
+  { id: "katalog-harga", title: "Katalog Harga", href: "/dc-development/master-harga/katalog", icon: BadgeCheck, group: "Laporan & Katalog" },
   { id: "manajemen-user", title: "Manajemen User", href: "/dc-development/manajemen-user", icon: Users, group: "Administrator" },
 ];
 
@@ -37,6 +40,7 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
   
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ 
     "Master Data": true, 
+    "Laporan & Katalog": true,
     "Administrator": true 
   });
   const [isClient, setIsClient] = useState(false);
@@ -52,6 +56,7 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
       const activeGroup = dcMenus.find(m => pathname.includes(m.href))?.group;
       const initial = { 
         "Master Data": true,
+        "Laporan & Katalog": true,
         ...(activeGroup ? { [activeGroup]: true } : {})
       };
       setOpenGroups(initial);

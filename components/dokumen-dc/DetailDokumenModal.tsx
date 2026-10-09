@@ -12,6 +12,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AlertModal, AlertType } from "@/components/ui/alert-modal";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+import { useSession } from "@/context/SessionContext";
+import { hasPermission } from "@/lib/permissions";
 
 type DokumenDB = {
   id: number;
@@ -67,6 +69,7 @@ const getAcceptTypes = (jenis: string) => {
 };
 
 export default function DetailDokumenModal({ isOpen, onClose, project, fase }: DetailDokumenModalProps) {
+  const { user } = useSession();
   const [loading, setLoading] = useState(true);
   const [dbDokumen, setDbDokumen] = useState<DokumenDB[]>([]);
   const [riwayatData, setRiwayatData] = useState<any[]>([]);
@@ -447,7 +450,7 @@ export default function DetailDokumenModal({ isOpen, onClose, project, fase }: D
                             <button onClick={() => openHistory(cat.kategori)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 rounded-full transition-colors border border-slate-200">
                               <History className="w-3.5 h-3.5" /> Riwayat Edit
                             </button>
-                            {cat.kategori === "DATA PENTING LAINNYA" && (
+                            {cat.kategori === "DATA PENTING LAINNYA" && hasPermission(user?.role, 'CAN_ADD_CUSTOM_ITEM') && (
                               <button 
                                 onClick={() => { 
                                   setCustomFormKategori(cat.kategori); 

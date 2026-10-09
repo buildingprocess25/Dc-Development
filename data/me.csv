@@ -1,0 +1,76 @@
+,,,,,,,,
+,PT.SUMBER ALFARIA TRIJAYA Tbk,,,,,,,
+,BUILDING DEVELOPMENT DEPARTMENT,,,,,,,
+,CABANG :  CIKOKOL,,,,,,,
+,,,,,,,,
+,RAB ME,,,,,,,
+,,,,,,,,
+,LOKASI ,,,: ,,,,
+,PROYEK,,,": PT. SUMBER ALFARIA TRIJAYA,Tbk",,,,
+,LINGKUP PEKERJAAN,,,: MECHANICAL & ELECTRICAL,,,,
+,WAKTU PELAKSANAAN,,,: ,,,,
+,,,,,,,,
+,NO.,KODE,Jenis Pekerjaan,Sat,Vol,Penetapan Harga ME 2026,,Total
+,,,,,,Material,Upah,
+,I,,INSTALASI,,,,,
+,1   ,ME-001,"Instalasi induk lampu ( kabel NYM merk Eterna 2 x 1,5 mm2 )**include pipa condoit warna putih",ttk,1.00 ,"230,000","42,000","272,000"
+,2   ,ME-002,"Instalasi paralel lampu ( kabel merk Eterna NYM 2 x 1,5 mm2 )**include pipa condoit warna putih",ttk,1.00 ,"130,000","31,500","161,500"
+,3   ,ME-003,"Instalasi stop kontak khusus AC ( kabel NYM merk Eterna 3 x 2,5 mm2 )**include pipa condoit warna putih",ttk,1.00 ,"360,000","42,000","402,000"
+,4   ,ME-004,"Instalasi induk stop kontak biasa ( kabel NYM merk Eterna 3 x 2,5 mm2 )**include pipa condoit warna putih",ttk,1.00 ,"345,500","42,000","387,500"
+,5   ,ME-005,"Instalasi paralel stop kontak biasa ( kabel NYM merk Eterna 3 x 2,5 mm2 )**include pipa condoit warna putih",ttk,1.00 ,"180,000","27,500","207,500"
+,6   ,ME-006,"Instalasi lampu  single pole ( kabel NYM merk Eterna 2 x 2,5 mm2 + Duradus IP 66 )**include pipa condoit warna putih",ttk,1.00 ,"300,000","35,000","335,000"
+,7   ,ME-007,"Instalasi sound system kabel merk Eterna NYMHY 2 x 0,75 mm2 include conduit**include pipa condoit warna putih",ttk,1.00 ,"212,000","27,500","239,500"
+,8   ,ME-008,"Instalasi Bell ( Saklar + bell 220 VAC )+ Kabel NYMHY 2x0,75mm merk Eterna**include pipa condoit warna putih         ",ttk,1.00 ,"310,000","42,000","352,000"
+,10   ,ME-010,Instalasi kabel genset kabel NYY 3x4 mm merk Eterna (Genset) + spare keluar 2 m dari dinding,m,1.00 ,"52,000","19,000","71,000"
+,11   ,ME-011,Instalasi kabel genset kabel NYY 3x6 mm merk Eterna (Genset) + spare keluar 2 m dari dinding,m,1.00 ,"80,000","19,000","99,000"
+,12   ,ME-012,"Instalasi radar torn untuk otomatis pompa (kabel NYMHY merk Eterna 2x0,75 mm²)",ttk,1.00 ,"240,000","33,500","273,500"
+,13   ,ME-013,Kabel Power / Toefoer merk Eterna NYY 4 x 10 mm2,m,1.00 ,"160,000","22,000","182,000"
+,14   ,ME-014,Kabel Power / Toefoer merk Eterna NYY 4 x 16 mm2,m,1.00 ,"212,500","22,000","234,500"
+,16   ,ME-016,Instalasi mesin kopi Faema merk Eterna kabel NYM 3 x 4 mm2** Kondisional untuk toko Advance,m,1.00 ,"41,000","10,500","51,500"
+,17   ,ME-017,Grounding panel Tembaga 12 mm + kabel BC 6 mm + kabel scoen + cincin grounding**(All Grounding 1 titik terpusat di panel),Ls,1.00 ,"415,000","140,000","555,000"
+,18   ,ME-061,"Instalasi paralel lampu shop sign/Listplank ( kabel NYM merk Eterna 2 x 2,5 mm2 + Duradus IP 66)* masing - masing memakai Duradus
+",ttk,1.00 ,"140,000","30,000","170,000"
+,,,Sub total,,,,,
+,II,,FIXTURE,,,,,
+,1   ,ME-018,Panel  WALL MOUTING TYPE MODULE/ PLAT dilengkapi lampu indikator + fuse MCB merk HAGGER / LEGRAND (hanya ongkos pasang + mobilisasi) SBO,unit,1.00 ,0,"550,000","550,000"
+,2   ,ME-019,Lampu LED 18 W (ongkos pasang + mobilisasi) SBO,bh,1.00 ,0,"21,500","21,500"
+,5   ,ME-022,Pasang fitting merk Broco untuk bohlam 9 W merk Hannochs sensor gerak (Lampu sensor merk hannochs SBO) ,bh,1.00 ,"12,500","18,000","30,500"
+,8   ,ME-025,"Lampu sorot 50 w merk Inlite min IP 65 area belakang, samping bangunan dan area parkir**kondisional",bh,1.00 ,"315,000","38,500","353,500"
+,9   ,ME-026,Exhause fan 10 inch merk Panasonic untuk plafon area gudang dan rumah chiller,bh,1.00 ,"443,000","38,500","481,500"
+,11   ,ME-028,Stop kontak biasa ( merk Broco Gracio ) Outbow,bh,1.00 ,"35,000","18,000","53,000"
+,13   ,ME-030,Stop kontak GB 6 lubang merk Uticon,bh,1.00 ,"40,000","15,000","55,000"
+,14   ,ME-031,Stop kontak Waterproof merk Broco Atlantic 1 lubang,bh,1.00 ,"55,000","15,000","70,000"
+,16   ,ME-033,Saklar tunggal merk Broco Gracio Outbow,bh,1.00 ,"28,500","12,000","40,500"
+,17   ,ME-034,Saklar Serie merk Broco Gracio Outbow,bh,1.00 ,"35,000","12,200","47,200"
+,18   ,ME-035,Bel merk Panasonic EGB 888 + saklar bel merk Panasonic E66331,bh,1.00 ,"190,000","30,000","220,000"
+,19   ,ME-037,Openback Alumunium 3 inchi + tutup coating putih,m,1.00 ,"81,000","11,000","92,000"
+,25   ,ME-046,"Stop kontak 4 lubang + steker merk Broco + kabel NYM 3x2,5 mm2 untuk kasir",Unit,1.00 ,"80,000","15,000","95,000"
+,31   ,ME-059,Steker merk Broco**untuk keluaran dari lampu emergency (kerangkeng + dudukan UPS masuk pekerjaan sipil),set,1.00 ,"14,000","5,000","19,000"
+,,,Sub total,,,,,
+,III,III,PEKERJAAN TAMBAHAN,,,,,
+,1   ,ME-047,Pasang Led Strip warm white merk lokal IP 65 + Kap hosuing LED Strip**include adaptor,M1,1.00 ,"36,000","24,000","60,000"
+,2   ,ME-048,Pasang LED strip  warm white merk lokal IP 65 untuk Bulkhead**include adaptor,M1,1.00 ,"26,000","18,000","44,000"
+,3   ,ME-049,Pasang MCB 4 A Schneider Domae + box MCB merk lokal**untuk MCB di ruang DVR,Unit,1.00 ,"148,100","23,400","171,500"
+,4   ,ME-050,Pasang MCB 3 phase 50 A merk Schneider Domae**case toko spesifik,Bh,1.00 ,"997,000","28,000","1,025,000"
+,5   ,ME-051,Pasang MCB 1 phase 25 A merk Schneider Domae**case toko spesifik,Bh,1.00 ,"141,000","28,000","169,000"
+,6   ,ME-052,Pasang MCB 1 phase 20 A merk Schneider Domae**case toko spesifik,Bh,1.00 ,"123,000","28,000","151,000"
+,7   ,ME-053,Pasang stop kontak lantai merk Broco D25400 + Duradus 10 x 10 cm warna putih untuk connect instalasi ke stop kontak lantai,Bh,1.00 ,"550,000","69,200","619,200"
+,8   ,ME-054,Pasang rel Track Lamp warna putih,M1,1.00 ,"48,000","17,000","65,000"
+,9   ,ME-055,"Pasang Spotlight track, fitting e27 warm white Body Putih doff 12 watt",Bh,1.00 ,"168,000","21,300","189,300"
+,10   ,ME-056,Lampu LED merk Philips 12 W Bohlam + Cup 4 inchi merk lokal,Bh,1.00 ,"132,000","31,000","163,000"
+,11   ,ME-060,Limit Switch Omron WLCA12-2N,Bh,1.00 ,"190,000","38,000","228,000"
+,12   ,ME-078,Box panel 20x30 ex. Lokal + Kontaktor DIN ICT 1P 16A,Unit,1.00 ,"390,000","80,000","470,000"
+,13   ,ME-066,Perapihan instalasi + pemasangan stop kontak 4 lubang di meja kasir,Ls,1.00 ,0,"100,000","100,000"
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,Sub total pek ME & AC,:,,,,
+,,,Pembulatan        ( RP ),:,,,,
+,,,Ppn     11%         ( RP ),:,,,,
+,,,Gran Total          ( RP ),:,,,,

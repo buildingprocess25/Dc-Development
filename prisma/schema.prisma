@@ -88,3 +88,133 @@ model dc_dokumen_riwayat {
   
   dokumen         dc_dokumen @relation(fields: [dokumen_id], references: [id], onDelete: Cascade)
 }
+
+// --- MASTER HARGA MODULE ---
+
+model mh_master_item {
+  id                   Int       @id @default(autoincrement())
+  kode                 String?
+  kode_anak            String    @unique
+  abjad_lokasi         String?
+  lingkup              String    @default("SIPIL") // "SIPIL" or "ME"
+  kategori_pekerjaan   String
+  item_material        String
+  ukuran_dimensi       String?
+  merk_brand           String?
+  warna_corak          String?
+  tipe_produk          String?
+  ketebalan            String?
+  finishing_permukaan  String?
+  toleransi            String?
+  implementasi         String?
+  lokasi_penerapan     String?
+  informasi_tambahan   String?
+  deskripsi_otomatis   String    @db.Text
+  email_pembuat        String?
+  
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+
+  koefisien            mh_analisa_koefisien[]
+  item_cabang          mh_item_cabang[]
+  harga_upah_cabang    mh_harga_upah_item_cabang[]
+}
+
+model mh_komponen_dasar {
+  id              Int       @id @default(autoincrement())
+  kategori        String    // "UPAH" | "MATERIAL"
+  nama_komponen   String
+  satuan          String
+  email           String?
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  harga_cabang    mh_harga_material_item_cabang[]
+  koefisien_item  mh_analisa_koefisien[]
+  harga_upah_cabang mh_harga_upah_item_cabang[]
+}
+
+model mh_harga_material_item_cabang {
+  id              Int       @id @default(autoincrement())
+  komponen_id     Int
+  cabang          String
+  coverage_cabang String    @default("")
+  harga_satuan    Float
+  
+  updated_at      DateTime  @updatedAt
+
+  komponen        mh_komponen_dasar @relation(fields: [komponen_id], references: [id], onDelete: Cascade)
+
+  @@unique([komponen_id, cabang, coverage_cabang])
+}
+
+model mh_analisa_koefisien {
+  id               Int       @id @default(autoincrement())
+  master_item_id   Int
+  komponen_id      Int
+  tipe             String    // "UPAH" | "MATERIAL"
+  volume_koefisien Float
+  
+  master_item      mh_master_item    @relation(fields: [master_item_id], references: [id], onDelete: Cascade)
+  komponen         mh_komponen_dasar @relation(fields: [komponen_id], references: [id], onDelete: Cascade)
+
+  @@unique([master_item_id, komponen_id])
+}
+
+model mh_item_cabang {
+  id               Int       @id @default(autoincrement())
+  master_item_id   Int
+  cabang           String
+  coverage_cabang  String    @default("")
+  
+  total_upah       Float
+  total_material   Float
+  harga_kalkulasi  Float
+  harga_release    Float
+  status_aktif     Boolean   @default(false)
+  
+  updated_at       DateTime  @updatedAt
+
+  master_item      mh_master_item @relation(fields: [master_item_id], references: [id], onDelete: Cascade)
+
+  @@unique([master_item_id, cabang, coverage_cabang])
+}
+
+model mh_kategori_pekerjaan {
+  id       Int    @id @default(autoincrement())
+  lingkup  String // "SIPIL" or "ME"
+  nama     String
+  
+  @@unique([lingkup, nama])
+}
+
+
+
+model mh_harga_upah_item_cabang {
+  id               Int       @id @default(autoincrement())
+  master_item_id   Int
+  komponen_id      Int
+  cabang           String
+  coverage_cabang  String    @default("")
+  harga_satuan     Float
+
+  master_item      mh_master_item    @relation(fields: [master_item_id], references: [id], onDelete: Cascade)
+  komponen         mh_komponen_dasar @relation(fields: [komponen_id], references: [id], onDelete: Cascade)
+
+  @@unique([master_item_id, komponen_id, cabang, coverage_cabang])
+}
+
+
+model app_audit_log {
+  id           Int       @id @default(autoincrement())
+  user_email   String
+  modul        String
+  entitas      String
+  entitas_id   String
+  aksi         String
+  data_lama    Json?
+  data_baru    Json?
+  created_at   DateTime  @default(now())
+}
+

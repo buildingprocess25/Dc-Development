@@ -81,82 +81,87 @@ export function ViewProfileModal({ open, onOpenChange, profile }: ViewProfileMod
           <div className="w-full h-px bg-[#EAEAEA] mb-12"></div>
 
           {/* CONTENT GRID */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-12">
+          <div className="flex flex-col gap-12">
             
-            {/* COLUMN 1: OPERASIONAL & INFRA */}
-            <div>
-              <div className="mb-10">
-                <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6 flex items-center gap-2">
-                  <CalendarRange className="w-4 h-4 text-[#A1A1A1]" /> Operasional
-                </h3>
+            {/* SECTION 1: IDENTITAS & OPERASIONAL */}
+            <div className="w-full">
+              <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6 flex items-center gap-2">
+                <CalendarRange className="w-4 h-4 text-[#A1A1A1]" /> Operasional
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {renderItem("Kapasitas Toko", formatNumber(profile.kapasitas_toko), "Toko")}
                 {renderItem("Tanggal GO", formatDate(profile.tanggal_go))}
                 {renderItem("Masa Sewa Dimulai", formatDate(profile.masa_sewa_start))}
                 {renderItem("Masa Sewa Berakhir", formatDate(profile.masa_sewa_finish))}
               </div>
+            </div>
 
-              <div>
-                <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6 flex items-center gap-2">
-                  <Settings2 className="w-4 h-4 text-[#A1A1A1]" /> Infrastruktur
+            <div className="w-full h-px bg-[#F5F5F5]"></div>
+
+            {/* SECTION 2: METRIK LUASAN */}
+            <div className="w-full">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase flex items-center gap-2">
+                  <Ruler className="w-4 h-4 text-[#A1A1A1]" /> Metrik Luasan
                 </h3>
+                {profile.kdb_persen && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-[12px] font-semibold text-[#878787] uppercase tracking-wider">KDB</span>
+                    <span className="text-sm font-extrabold text-[#111111]">{formatPercent(profile.kdb_persen)}</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {renderItem("Total Luas Bangunan", formatNumber(profile.total_luas_bangunan), "m²")}
+                {renderItem("Luas Lahan Utama", formatNumber(profile.luas_lahan), "m²")}
+                {renderItem("Tapak Terbangun", formatNumber(profile.luas_tapak_terbangun), "m²")}
+                {renderItem("Sisa Lahan Kosong", formatNumber(profile.sisa_lahan), "m²")}
+              </div>
+            </div>
+
+            <div className="w-full h-px bg-[#F5F5F5]"></div>
+
+            {/* SECTION 3: DETAIL FASILITAS */}
+            <div className="w-full">
+              <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6 flex items-center gap-2">
+                <Layers className="w-4 h-4 text-[#A1A1A1]" /> Detail Fasilitas
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {renderItem("Warehouse Area", formatNumber(profile.luas_warehouse), "m²")}
+                {renderItem("Mezanine", formatNumber(profile.luas_mezanine), "m²")}
+                {renderItem("Office Lantai 1", formatNumber(profile.luas_office_lt1), "m²")}
+                {renderItem("Office Lantai 2", formatNumber(profile.luas_office_lt2), "m²")}
+                {renderItem("Bangunan Penunjang", formatNumber(profile.luas_bangunan_penunjang), "m²")}
+                {renderItem("Area Parkir", formatNumber(profile.luas_area_parkir), "m²")}
+                {renderItem("Cold Storage", formatNumber(profile.luas_cold_storage), "m²")}
+              </div>
+            </div>
+
+            <div className="w-full h-px bg-[#F5F5F5]"></div>
+
+            {/* SECTION 4: INFRASTRUKTUR & SPEK */}
+            <div className="w-full">
+              <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6 flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-[#A1A1A1]" /> Infrastruktur & Lainnya
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {renderItem("Main Kontraktor", profile.main_kontraktor)}
                 {renderItem("Daya Listrik", profile.daya_listrik)}
                 {renderItem("Kapasitas Genset", profile.genset)}
                 {renderItem("Sumber Air", profile.sumber_air)}
               </div>
-            </div>
-
-            {/* COLUMN 2: LUASAN UTAMA */}
-            <div>
-              <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6 flex items-center gap-2">
-                <Ruler className="w-4 h-4 text-[#A1A1A1]" /> Metrik Luasan
-              </h3>
-              
-              {renderItem("Total Luas Bangunan", formatNumber(profile.total_luas_bangunan), "m²")}
-              {renderItem("Luas Lahan Utama", formatNumber(profile.luas_lahan), "m²")}
-              {renderItem("Tapak Terbangun", formatNumber(profile.luas_tapak_terbangun), "m²")}
-              {renderItem("Sisa Lahan Kosong", formatNumber(profile.sisa_lahan), "m²")}
-              
-              {/* KDB Progress Bar Alternative */}
-              {profile.kdb_persen && (
-                <div className="mt-8 bg-[#F9F9F9] rounded-2xl p-5 border border-[#F0F0F0]">
-                  <div className="flex justify-between items-end mb-3">
-                    <span className="text-[12px] font-semibold text-[#878787] uppercase tracking-wider">KDB</span>
-                    <span className="text-xl font-extrabold text-[#111111]">{formatPercent(profile.kdb_persen)}</span>
-                  </div>
-                  <div className="w-full bg-[#EAEAEA] h-2 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-[#111111] h-full rounded-full transition-all duration-1000 ease-out"
-                      style={{ width: `${Math.min(profile.kdb_persen * 100, 100)}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* COLUMN 3: LUASAN DETAIL & SPEK */}
-            <div>
-              <div className="mb-10">
-                <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6">
-                  Detail Fasilitas (m²)
-                </h3>
-                {renderItem("Warehouse Area", formatNumber(profile.luas_warehouse))}
-                {renderItem("Mezanine", formatNumber(profile.luas_mezanine))}
-                {renderItem("Office Lantai 1", formatNumber(profile.luas_office_lt1))}
-                {renderItem("Office Lantai 2", formatNumber(profile.luas_office_lt2))}
-                {renderItem("Bangunan Penunjang", formatNumber(profile.luas_bangunan_penunjang))}
-                {renderItem("Area Parkir", formatNumber(profile.luas_area_parkir))}
-                {renderItem("Cold Storage", formatNumber(profile.luas_cold_storage))}
-              </div>
 
               {(profile.spek_lantai_tonase || profile.spek_lantai_tebal || profile.spek_lantai_mutu_beton) && (
                 <div>
-                  <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6">
+                  <h3 className="text-[11px] font-bold tracking-widest text-[#878787] uppercase mb-4">
                     Spesifikasi Lantai
                   </h3>
-                  {renderItem("Kapasitas Tonase", profile.spek_lantai_tonase, "Ton")}
-                  {renderItem("Tebal Lantai", profile.spek_lantai_tebal, "cm")}
-                  {renderItem("Mutu Beton", profile.spek_lantai_mutu_beton)}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {renderItem("Kapasitas Tonase", profile.spek_lantai_tonase, "Ton")}
+                    {renderItem("Tebal Lantai", profile.spek_lantai_tebal, "cm")}
+                    {renderItem("Mutu Beton", profile.spek_lantai_mutu_beton)}
+                  </div>
                 </div>
               )}
             </div>

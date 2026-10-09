@@ -302,7 +302,7 @@ export default function DokumenDcPage() {
                       <td className="py-4 px-5">
                         {!item.dc_induk || item.dc_induk === "-" ? (
                           <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-600 text-[10px] font-extrabold border border-emerald-100 uppercase tracking-wide">
-                            DC INDUK UTAMA
+                            DC INDUK
                           </span>
                         ) : (
                           <span className="text-sm font-bold text-slate-700">{item.dc_induk}</span>
