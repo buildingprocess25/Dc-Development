@@ -39,3 +39,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ status: 'error', message: error.message }, { status: 500 });
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const data = await request.json();
+    
+    if (!data.id) {
+      return NextResponse.json({ status: 'error', message: 'ID User diperlukan' }, { status: 400 });
+    }
+
+    const user = await prisma.dc_users.update({
+      where: { id: data.id },
+      data: {
+        nama: data.nama,
+        cabang: data.cabang,
+        role: data.role,
+        nama_pt: data.nama_pt || null,
+        akses_menu: data.akses_menu || null,
+        coverage_cabang: data.coverage_cabang || null,
+      }
+    });
+
+    return NextResponse.json({ status: 'success', data: user });
+  } catch (error: any) {
+    return NextResponse.json({ status: 'error', message: error.message }, { status: 500 });
+  }
+}
+

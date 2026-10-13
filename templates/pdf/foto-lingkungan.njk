@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Foto Lingkungan - {{ renovasi.nomor_pengajuan }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 15mm 20mm 15mm;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    .header-main {
+      background-color: #E65F2B;
+      color: #ffffff;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+
+    .header-alfamart-logo {
+      height: 38px;
+      margin-right: 14px;
+      padding-right: 14px;
+      border-right: 2px solid rgba(255,255,255,0.35);
+      object-fit: contain;
+    }
+
+    .header-sparta-logo {
+      height: 32px;
+      margin-right: 10px;
+      object-fit: contain;
+    }
+
+    .header-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0;
+      letter-spacing: 2px;
+      color: #ffffff;
+    }
+
+    .header-subtitle {
+      font-size: 11px;
+      margin: 0;
+      opacity: 0.85;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: bold;
+      color: #E65F2B;
+      border-bottom: 1px solid #E65F2B;
+      padding-bottom: 4px;
+      margin-top: 15px;
+      margin-bottom: 12px;
+    }
+
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+
+    .info-table td {
+      padding: 3.5px 0;
+      vertical-align: top;
+    }
+
+    .info-table .label {
+      font-weight: bold;
+      color: #555;
+      width: 130px;
+    }
+
+    .info-table .value {
+      color: #111;
+      width: 32%;
+      padding-right: 18px;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 400px;
+      transform: translate(-50%, -50%);
+      opacity: 0.05;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .photo-grid-container {
+      margin-top: 10px;
+    }
+
+    .photo-card {
+      display: inline-block;
+      width: 48%;
+      border: 1px solid #cbd5e1;
+      margin-bottom: 18px;
+      margin-right: 1.5%;
+      vertical-align: top;
+      page-break-inside: avoid;
+      background: #ffffff;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .photo-header {
+      background-color: #f1f5f9;
+      padding: 6px 8px;
+      font-weight: bold;
+      border-bottom: 1px solid #cbd5e1;
+      font-size: 10.5px;
+      color: #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .photo-image-box {
+      padding: 6px;
+      text-align: center;
+      height: 250px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f8fafc;
+    }
+
+    .photo-img {
+      max-width: 100%;
+      max-height: 240px;
+      object-fit: contain;
+    }
+
+    .photo-footer {
+      background-color: #ffffff;
+      padding: 5px 8px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 8px;
+      color: #64748b;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .footer {
+      margin-top: 25px;
+      font-size: 9px;
+      color: #888;
+      text-align: center;
+      border-top: 1px solid #eee;
+      padding-top: 5px;
+      padding-bottom: 5px;
+      page-break-inside: avoid;
+    }
+  </style>
+</head>
+<body>
+
+  {% if watermark_logo_path %}
+  <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
+  {% endif %}
+
+  <!-- Header Dokumen SPARTA -->
+  <div class="header-main" style="justify-content: space-between;">
+    <div style="display: flex; align-items: center;">
+      {% if alfamart_logo_path %}
+      <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
+      {% endif %}
+      {% if sparta_logo_path %}
+      <img src="{{ sparta_logo_path }}" class="header-sparta-logo" alt="SPARTA" />
+      {% endif %}
+      <div>
+        <h1 class="header-title">SPARTA</h1>
+        <p class="header-subtitle">DC Development</p>
+      </div>
+    </div>
+    <div style="font-size: 13px; font-weight: bold; color: #fff; letter-spacing: 0.5px; text-align: right;">
+      DOKUMENTASI FOTO LINGKUNGAN EKSISTING
+      <div style="font-size: 9.5px; font-weight: normal; opacity: 0.9; margin-top: 3px;">
+        {{ project.nama_proyek }} ({{ renovasi.nomor_pengajuan }})
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Informasi Proyek</div>
+  <table class="info-table">
+    <tr>
+      <td class="label">Nomor Pengajuan</td>
+      <td class="value">: {{ renovasi.nomor_pengajuan }}</td>
+      <td class="label">Tanggal Pengajuan</td>
+      <td class="value">: {{ submitted_at_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Nama Proyek / DC</td>
+      <td class="value">: {{ project.nama_proyek }}</td>
+      <td class="label">Cabang</td>
+      <td class="value">: {{ renovasi.cabang or project.cabang }}</td>
+    </tr>
+    <tr>
+      <td class="label">Jenis Renovasi</td>
+      <td class="value">: {{ renovasi.jenis_renovasi }}</td>
+      <td class="label">Total Foto Terlampir</td>
+      <td class="value">: <strong>{{ foto_items.length }} Foto</strong></td>
+    </tr>
+  </table>
+
+  <div class="section-title">Dokumentasi Foto Lingkungan &amp; Area Eksisting</div>
+
+  <div class="photo-grid-container">
+    {% for foto in foto_items %}
+      <div class="photo-card">
+        <div class="photo-header">
+          <span>#{{ loop.index }}. {{ foto.label }}</span>
+          <span style="font-size: 8px; font-weight: normal; color: #64748b;">{{ foto.nama_file }}</span>
+        </div>
+        <div class="photo-image-box">
+          {% if foto.image_src %}
+            <img src="{{ foto.image_src }}" class="photo-img" alt="{{ foto.label }}" />
+          {% else %}
+            <span style="color: #999; font-size: 9px; font-style: italic;">Berkas gambar tidak tersedia</span>
+          {% endif %}
+        </div>
+        <div class="photo-footer">
+          <span>Waktu: {{ foto.timestamp or '-' }}</span>
+          <span>{% if foto.koordinat %}GPS: {{ foto.koordinat }}{% endif %}</span>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="footer">
+    No. Pengajuan: {{ renovasi.nomor_pengajuan }} &mdash; Dokumen Resmi Foto Lingkungan Sistem SPARTA DC Development &bull; PT Sumber Alfaria Trijaya Tbk
+  </div>
+
+</body>
+</html>

@@ -114,6 +114,42 @@ export async function getDcDevFolderHierarchyId(
   return itemFolderId;
 }
 
+export async function getDcRenovasiFolderHierarchyId(
+  drive: drive_v3.Drive,
+  cabang: string,
+  kode: string,
+  nama_proyek: string,
+  inisial: string | null,
+  nomorPengajuan: string,
+  subFolder: "Gambar Sipil" | "Gambar ME" | "Foto Lingkungan" | "Dokumen PDF"
+): Promise<string> {
+  // 1. Master Folder -> Cabang
+  const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", MASTER_DRIVE_FOLDER_ID);
+  
+  // 2. Cabang -> DC Development
+  const dcDevFolderId = await getOrCreateFolder(drive, "DC Development", cabangFolderId);
+  
+  // 3. DC Development -> Project Folder (KODE - NAMA_PROYEK - INISIAL)
+  const inisialText = inisial ? ` - ${inisial}` : '';
+  const projectName = `${kode || "XXX"} - ${nama_proyek || "TANPA NAMA"}${inisialText}`;
+  const projectFolderId = await getOrCreateFolder(drive, projectName, dcDevFolderId);
+  
+  // 4. Project Folder -> Building
+  const buildingFolderId = await getOrCreateFolder(drive, "Building", projectFolderId);
+  
+  // 5. Building -> Renovasi
+  const renovasiFolderId = await getOrCreateFolder(drive, "Renovasi", buildingFolderId);
+
+  // 6. Renovasi -> [Nomor Pengajuan]
+  const safePengajuan = (nomorPengajuan || "DRAFT").replace(/\//g, "-");
+  const pengajuanFolderId = await getOrCreateFolder(drive, safePengajuan, renovasiFolderId);
+
+  // 7. Pengajuan -> SubFolder
+  const targetFolderId = await getOrCreateFolder(drive, subFolder, pengajuanFolderId);
+
+  return targetFolderId;
+}
+
 function bufferToStream(buffer: Buffer) {
   const stream = new Readable();
   stream.push(buffer);
@@ -151,10 +187,83 @@ export async function uploadFileToFolder(
         requestBody: { type: 'anyone', role: 'reader' },
         supportsAllDrives: true,
       });
-    } catch (permError: any) {
-      console.warn('Gagal mengubah permission menjadi public:', permError.message);
+    } catch (permError: unknown) {
+      console.warn('Gagal mengubah permission menjadi public:', (permError as Error)?.message);
     }
   }
 
   return uploaded.data;
+}
+
+export async function uploadBufferToFolder(
+  drive: drive_v3.Drive,
+  folderId: string,
+  buffer: Buffer,
+  cleanFileName: string,
+  mimeType: string = 'application/pdf'
+) {
+  const safeName = escapeDriveQueryString(cleanFileName);
+  // Cek apakah file dengan nama yang sama sudah ada di folder ini
+  const existingFiles = await drive.files.list({
+    q: `name='${safeName}' and '${folderId}' in parents and trashed=false`,
+    fields: 'files(id, name, webViewLink, webContentLink)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+
+  const files = existingFiles.data.files || [];
+  if (files.length > 0) {
+    const existingFileId = files[0].id!;
+    const updated = await drive.files.update({
+      fileId: existingFileId,
+      media: {
+        mimeType,
+        body: bufferToStream(buffer),
+      },
+      fields: 'id, webViewLink, webContentLink, name, mimeType',
+      supportsAllDrives: true,
+    });
+    return updated.data;
+  }
+
+  // Jika belum ada, buat baru
+  const created = await drive.files.create({
+    requestBody: {
+      name: cleanFileName,
+      parents: [folderId],
+    },
+    media: {
+      mimeType,
+      body: bufferToStream(buffer),
+    },
+    fields: 'id, webViewLink, webContentLink, name, mimeType',
+    supportsAllDrives: true,
+  });
+
+  if (created.data.id) {
+    try {
+      await drive.permissions.create({
+        fileId: created.data.id,
+        requestBody: { type: 'anyone', role: 'reader' },
+        supportsAllDrives: true,
+      });
+    } catch (permError: unknown) {
+      console.warn('Gagal mengubah permission PDF menjadi public:', (permError as Error)?.message);
+    }
+  }
+
+  return created.data;
+}
+
+export async function downloadFileBuffer(drive: drive_v3.Drive, fileId: string): Promise<Buffer | null> {
+  try {
+    const res = await drive.files.get(
+      { fileId, alt: 'media', supportsAllDrives: true },
+      { responseType: 'arraybuffer' }
+    );
+    return Buffer.from(res.data as ArrayBuffer);
+  } catch (err: unknown) {
+    console.warn(`Gagal mengunduh buffer file drive ${fileId}:`, (err as Error)?.message);
+    return null;
+  }
 }

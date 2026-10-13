@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import CreatableSelect from "react-select/creatable";
 import { ActionMeta, SingleValue, components } from "react-select";
+import { toTitleCase } from "@/lib/utils";
 
 export interface SelectOption {
   value: string;
@@ -35,14 +36,12 @@ export function CreatableSelectInput({
   const selectedOption = options.find((opt) => opt.value === value) || (value ? { value, label: value } : null);
 
   const formatText = (text: string) => {
+    if (!text) return "";
     if (formatAs === "lowercase") {
       return text.toLowerCase();
     }
     if (formatAs === "titleCase") {
-      return text.replace(
-        /\w\S*/g,
-        (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
-      );
+      return toTitleCase(text);
     }
     return text;
   };
@@ -58,7 +57,7 @@ export function CreatableSelectInput({
   const handleInputChange = (newInputValue: string, actionMeta: any) => {
     if (actionMeta.action === "input-change") {
       setInputValue(newInputValue);
-      onChange(formatText(newInputValue));
+      onChange(newInputValue);
     }
   };
 
@@ -92,6 +91,13 @@ export function CreatableSelectInput({
         className="text-sm"
         inputValue={inputValue}
         onInputChange={handleInputChange}
+        onBlur={() => {
+          if (inputValue) {
+            const formatted = formatText(inputValue);
+            setInputValue(formatted);
+            onChange(formatted);
+          }
+        }}
         controlShouldRenderValue={false} // Sembunyikan chip
         components={{
           SingleValue: () => null,

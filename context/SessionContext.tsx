@@ -17,6 +17,7 @@ export interface UserSession {
   isRegionalManager: boolean;
   isStoreControlling: boolean;
   akses_menu?: string | null;
+  coverage_cabang?: string | null;
 }
 
 interface SessionContextValue {
@@ -81,6 +82,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               isRegionalManager: false,
               isStoreControlling: false,
               akses_menu: fetchedUser.akses_menu || null,
+              coverage_cabang: fetchedUser.coverage_cabang || null,
             };
             if (!ignore) {
               setUser(sessionUser);

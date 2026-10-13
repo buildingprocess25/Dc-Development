@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>RAB OE - {{ renovasi.nomor_pengajuan }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 15mm 20mm 15mm;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    .header-main {
+      background-color: #E65F2B;
+      color: #ffffff;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+
+    .header-alfamart-logo {
+      height: 38px;
+      margin-right: 14px;
+      padding-right: 14px;
+      border-right: 2px solid rgba(255,255,255,0.35);
+      object-fit: contain;
+    }
+
+    .header-sparta-logo {
+      height: 32px;
+      margin-right: 10px;
+      object-fit: contain;
+    }
+
+    .header-title {
+      font-size: 22px;
+      font-weight: bold;
+      margin: 0;
+      letter-spacing: 2px;
+      color: #ffffff;
+    }
+
+    .header-subtitle {
+      font-size: 11px;
+      margin: 0;
+      opacity: 0.85;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: bold;
+      color: #E65F2B;
+      border-bottom: 1px solid #E65F2B;
+      padding-bottom: 4px;
+      margin-top: 18px;
+      margin-bottom: 10px;
+    }
+
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+
+    .info-table td {
+      padding: 4px 0;
+      vertical-align: top;
+    }
+
+    .info-table .label {
+      font-weight: bold;
+      color: #555;
+      width: 130px;
+    }
+
+    .info-table .value {
+      color: #111;
+      width: 32%;
+      padding-right: 18px;
+    }
+
+    .info-table a {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+
+    .info-table .full-value {
+      color: #111;
+      padding-right: 0;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      margin-bottom: 15px;
+    }
+
+    .data-table th, .data-table td {
+      border: 1px solid #e5e7eb;
+      padding: 6px 8px;
+    }
+
+    .data-table th {
+      background-color: #fff7ed;
+      color: #c2410c;
+      text-align: left;
+      font-weight: bold;
+      font-size: 9.5px;
+    }
+
+    .data-table td.label-col {
+      width: 40%;
+      background-color: #fafafa;
+    }
+
+    .approval-table {
+      width: 100%;
+      margin-top: 30px;
+      border-collapse: collapse;
+      text-align: center;
+      page-break-inside: avoid;
+    }
+
+    .approval-box {
+      border: 1px solid #e2e8f0;
+      border-top: 3.5px solid #E65F2B;
+      background: #fafafa;
+      padding: 10px 8px 8px 8px;
+      margin: 0 4px;
+      border-radius: 0 0 4px 4px;
+      text-align: center;
+      height: 135px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .approval-title {
+      font-size: 11px;
+      font-weight: bold;
+      color: #ffffff;
+      background: #E65F2B;
+      padding: 6px;
+      margin: 0 4px;
+      border-radius: 4px 4px 0 0;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .approval-date {
+      font-size: 9px;
+      color: #555;
+      font-style: italic;
+      text-align: center;
+      line-height: 1.35;
+      padding: 0 4px;
+    }
+
+    .approval-name {
+      font-weight: bold;
+      font-size: 11px;
+      color: #111;
+      text-align: center;
+      letter-spacing: 0.3px;
+      margin-bottom: 6px;
+    }
+
+    .approval-role {
+      font-size: 9px;
+      color: #555;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 6px;
+      text-align: center;
+      line-height: 1.25;
+    }
+
+    .footer {
+      margin-top: 25px;
+      font-size: 9px;
+      color: #888;
+      text-align: center;
+      border-top: 1px solid #eee;
+      padding-top: 5px;
+      padding-bottom: 5px;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 400px;
+      transform: translate(-50%, -50%);
+      opacity: 0.05;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .page-break {
+      page-break-before: always;
+      break-before: page;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Watermark Otomatis di Setiap Halaman -->
+  {% if watermark_logo_path %}
+  <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
+  {% endif %}
+
+  <!-- ========================================== -->
+  <!-- HALAMAN 1: FORM PENGAJUAN & INFORMASI UTAMA -->
+  <!-- ========================================== -->
+  <div class="header-main" style="justify-content: space-between;">
+    <div style="display: flex; align-items: center;">
+      {% if alfamart_logo_path %}
+      <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
+      {% endif %}
+      {% if sparta_logo_path %}
+      <img src="{{ sparta_logo_path }}" class="header-sparta-logo" alt="SPARTA" />
+      {% endif %}
+      <div>
+        <h1 class="header-title">SPARTA</h1>
+        <p class="header-subtitle">DC Development</p>
+      </div>
+    </div>
+    <div style="font-size: 14px; font-weight: bold; color: #fff; letter-spacing: 0.5px; text-align: right;">
+      FORM PENGAJUAN RAB / OE
+      <div style="font-size: 10px; font-weight: normal; opacity: 0.9; margin-top: 3px;">
+        No. {{ renovasi.nomor_pengajuan }}
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Informasi Utama Proyek</div>
+  <table class="info-table">
+    <tr>
+      <td class="label">Nomor Pengajuan</td>
+      <td class="value">: {{ renovasi.nomor_pengajuan }}</td>
+      <td class="label">Tanggal Submit</td>
+      <td class="value">: {{ submitted_at_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Nama Proyek / DC</td>
+      <td class="value">: {{ project.nama_proyek }}</td>
+      <td class="label">Cabang</td>
+      <td class="value">: {{ renovasi.cabang or project.cabang }}</td>
+    </tr>
+    <tr>
+      <td class="label">Jenis Renovasi</td>
+      <td class="value">: {{ renovasi.jenis_renovasi }}</td>
+      <td class="label">Diajukan Oleh</td>
+      <td class="value">: {{ creator_name }}</td>
+    </tr>
+    <tr>
+      <td class="label">Lingkup Pekerjaan</td>
+      <td class="value">: {{ renovasi.lingkup_pekerjaan }}</td>
+      <td class="label">Tipe Properti</td>
+      <td class="value">: Distribution Center (DC)</td>
+    </tr>
+    <tr>
+      <td class="label">Estimasi Durasi</td>
+      <td class="value">: {{ renovasi.durasi_hari }} {{ renovasi.satuan_durasi }}</td>
+      <td class="label">Status Pengajuan</td>
+      <td class="value">: <strong>{{ renovasi.status }}</strong></td>
+    </tr>
+    <tr>
+      <td class="label">Total Pengajuan</td>
+      <td class="value" style="font-size: 11px; font-weight: bold; color: #c2410c;">: Rp {{ grand_total_formatted }}</td>
+      <td class="label"></td>
+      <td class="value"></td>
+    </tr>
+  </table>
+
+  <div class="section-title">Dokumen Teknis &amp; Lokasi</div>
+  <table class="info-table">
+    <tr>
+      <td class="label">Gambar Kerja Sipil (PDF)</td>
+      <td class="full-value" colspan="3">
+        : {% if doc_sipil_pdf and doc_sipil_pdf.url %}
+          <a href="{{ doc_sipil_pdf.url }}" target="_blank">Buka Berkas PDF</a>
+        {% else %}
+          -
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="label">Gambar Kerja Sipil (AutoCAD)</td>
+      <td class="full-value" colspan="3">
+        : {% if doc_sipil_dwg and doc_sipil_dwg.url %}
+          <a href="{{ doc_sipil_dwg.url }}" target="_blank">Buka Berkas DWG</a>
+        {% else %}
+          -
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="label">Gambar Kerja ME (PDF)</td>
+      <td class="full-value" colspan="3">
+        : {% if doc_me_pdf and doc_me_pdf.url %}
+          <a href="{{ doc_me_pdf.url }}" target="_blank">Buka Berkas PDF</a>
+        {% else %}
+          -
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="label">Gambar Kerja ME (AutoCAD)</td>
+      <td class="full-value" colspan="3">
+        : {% if doc_me_dwg and doc_me_dwg.url %}
+          <a href="{{ doc_me_dwg.url }}" target="_blank">Buka Berkas DWG</a>
+        {% else %}
+          -
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="label">Foto Lingkungan Eksisting</td>
+      <td class="full-value" colspan="3">
+        : {% if doc_foto_pdf_url %}
+          <a href="{{ doc_foto_pdf_url }}" target="_blank">Buka PDF Foto lingkungan</a>
+          <span style="color: #666; font-size: 9px; margin-left: 6px;">(Lampiran foto juga tercetak pada bagian akhir dokumen ini)</span>
+        {% elif doc_foto_folder_url %}
+          <a href="{{ doc_foto_folder_url }}" target="_blank">Buka PDF Foto lingkungan</a>
+          <span style="color: #666; font-size: 9px; margin-left: 6px;">(Lampiran foto juga tercetak pada bagian akhir dokumen ini)</span>
+        {% else %}
+          -
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <div class="section-title">Lembar Persetujuan (Approval Chain)</div>
+  <table class="approval-table">
+    <tr>
+      <!-- Dibuat -->
+      <td style="width: 25%; vertical-align: top; text-align: center;">
+        <div class="approval-title">DIBUAT</div>
+        <div class="approval-box">
+          <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 4px 0;">
+            <div class="approval-date">{{ signatures.creator.date }}</div>
+            <div class="approval-name">{{ signatures.creator.name | upper }}</div>
+          </div>
+          <div class="approval-role">Branch Building Coordinator</div>
+        </div>
+      </td>
+
+      <!-- Mengetahui B&M -->
+      <td style="width: 25%; vertical-align: top; text-align: center;">
+        <div class="approval-title">MENGETAHUI</div>
+        <div class="approval-box">
+          {% if signatures.bm_manager.approved %}
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 4px 0;">
+              <div class="approval-date">{{ signatures.bm_manager.date or '-' }}</div>
+              <div class="approval-name">{{ signatures.bm_manager.name | upper }}</div>
+            </div>
+          {% else %}
+            <div style="flex: 1;"></div>
+          {% endif %}
+          <div class="approval-role">Branch Building &amp; Maint. Manager</div>
+        </div>
+      </td>
+
+      <!-- Mengetahui DC Specialist -->
+      <td style="width: 25%; vertical-align: top; text-align: center;">
+        <div class="approval-title">MENGETAHUI</div>
+        <div class="approval-box">
+          {% if signatures.dc_specialist.approved %}
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 4px 0;">
+              <div class="approval-date">{{ signatures.dc_specialist.date or '-' }}</div>
+              <div class="approval-name">{{ signatures.dc_specialist.name | upper }}</div>
+            </div>
+          {% else %}
+            <div style="flex: 1;"></div>
+          {% endif %}
+          <div class="approval-role">DC Building &amp; Dev. Specialist</div>
+        </div>
+      </td>
+
+      <!-- Disetujui DC Manager -->
+      <td style="width: 25%; vertical-align: top; text-align: center;">
+        <div class="approval-title">DISETUJUI</div>
+        <div class="approval-box">
+          {% if signatures.dc_manager.approved %}
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 4px 0;">
+              <div class="approval-date">{{ signatures.dc_manager.date or '-' }}</div>
+              <div class="approval-name">{{ signatures.dc_manager.name | upper }}</div>
+            </div>
+          {% else %}
+            <div style="flex: 1;"></div>
+          {% endif %}
+          <div class="approval-role">DC Building &amp; Dev. Manager</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="footer">
+    No. Pengajuan: {{ renovasi.nomor_pengajuan }} &mdash; Dokumen Resmi Sistem SPARTA DC Development &bull; PT Sumber Alfaria Trijaya Tbk
+  </div>
+
+  <!-- ========================================== -->
+  <!-- HALAMAN 2: REKAPITULASI RENCANA ANGGARAN BIAYA -->
+  <!-- ========================================== -->
+  <div class="page-break"></div>
+
+  <div class="header-main" style="justify-content: space-between;">
+    <div style="display: flex; align-items: center;">
+      {% if alfamart_logo_path %}
+      <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
+      {% endif %}
+      {% if sparta_logo_path %}
+      <img src="{{ sparta_logo_path }}" class="header-sparta-logo" alt="SPARTA" />
+      {% endif %}
+      <div>
+        <h1 class="header-title">SPARTA</h1>
+        <p class="header-subtitle">DC Development</p>
+      </div>
+    </div>
+    <div style="font-size: 14px; font-weight: bold; color: #fff; letter-spacing: 0.5px; text-align: right;">
+      REKAPITULASI RENCANA ANGGARAN BIAYA
+      <div style="font-size: 10px; font-weight: normal; opacity: 0.9; margin-top: 3px;">
+        {{ project.nama_proyek }} ({{ renovasi.nomor_pengajuan }})
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Ringkasan Proyek</div>
+  <table class="info-table">
+    <tr>
+      <td class="label">Nomor Pengajuan</td>
+      <td class="value">: {{ renovasi.nomor_pengajuan }}</td>
+      <td class="label">Lingkup Pekerjaan</td>
+      <td class="value">: {{ renovasi.lingkup_pekerjaan }}</td>
+    </tr>
+    <tr>
+      <td class="label">Proyek / DC</td>
+      <td class="value">: {{ project.nama_proyek }}</td>
+      <td class="label">Durasi Pekerjaan</td>
+      <td class="value">: {{ renovasi.durasi_hari }} {{ renovasi.satuan_durasi }}</td>
+    </tr>
+    <tr>
+      <td class="label">Jenis Pekerjaan</td>
+      <td class="value">: {{ renovasi.jenis_renovasi }}</td>
+      <td class="label">Tanggal Pengajuan</td>
+      <td class="value">: {{ submitted_at_formatted }}</td>
+    </tr>
+  </table>
+
+  <div class="section-title">Rekapitulasi Anggaran per Kategori Pekerjaan</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width: 5%; text-align: center;">NO.</th>
+        <th style="width: 47%;">KATEGORI PEKERJAAN</th>
+        <th style="width: 16%; text-align: right;">TOTAL MATERIAL (RP)</th>
+        <th style="width: 16%; text-align: right;">TOTAL UPAH (RP)</th>
+        <th style="width: 16%; text-align: right;">TOTAL HARGA (RP)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for kat in rekap_kategori %}
+      <tr>
+        <td style="text-align: center;">{{ loop.index }}</td>
+        <td><strong>{{ kat.nama }}</strong></td>
+        <td style="text-align: right; font-family: monospace;">{{ kat.total_material_formatted }}</td>
+        <td style="text-align: right; font-family: monospace;">{{ kat.total_upah_formatted }}</td>
+        <td style="text-align: right; font-family: monospace; font-weight: bold;">{{ kat.total_harga_formatted }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td colspan="4" style="text-align: right; font-weight: bold;">TOTAL (RP)</td>
+        <td style="text-align: right; font-family: monospace; font-weight: bold;">{{ total_kategori_formatted }}</td>
+      </tr>
+      <tr>
+        <td colspan="4" style="text-align: right;">PPN 11% (RP)</td>
+        <td style="text-align: right; font-family: monospace;">{{ ppn_formatted }}</td>
+      </tr>
+      <tr>
+        <td colspan="4" style="text-align: right;">PEMBULATAN (RP)</td>
+        <td style="text-align: right; font-family: monospace;">{{ pembulatan_formatted }}</td>
+      </tr>
+      <tr style="background-color: #fff7ed; font-weight: bold;">
+        <td colspan="4" style="text-align: right; font-size: 11px; color: #c2410c;">GRAND TOTAL (RP)</td>
+        <td style="text-align: right; font-family: monospace; font-size: 11px; color: #c2410c;">Rp {{ grand_total_formatted }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    No. Pengajuan: {{ renovasi.nomor_pengajuan }} &mdash; Dokumen Resmi Sistem SPARTA DC Development &bull; PT Sumber Alfaria Trijaya Tbk
+  </div>
+
+  <!-- ========================================== -->
+  <!-- HALAMAN 3: RINCIAN RENCANA ANGGARAN BIAYA -->
+  <!-- ========================================== -->
+  <div class="page-break"></div>
+
+  <div class="header-main" style="justify-content: space-between;">
+    <div style="display: flex; align-items: center;">
+      {% if alfamart_logo_path %}
+      <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
+      {% endif %}
+      {% if sparta_logo_path %}
+      <img src="{{ sparta_logo_path }}" class="header-sparta-logo" alt="SPARTA" />
+      {% endif %}
+      <div>
+        <h1 class="header-title">SPARTA</h1>
+        <p class="header-subtitle">DC Development</p>
+      </div>
+    </div>
+    <div style="font-size: 14px; font-weight: bold; color: #fff; letter-spacing: 0.5px; text-align: right;">
+      RINCIAN RENCANA ANGGARAN BIAYA
+      <div style="font-size: 10px; font-weight: normal; opacity: 0.9; margin-top: 3px;">
+        {{ project.nama_proyek }} ({{ renovasi.nomor_pengajuan }})
+      </div>
+    </div>
+  </div>
+
+  {% for grp in rincian_grouped %}
+  <div class="section-title">{{ loop.index }}. {{ grp.kategori }}</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th rowspan="2" style="width: 4%; text-align: center;">NO.</th>
+        <th rowspan="2" style="width: 38%;">JENIS PEKERJAAN</th>
+        <th rowspan="2" style="width: 6%; text-align: center;">SAT.</th>
+        <th rowspan="2" style="width: 6%; text-align: center;">VOL.</th>
+        <th colspan="2" style="width: 23%; text-align: center;">HARGA SATUAN (RP)</th>
+        <th colspan="2" style="width: 23%; text-align: center;">TOTAL HARGA (RP)</th>
+      </tr>
+      <tr>
+        <th style="width: 11.5%; text-align: right;">MATERIAL</th>
+        <th style="width: 11.5%; text-align: right;">UPAH</th>
+        <th style="width: 11.5%; text-align: right;">MATERIAL</th>
+        <th style="width: 11.5%; text-align: right;">TOTAL</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in grp.items %}
+      <tr>
+        <td style="text-align: center;">{{ loop.index }}</td>
+        <td>
+          <div style="font-weight: bold;">{{ it.deskripsi }}</div>
+          {% if it.catatan %}
+          <div style="font-size: 8px; color: #666; font-style: italic;">Catatan: {{ it.catatan }}</div>
+          {% endif %}
+        </td>
+        <td style="text-align: center;">{{ it.satuan }}</td>
+        <td style="text-align: center; font-family: monospace;">{{ it.volume_formatted }}</td>
+        <td style="text-align: right; font-family: monospace;">{{ it.harga_material_formatted }}</td>
+        <td style="text-align: right; font-family: monospace;">{{ it.harga_upah_formatted }}</td>
+        <td style="text-align: right; font-family: monospace;">{{ it.total_material_formatted }}</td>
+        <td style="text-align: right; font-family: monospace; font-weight: bold;">{{ it.total_biaya_formatted }}</td>
+      </tr>
+      {% endfor %}
+      <tr style="background-color: #fafafa; font-weight: bold;">
+        <td colspan="6" style="text-align: right;">Sub Total {{ grp.kategori }}:</td>
+        <td style="text-align: right; font-family: monospace;">{{ grp.subtotal_material_formatted }}</td>
+        <td style="text-align: right; font-family: monospace; color: #c2410c;">{{ grp.subtotal_biaya_formatted }}</td>
+      </tr>
+    </tbody>
+  </table>
+  {% endfor %}
+
+  <div class="footer">
+    No. Pengajuan: {{ renovasi.nomor_pengajuan }} &mdash; Dokumen Resmi Sistem SPARTA DC Development &bull; PT Sumber Alfaria Trijaya Tbk
+  </div>
+
+  <!-- ========================================== -->
+  <!-- LAMPIRAN FOTO LINGKUNGAN EKSISTING -->
+  <!-- ========================================== -->
+  {% if foto_pages and foto_pages.length > 0 %}
+    {% for page_items in foto_pages %}
+    <div class="page-break"></div>
+
+    <div class="header-main" style="justify-content: space-between;">
+      <div style="display: flex; align-items: center;">
+        {% if alfamart_logo_path %}
+        <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
+        {% endif %}
+        {% if sparta_logo_path %}
+        <img src="{{ sparta_logo_path }}" class="header-sparta-logo" alt="SPARTA" />
+        {% endif %}
+        <div>
+          <h1 class="header-title">SPARTA</h1>
+          <p class="header-subtitle">DC Development</p>
+        </div>
+      </div>
+      <div style="font-size: 13px; font-weight: bold; color: #fff; letter-spacing: 0.5px; text-align: right;">
+        LAMPIRAN FOTO LINGKUNGAN EKSISTING
+        <div style="font-size: 9.5px; font-weight: normal; opacity: 0.9; margin-top: 3px;">
+          {{ project.nama_proyek }} ({{ renovasi.nomor_pengajuan }})
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Dokumentasi Foto Lapangan &amp; Area Eksisting (Hal {{ loop.index }} dari {{ foto_pages.length }})</div>
+
+    <div style="margin-top: 10px;">
+      {% for foto in page_items %}
+        <div style="display: inline-block; width: 48%; border: 1px solid #cbd5e1; margin-bottom: 16px; margin-right: 1.5%; vertical-align: top; page-break-inside: avoid; background: #ffffff; border-radius: 4px; overflow: hidden;">
+          <div style="background-color: #f1f5f9; padding: 6px 8px; font-weight: bold; border-bottom: 1px solid #cbd5e1; font-size: 10.5px; color: #1e293b; display: flex; justify-content: space-between;">
+            <span>#{{ foto.index }}. {{ foto.label }}</span>
+            <span style="font-size: 8px; font-weight: normal; color: #64748b;">{{ foto.nama_file }}</span>
+          </div>
+          <div style="padding: 6px; text-align: center; height: 250px; display: flex; align-items: center; justify-content: center; background: #f8fafc;">
+            {% if foto.image_src %}
+              <img src="{{ foto.image_src }}" style="max-width: 100%; max-height: 240px; object-fit: contain;" alt="{{ foto.label }}" />
+            {% else %}
+              <span style="color: #999; font-size: 9px; font-style: italic;">Berkas gambar tidak tersedia</span>
+            {% endif %}
+          </div>
+          <div style="background-color: #ffffff; padding: 5px 8px; border-top: 1px solid #e2e8f0; font-size: 8px; color: #64748b; display: flex; justify-content: space-between;">
+            <span>Waktu: {{ foto.timestamp or '-' }}</span>
+            <span>{% if foto.koordinat %}GPS: {{ foto.koordinat }}{% endif %}</span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="footer">
+      No. Pengajuan: {{ renovasi.nomor_pengajuan }} &mdash; Dokumen Resmi Sistem SPARTA DC Development &bull; PT Sumber Alfaria Trijaya Tbk
+    </div>
+    {% endfor %}
+  {% endif %}
+
+</body>
+</html>

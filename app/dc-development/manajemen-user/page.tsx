@@ -10,6 +10,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ALL_BRANCHES, ALL_INDUK_CABANG, CABANG_GRUP } from "@/lib/branches";
 
 const ROLES = [
+  "BRANCH BUILDING KOORDINATOR",
+  "BRANCH BUILDING & MAINTENANCE MANAGER",
   "DC DOCUMENT ADMIN",
   "DC BUILDING & DEVELOPMENT SPECIALIST",
   "DC BUILDING & DEVELOPMENT MANAGER",

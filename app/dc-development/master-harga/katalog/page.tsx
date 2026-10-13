@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { ChevronRight, ChevronDown, Search, ArrowLeft } from "lucide-react";
 import Dashboard from "@/components/dashboard/dashboard";
-import { SearchableSelectInput } from "@/components/ui/searchable-select";
-import { ALL_INDUK_CABANG } from "@/lib/branches";
+import { BranchFilterSelect } from "@/components/ui/branch-filter-select";
 import Link from "next/link";
 
 export default function KatalogHargaPage() {
@@ -17,15 +16,23 @@ export default function KatalogHargaPage() {
   const fetchItems = async () => {
     setIsLoading(true);
     try {
-      const url = new URL(window.location.origin + '/api/dc-development/master-harga/katalog');
+      const url = new URL('/api/dc-development/master-harga/katalog', window.location.origin);
       url.searchParams.append("lingkup", lingkupTab);
       if (selectedCabang !== "all") url.searchParams.append("cabang", selectedCabang);
       if (search) url.searchParams.append("search", search);
 
       const res = await fetch(url.toString());
-      const json = await res.json();
-      if (json.status === "success") {
-        setItems(json.data);
+      const text = await res.text();
+      
+      try {
+        const json = JSON.parse(text);
+        if (json.status === "success") {
+          setItems(json.data);
+        } else {
+          console.error("API Error:", json.message);
+        }
+      } catch (err) {
+        console.error("Failed to parse JSON. Response was:", text.substring(0, 200));
       }
     } catch (e) {
       console.error(e);
@@ -147,14 +154,11 @@ export default function KatalogHargaPage() {
 
             {/* CABANG FILTER */}
             <div className="w-full md:w-56 z-50">
-              <SearchableSelectInput
+              <BranchFilterSelect
                 value={selectedCabang}
                 onChange={(val) => setSelectedCabang(val)}
                 placeholder="Pilih Cabang..."
-                options={[
-                  { value: "all", label: "Semua Cabang" },
-                  ...ALL_INDUK_CABANG.map(c => ({ value: c, label: c }))
-                ]}
+                triggerClassName="w-full rounded-full text-xs font-medium bg-white border-slate-200"
               />
             </div>
           </div>

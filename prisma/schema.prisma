@@ -53,6 +53,7 @@ model dc_project {
   created_at              DateTime      @default(now())
   updated_at              DateTime      @updatedAt
   dokumen                 dc_dokumen[]
+  renovasi                dc_renovasi[]
 }
 
 model dc_dokumen {
@@ -118,6 +119,7 @@ model mh_master_item {
   koefisien            mh_analisa_koefisien[]
   item_cabang          mh_item_cabang[]
   harga_upah_cabang    mh_harga_upah_item_cabang[]
+  renovasi_item        dc_renovasi_item[]
 }
 
 model mh_komponen_dasar {
@@ -216,5 +218,78 @@ model app_audit_log {
   data_lama    Json?
   data_baru    Json?
   created_at   DateTime  @default(now())
+}
+
+// --- Penawaran RAB/OE MODULE ---
+
+model dc_renovasi {
+  id                 Int                    @id @default(autoincrement())
+  nomor_pengajuan    String                 @unique
+  project_id         Int
+  jenis_renovasi     String
+  lingkup_pekerjaan  String                 @default("Sipil + ME")
+  durasi_hari        Int                    @default(0)
+  satuan_durasi      String                 @default("Hari")
+  status             String                 @default("DRAFT") // DRAFT, MENUNGGU APPROVAL B&M MANAGER, REVISI, APPROVED, DITOLAK
+  total_biaya_sipil  Float                  @default(0)
+  total_biaya_me     Float                  @default(0)
+  total_sebelum_ppn  Float                  @default(0)
+  nilai_ppn          Float                  @default(0)
+  nilai_pembulatan   Float                  @default(0)
+  grand_total        Float                  @default(0)
+  catatan_pengajuan  String?
+  created_by         String                 // email user
+  cabang             String
+  created_at         DateTime               @default(now())
+  updated_at         DateTime               @updatedAt
+
+  project            dc_project             @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  dokumen            dc_renovasi_dokumen[]
+  item_rab           dc_renovasi_item[]
+}
+
+model dc_renovasi_dokumen {
+  id                  Int          @id @default(autoincrement())
+  renovasi_id         Int
+  kategori_file       String       // "GAMBAR_SIPIL", "GAMBAR_ME", "FOTO_LINGKUNGAN"
+  nama_file           String
+  nama_label          String?      // Nama / Deskripsi foto
+  file_url            String?      // Link Google Drive
+  drive_file_id       String?
+  mime_type           String?
+  latitude            Float?
+  longitude           Float?
+  timestamp_watermark DateTime?
+  created_at          DateTime     @default(now())
+
+  renovasi            dc_renovasi  @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
+}
+
+model dc_renovasi_item {
+  id                 Int             @id @default(autoincrement())
+  renovasi_id        Int
+  lingkup            String          // "SIPIL" or "ME"
+  kategori_pekerjaan String
+  master_item_id     Int?            // Nullable jika custom item
+  deskripsi          String
+  harga_material     Float           @default(0)
+  harga_upah         Float           @default(0)
+  volume             Float           @default(0)
+  total_material     Float           @default(0)
+  total_upah         Float           @default(0)
+  total_biaya        Float           @default(0)
+  catatan            String?
+  is_custom          Boolean         @default(false)
+  created_at         DateTime        @default(now())
+
+  renovasi           dc_renovasi     @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
+  master_item        mh_master_item? @relation(fields: [master_item_id], references: [id], onDelete: SetNull)
+}
+
+model dc_jenis_renovasi_preset {
+  id         Int      @id @default(autoincrement())
+  nama       String   @unique
+  is_default Boolean  @default(false)
+  created_at DateTime @default(now())
 }
 

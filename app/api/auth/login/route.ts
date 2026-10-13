@@ -30,7 +30,8 @@ export async function POST(request: Request) {
             cabang: user.cabang,
             role: user.role,
             nama_pt: user.nama_pt || '',
-            akses_menu: user.akses_menu
+            akses_menu: user.akses_menu,
+            coverage_cabang: user.coverage_cabang
         });
 
         return NextResponse.json({ status: 'success', data: user });

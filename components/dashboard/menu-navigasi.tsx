@@ -12,24 +12,31 @@ import {
   LogOut,
   Users,
   Calculator,
+  HardHat,
+  ClipboardCheck,
+  FolderKanban,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/context/SessionContext";
+import { canAccessApprovalNavigation } from "@/lib/permissions";
 
-export type DcMenuId = "dc-profile" | "dc-documents" | "manajemen-user" | "master-harga" | "katalog-harga";
+export type DcMenuId = "dc-profile" | "dc-documents" | "manajemen-user" | "master-harga" | "katalog-harga" | "renovasi-dc" | "approval" | "daftar-dokumen";
 
 export type DcMenuItem = {
   id: DcMenuId;
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  group: "Master Data" | "Administrator" | "Laporan & Katalog";
+  group: "Proyek & Transaksi" | "Master Data" | "Administrator" | "Laporan & Katalog";
 };
 
 export const dcMenus: DcMenuItem[] = [
+  { id: "renovasi-dc", title: "Penawaran RAB/OE", href: "/dc-development/renovasi", icon: HardHat, group: "Proyek & Transaksi" },
+  { id: "approval", title: "Approval", href: "/dc-development/approval", icon: ClipboardCheck, group: "Proyek & Transaksi" },
   { id: "dc-profile", title: "Profile DC", href: "/dc-development/profile", icon: Database, group: "Master Data" },
   { id: "dc-documents", title: "Dokumen DC", href: "/dc-development/dokumen-dc", icon: FolderArchive, group: "Master Data" },
   { id: "master-harga", title: "Master Harga", href: "/dc-development/master-harga", icon: Calculator, group: "Master Data" },
+  { id: "daftar-dokumen", title: "Daftar Dokumen", href: "/dc-development/daftar-dokumen", icon: FolderKanban, group: "Laporan & Katalog" },
   { id: "katalog-harga", title: "Katalog Harga", href: "/dc-development/master-harga/katalog", icon: BadgeCheck, group: "Laporan & Katalog" },
   { id: "manajemen-user", title: "Manajemen User", href: "/dc-development/manajemen-user", icon: Users, group: "Administrator" },
 ];
@@ -37,11 +44,12 @@ export const dcMenus: DcMenuItem[] = [
 export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void }) {
   const pathname = usePathname();
   const { user, logout } = useSession();
-  
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ 
-    "Master Data": true, 
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    "Proyek & Transaksi": true,
+    "Master Data": true,
     "Laporan & Katalog": true,
-    "Administrator": true 
+    "Administrator": true
   });
   const [isClient, setIsClient] = useState(false);
 
@@ -51,10 +59,11 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
     if (saved) {
       try {
         setOpenGroups(JSON.parse(saved));
-      } catch (e) {}
+      } catch (e) { }
     } else {
       const activeGroup = dcMenus.find(m => pathname.includes(m.href))?.group;
-      const initial = { 
+      const initial = {
+        "Proyek & Transaksi": true,
         "Master Data": true,
         "Laporan & Katalog": true,
         ...(activeGroup ? { [activeGroup]: true } : {})
@@ -74,19 +83,28 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
 
   const role = user?.role?.toUpperCase();
   // Pisahkan string berdasarkan koma, misalnya "dc-profile,dc-documents"
-  const userMenus = (user as any)?.akses_menu 
-    ? (user as any).akses_menu.split(',').map((m: string) => m.trim()) 
+  const userMenus = (user as any)?.akses_menu
+    ? (user as any).akses_menu.split(',').map((m: string) => m.trim())
     : [];
 
   const sidebarGroups = useMemo(() => {
     if (!role) return [];
-    
-    // Filter menu dcMenus berdasarkan yang ada di akses_menu user
+
     const isAll = userMenus.includes("all") || userMenus.includes("ALL");
-    const allowedMenus = dcMenus.filter(menu => isAll || userMenus.includes(menu.id));
-    
+    const allowedMenus = dcMenus.filter(menu => {
+      if (menu.id === "approval") {
+        return canAccessApprovalNavigation(role, userMenus);
+      }
+      if (menu.id === "daftar-dokumen") {
+        return isAll || userMenus.includes("daftar-dokumen") || userMenus.includes("renovasi-dc") || userMenus.includes("dc-documents");
+      }
+      if (isAll) return true;
+      if (userMenus.includes(menu.id)) return true;
+      return false;
+    });
+
     if (allowedMenus.length === 0) return [];
-    
+
     const grouped = allowedMenus.reduce((acc, curr) => {
       if (!acc[curr.group]) acc[curr.group] = [];
       acc[curr.group].push(curr);
@@ -132,15 +150,14 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
         <nav className="flex-1 overflow-y-auto py-3">
           <div className="flex flex-col gap-4">
             {sidebarGroups.map(({ group, items }) => {
-                const GroupIcon = Database;
+              const GroupIcon = Database;
 
               return (
                 <section key={group} className="mx-4 rounded-[14px] overflow-hidden bg-[#2A2A2A] shadow-md border border-white/5">
                   {/* Header Group */}
-                  <div 
-                    className={`flex items-center justify-between px-3 py-2.5 text-white cursor-pointer select-none transition-colors hover:brightness-110 ${
-                      group === "Administrator" ? "bg-gradient-to-r from-gray-700 to-gray-800" : "bg-gradient-to-r from-[#E65F2B] to-[#D3501F]"
-                    }`}
+                  <div
+                    className={`flex items-center justify-between px-3 py-2.5 text-white cursor-pointer select-none transition-colors hover:brightness-110 ${group === "Administrator" ? "bg-gradient-to-r from-gray-700 to-gray-800" : "bg-gradient-to-r from-[#E65F2B] to-[#D3501F]"
+                      }`}
                     onClick={() => toggleGroup(group)}
                   >
                     <div className="flex items-center gap-2.5">
@@ -149,31 +166,30 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
                     </div>
                     <ChevronDown className={`w-3.5 h-3.5 opacity-70 transition-transform duration-200 ${(!isClient || openGroups[group]) ? "rotate-180" : ""}`} />
                   </div>
-                  
+
                   {/* Items Group */}
                   <div className={`flex flex-col px-2 gap-1 overflow-hidden transition-all duration-300 ${!isClient || openGroups[group] ? "max-h-[500px] py-2" : "max-h-0 py-0"}`}>
-                  {items.map((item) => {
-                    const Icon = item.icon;
-                    const hrefPath = item.href.split("?")[0];
-                    const isActive = pathname === hrefPath;
-                    return (
-                      <Link key={item.title} href={item.href} onClick={() => { if (window.innerWidth <= 768) setSidebarOpen(false); }}>
-                        <div className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 ${
-                          isActive
-                            ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
-                            : "text-gray-400 hover:bg-white/5 hover:text-white"
-                        }`}>
-                          <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors ${isActive ? "text-[#E65F2B]" : "text-gray-500 group-hover:text-[#E65F2B]"}`}>
-                            <Icon className="h-3.5 w-3.5" />
+                    {items.map((item) => {
+                      const Icon = item.icon;
+                      const hrefPath = item.href.split("?")[0];
+                      const isActive = pathname === hrefPath;
+                      return (
+                        <Link key={item.title} href={item.href} onClick={() => { if (window.innerWidth <= 768) setSidebarOpen(false); }}>
+                          <div className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 ${isActive
+                              ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
+                              : "text-gray-400 hover:bg-white/5 hover:text-white"
+                            }`}>
+                            <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors ${isActive ? "text-[#E65F2B]" : "text-gray-500 group-hover:text-[#E65F2B]"}`}>
+                              <Icon className="h-3.5 w-3.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className={`text-[12px] font-medium leading-snug`}>{item.title}</p>
+                            </div>
+                            <ChevronRight className={`h-3 w-3 shrink-0 ${isActive ? "text-[#E65F2B]" : "text-[#333333] group-hover:text-[#E65F2B]"}`} />
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className={`text-[12px] font-medium leading-snug`}>{item.title}</p>
-                          </div>
-                          <ChevronRight className={`h-3 w-3 shrink-0 ${isActive ? "text-[#E65F2B]" : "text-[#333333] group-hover:text-[#E65F2B]"}`} />
-                        </div>
-                      </Link>
-                    );
-                  })}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </section>
               );
@@ -188,7 +204,7 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
         </nav>
 
         <div className="px-4 pb-4 mt-auto shrink-0 flex flex-col gap-4">
-          
+
           {/* USER PROFILE IN SIDEBAR */}
           <div className="flex items-center gap-2.5 bg-white/5 rounded-[12px] p-2 pr-3 border border-white/10 transition-colors hover:bg-white/10">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#E65F2B] to-[#D3501F] text-white flex items-center justify-center font-extrabold text-[13px] shadow-sm shrink-0">

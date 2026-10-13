@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getSession } from '@/lib/auth';
+import { getBranchesUnderInduk, getUserCoverageBranches } from '@/lib/branches';
 
 export async function GET(request: Request) {
   try {
+    const session = await getSession();
+    const allowedBranches = getUserCoverageBranches(session);
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const tipe = searchParams.get('tipe') || 'all';
@@ -24,8 +29,19 @@ export async function GET(request: Request) {
       where.tipe = tipe;
     }
     
-    if (cabang !== 'all') {
-      where.cabang = cabang;
+    if (allowedBranches !== null) {
+      if (cabang !== 'all') {
+        const childBranches = getBranchesUnderInduk(cabang);
+        const intersect = childBranches.filter(b => allowedBranches.includes(b.toUpperCase()));
+        where.cabang = { in: intersect, mode: 'insensitive' };
+      } else {
+        where.cabang = { in: allowedBranches, mode: 'insensitive' };
+      }
+    } else {
+      if (cabang !== 'all') {
+        const childBranches = getBranchesUnderInduk(cabang);
+        where.cabang = { in: childBranches, mode: 'insensitive' };
+      }
     }
 
     // Fetch projects
@@ -104,10 +120,10 @@ export async function GET(request: Request) {
       };
     });
 
-    // Count Location Types for Top Cards
-    // Note: In real scenarios, you might query these independently of the filters above to keep global stats
+    // Count Location Types for Top Cards (ter-filter coverage akun)
     const allProjectsCount = await prisma.dc_project.groupBy({
       by: ['tipe'],
+      where: allowedBranches !== null ? { cabang: { in: allowedBranches, mode: 'insensitive' } } : undefined,
       _count: true
     });
 

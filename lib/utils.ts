@@ -133,3 +133,34 @@ export const compressImage = async (file: File): Promise<File> => {
     }
 };
 
+/**
+ * Mengubah string menjadi format Title Case terstandarisasi.
+ * Menjaga kapitalisasi akronim teknis seperti DC, ME, RAB, OE, GPS, AC, dsb.
+ * Contoh: "renovasi perluasan gudang dc" → "Renovasi Perluasan Gudang DC"
+ */
+export const toTitleCase = (str: string | null | undefined): string => {
+    if (!str) return "";
+    const ACRONYMS: Record<string, string> = {
+        dc: "DC",
+        me: "ME",
+        rab: "RAB",
+        oe: "OE",
+        gps: "GPS",
+        ac: "AC",
+        mcb: "MCB",
+        pvc: "PVC",
+        led: "LED",
+        apron: "Apron",
+    };
+
+    return String(str)
+        .replace(/\b([a-zA-Z0-9]+)\b/g, (match) => {
+            const lower = match.toLowerCase();
+            if (ACRONYMS[lower]) {
+                return ACRONYMS[lower];
+            }
+            return match.charAt(0).toUpperCase() + match.slice(1).toLowerCase();
+        })
+        .trim();
+};
+

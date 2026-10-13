@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { getBranchesUnderInduk, getUserCoverageBranches } from '@/lib/branches';
 
 export async function GET(request: Request) {
   try {
@@ -8,6 +9,8 @@ export async function GET(request: Request) {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const allowedBranches = getUserCoverageBranches(session);
 
     const { searchParams } = new URL(request.url);
     const lingkup = searchParams.get('lingkup') || 'SIPIL';
@@ -22,12 +25,28 @@ export async function GET(request: Request) {
       }
     };
 
-    if (cabang && cabang !== 'all') {
-      // Allow filtering by either branch or coverage branch
-      whereClause.OR = [
-        { cabang: cabang },
-        { coverage_cabang: cabang }
-      ];
+    if (allowedBranches !== null) {
+      if (cabang && cabang !== 'all') {
+        const childBranches = getBranchesUnderInduk(cabang);
+        const intersect = childBranches.filter(b => allowedBranches.includes(b.toUpperCase()));
+        whereClause.OR = [
+          { cabang: { in: intersect, mode: 'insensitive' } },
+          { coverage_cabang: { in: intersect, mode: 'insensitive' } }
+        ];
+      } else {
+        whereClause.OR = [
+          { cabang: { in: allowedBranches, mode: 'insensitive' } },
+          { coverage_cabang: { in: allowedBranches, mode: 'insensitive' } }
+        ];
+      }
+    } else {
+      if (cabang && cabang !== 'all') {
+        const childBranches = getBranchesUnderInduk(cabang);
+        whereClause.OR = [
+          { cabang: { in: childBranches, mode: 'insensitive' } },
+          { coverage_cabang: { in: childBranches, mode: 'insensitive' } }
+        ];
+      }
     }
 
     if (search) {
@@ -56,14 +75,19 @@ export async function GET(request: Request) {
       ]
     });
 
-    // Get all distinct active branches for this lingkup
+    // Get all distinct active branches for this lingkup (ter-filter coverage)
+    const distinctWhere: any = {
+      status_aktif: true,
+      master_item: {
+        lingkup: lingkup,
+      }
+    };
+    if (whereClause.OR) {
+      distinctWhere.OR = whereClause.OR;
+    }
+
     const distinctBranches = await prisma.mh_item_cabang.findMany({
-      where: {
-        status_aktif: true,
-        master_item: {
-          lingkup: lingkup,
-        }
-      },
+      where: distinctWhere,
       select: {
         coverage_cabang: true
       },

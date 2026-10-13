@@ -10,6 +10,9 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import DetailDokumenModal from "@/components/dokumen-dc/DetailDokumenModal";
 import GlobalNotesModal from "@/components/dokumen-dc/GlobalNotesModal";
+import { useSession } from "@/context/SessionContext";
+import { BranchFilterSelect } from "@/components/ui/branch-filter-select";
+import { getBranchesUnderInduk, getUserCoverageBranches, isBranchAccessible } from "@/lib/branches";
 
 // --- Types ---
 type ProjectProgress = {
@@ -89,10 +92,13 @@ const TIPE_ORDER = ["DC", "WAREHOUSE", "DEPO", "BULKY", "STORE-HUB", "GUDANG ANA
 
 export default function DokumenDcPage() {
   const router = useRouter();
+  const { user } = useSession();
   const [data, setData] = useState<DokumenDcProject[]>([]);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCards, setShowCards] = useState(true);
+
+  const userCoverageBranches = useMemo(() => getUserCoverageBranches(user), [user]);
 
   // Popup Modal State
   const [selectedProjectForPopup, setSelectedProjectForPopup] = useState<DokumenDcProject | null>(null);
@@ -145,13 +151,19 @@ export default function DokumenDcPage() {
   // Filter Data
   const filteredData = useMemo(() => {
     let result = data.filter(item => {
+      // 0. Filter coverage akun
+      if (!isBranchAccessible(item.cabang, userCoverageBranches)) return false;
+
       const matchSearch = !query || 
         item.kode.toLowerCase().includes(query.toLowerCase()) ||
         item.nama_proyek.toLowerCase().includes(query.toLowerCase()) ||
         item.cabang.toLowerCase().includes(query.toLowerCase());
       
       const matchTipe = tipeFilter === 'all' || item.tipe === tipeFilter;
-      const matchCabang = cabangFilter === 'all' || item.cabang === cabangFilter;
+      const childBranches = cabangFilter !== 'all' ? getBranchesUnderInduk(cabangFilter) : [];
+      const matchCabang = cabangFilter === 'all' || 
+        childBranches.some(b => b.toUpperCase() === item.cabang.toUpperCase()) ||
+        item.cabang.toUpperCase() === cabangFilter.toUpperCase();
       
       let matchStatus = true;
       const totalUploaded = item.progress.PEMBANGUNAN.uploaded + item.progress.RENOVASI.uploaded + item.progress.PERLUASAN.uploaded;
@@ -174,7 +186,7 @@ export default function DokumenDcPage() {
     });
 
     return result;
-  }, [data, query, tipeFilter, cabangFilter, statusFilter]);
+  }, [data, query, tipeFilter, cabangFilter, statusFilter, userCoverageBranches]);
 
   return (
     <Dashboard title="Penyimpanan Dokumen DC">
@@ -243,15 +255,12 @@ export default function DokumenDcPage() {
               </SelectContent>
             </Select>
 
-            <Select value={cabangFilter} onValueChange={setCabangFilter}>
-              <SelectTrigger className="w-full lg:w-[160px] rounded-lg h-10 text-sm border-slate-200 bg-white">
-                <SelectValue placeholder="Semua Cabang" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Cabang</SelectItem>
-                {uniqueBranches.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <BranchFilterSelect
+              value={cabangFilter}
+              onChange={setCabangFilter}
+              placeholder="Semua Cabang"
+              className="w-full lg:w-[160px]"
+            />
 
             <button className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors whitespace-nowrap w-full lg:w-auto">
               <Download className="w-4 h-4" /> Ekspor Data

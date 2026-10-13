@@ -8,10 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ProfileTable, DcProfile } from "@/components/profile-dc/ProfileTable";
 import { ViewProfileModal } from "@/components/profile-dc/ViewProfileModal";
 import { EditProfileModal } from "@/components/profile-dc/EditProfileModal";
+import { useSession } from "@/context/SessionContext";
+import { BranchFilterSelect } from "@/components/ui/branch-filter-select";
+import { getBranchesUnderInduk, getUserCoverageBranches, isBranchAccessible } from "@/lib/branches";
 
 const TIPE_ORDER = ["DC", "WAREHOUSE", "DEPO", "BULKY", "STORE-HUB", "GUDANG ANAK"];
 
 export default function ProfileDcPage() {
+  const { user } = useSession();
   const [profiles, setProfiles] = useState<DcProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +26,8 @@ export default function ProfileDcPage() {
 
   const [selectedViewProfile, setSelectedViewProfile] = useState<DcProfile | null>(null);
   const [selectedEditProfile, setSelectedEditProfile] = useState<DcProfile | null>(null);
+
+  const userCoverageBranches = useMemo(() => getUserCoverageBranches(user), [user]);
 
   const loadData = async () => {
     try {
@@ -64,6 +70,11 @@ export default function ProfileDcPage() {
   const filteredProfiles = useMemo(() => {
     let result = profiles;
 
+    // 1. Batasi berdasarkan coverage akun
+    if (userCoverageBranches) {
+      result = result.filter(p => isBranchAccessible(p.cabang, userCoverageBranches));
+    }
+
     if (query) {
       const normalized = query.toLowerCase();
       result = result.filter(
@@ -79,7 +90,8 @@ export default function ProfileDcPage() {
     }
 
     if (branchFilter !== "all") {
-      result = result.filter(p => p.cabang?.toLowerCase() === branchFilter.toLowerCase());
+      const childBranches = getBranchesUnderInduk(branchFilter);
+      result = result.filter(p => childBranches.some(b => b.toUpperCase() === (p.cabang || "").toUpperCase()));
     }
 
     // Sort result by TIPE_ORDER then alphabetical
@@ -96,7 +108,7 @@ export default function ProfileDcPage() {
     });
 
     return result;
-  }, [profiles, query, typeFilter, branchFilter]);
+  }, [profiles, query, typeFilter, branchFilter, userCoverageBranches]);
 
   return (
     <Dashboard title="Profile DC">
@@ -126,17 +138,12 @@ export default function ProfileDcPage() {
               </SelectContent>
             </Select>
 
-            <Select value={branchFilter} onValueChange={setBranchFilter}>
-              <SelectTrigger className="w-full lg:w-[160px] rounded-lg h-10 text-sm border-slate-200 bg-white">
-                <SelectValue placeholder="Semua Cabang" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Cabang</SelectItem>
-                {uniqueBranches.map(b => (
-                  <SelectItem key={b} value={b}>{b}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <BranchFilterSelect
+              value={branchFilter}
+              onChange={setBranchFilter}
+              placeholder="Semua Cabang"
+              className="w-full lg:w-[160px]"
+            />
           </div>
         </div>
 
