@@ -54,6 +54,7 @@ model dc_project {
   updated_at              DateTime      @updatedAt
   dokumen                 dc_dokumen[]
   renovasi                dc_renovasi[]
+  fungsi_ruang            dc_fungsi_ruang[]
 }
 
 model dc_dokumen {
@@ -246,6 +247,7 @@ model dc_renovasi {
   project            dc_project             @relation(fields: [project_id], references: [id], onDelete: Cascade)
   dokumen            dc_renovasi_dokumen[]
   item_rab           dc_renovasi_item[]
+  fungsi_ruang       dc_fungsi_ruang[]
 }
 
 model dc_renovasi_dokumen {
@@ -286,10 +288,37 @@ model dc_renovasi_item {
   master_item        mh_master_item? @relation(fields: [master_item_id], references: [id], onDelete: SetNull)
 }
 
-model dc_jenis_renovasi_preset {
-  id         Int      @id @default(autoincrement())
-  nama       String   @unique
-  is_default Boolean  @default(false)
-  created_at DateTime @default(now())
+// --- Pengajuan Perubahan Fungsi Ruang (PFR) MODULE ---
+
+model dc_fungsi_ruang {
+  id               Int          @id @default(autoincrement())
+  nomor_pengajuan  String       @unique
+  renovasi_id      Int
+  project_id       Int
+  
+  // Identitas Pemohon
+  nama_pemohon     String
+  email_pemohon    String
+  jabatan          String
+  divisi           String
+  departemen       String
+  
+  // Data Pengajuan Ruang
+  jenis_pengajuan  String       // "Perubahan Fungsi Ruang" | "Pengurangan Fungsi Ruang" | "Penambahan Fungsi Ruang"
+  alasan_pengajuan String       @db.Text
+  
+  // Alur Approval
+  status           String       @default("MENUNGGU APPROVAL BM/DBM")
+  
+  // Google Drive File
+  file_url         String?      // Link Google Drive
+  drive_file_id    String?
+
+  created_by       String       // email maker (B&M Manager / Admin)
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
+
+  renovasi         dc_renovasi  @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
+  project          dc_project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
 }
 

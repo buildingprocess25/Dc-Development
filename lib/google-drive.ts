@@ -150,6 +150,38 @@ export async function getDcRenovasiFolderHierarchyId(
   return targetFolderId;
 }
 
+export async function getDcFungsiRuangFolderHierarchyId(
+  drive: drive_v3.Drive,
+  cabang: string,
+  kode: string,
+  nama_proyek: string,
+  inisial: string | null,
+  nomorPengajuan: string
+): Promise<string> {
+  // 1. Master Folder -> Cabang
+  const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", MASTER_DRIVE_FOLDER_ID);
+  
+  // 2. Cabang -> DC Development
+  const dcDevFolderId = await getOrCreateFolder(drive, "DC Development", cabangFolderId);
+  
+  // 3. DC Development -> Project Folder (KODE - NAMA_PROYEK - INISIAL)
+  const inisialText = inisial ? ` - ${inisial}` : '';
+  const projectName = `${kode || "XXX"} - ${nama_proyek || "TANPA NAMA"}${inisialText}`;
+  const projectFolderId = await getOrCreateFolder(drive, projectName, dcDevFolderId);
+  
+  // 4. Project Folder -> Building
+  const buildingFolderId = await getOrCreateFolder(drive, "Building", projectFolderId);
+  
+  // 5. Building -> Perubahan Fungsi Ruang
+  const pfrFolderId = await getOrCreateFolder(drive, "Perubahan Fungsi Ruang", buildingFolderId);
+
+  // 6. Perubahan Fungsi Ruang -> [Nomor Pengajuan]
+  const safePengajuan = (nomorPengajuan || "DRAFT").replace(/[\/\\]/g, "-");
+  const pengajuanFolderId = await getOrCreateFolder(drive, safePengajuan, pfrFolderId);
+
+  return pengajuanFolderId;
+}
+
 function bufferToStream(buffer: Buffer) {
   const stream = new Readable();
   stream.push(buffer);

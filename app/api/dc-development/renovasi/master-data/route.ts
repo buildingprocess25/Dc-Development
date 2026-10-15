@@ -48,30 +48,109 @@ export async function GET() {
       };
     });
 
-    // 2. Ambil preset jenis renovasi (seed jika belum ada)
-    let presets = await prisma.dc_jenis_renovasi_preset.findMany({
-      orderBy: { id: 'asc' }
+    // 2. Ambil jenis renovasi dinamis dari dc_renovasi (status bukan DRAFT)
+    const distinctJenisRaw = await prisma.dc_renovasi.findMany({
+      where: {
+        status: { not: 'DRAFT' }
+      },
+      select: {
+        jenis_renovasi: true
+      },
+      distinct: ['jenis_renovasi']
     });
 
-    if (presets.length === 0) {
-      await prisma.dc_jenis_renovasi_preset.createMany({
-        data: [
-          { nama: 'Renovasi Perluasan', is_default: true },
-          { nama: 'Renovasi Peremajaan', is_default: true }
+    const defaultJenis = ['Renovasi Perluasan', 'Renovasi Peremajaan'];
+    const jenisSet = new Set<string>();
+
+    defaultJenis.forEach((j) => jenisSet.add(toTitleCase(j.trim())));
+    distinctJenisRaw.forEach((row) => {
+      if (row.jenis_renovasi && row.jenis_renovasi.trim()) {
+        jenisSet.add(toTitleCase(row.jenis_renovasi.trim()));
+      }
+    });
+
+    const jenisRenovasiOptions = Array.from(jenisSet);
+
+    // 3. Ambil riwayat item bebas (is_custom = true atau master_item_id null) dari pengajuan non-DRAFT
+    const historicalItemsRaw = await prisma.dc_renovasi_item.findMany({
+      where: {
+        OR: [
+          { is_custom: true },
+          { master_item_id: null }
         ],
-        skipDuplicates: true
-      });
-      presets = await prisma.dc_jenis_renovasi_preset.findMany({
-        orderBy: { id: 'asc' }
-      });
+        deskripsi: { not: '' },
+        renovasi: {
+          status: { not: 'DRAFT' }
+        }
+      },
+      select: {
+        id: true,
+        deskripsi: true,
+        lingkup: true,
+        kategori_pekerjaan: true,
+        harga_material: true,
+        harga_upah: true,
+        created_at: true,
+        renovasi: {
+          select: {
+            cabang: true
+          }
+        }
+      },
+      orderBy: { created_at: 'desc' }
+    });
+
+    // Kelompokkan item riwayat berdasarkan lingkup, kategori_pekerjaan, dan deskripsi
+    const historyMap = new Map<string, {
+      deskripsi: string;
+      lingkup: string;
+      kategori_pekerjaan: string;
+      latest_national_material: number;
+      latest_national_upah: number;
+      branch_prices: Record<string, { material: number; upah: number }>;
+    }>();
+
+    for (const item of historicalItemsRaw) {
+      const cleanDeskripsi = (item.deskripsi || '').trim();
+      if (!cleanDeskripsi) continue;
+
+      const normLingkup = (item.lingkup || 'SIPIL').toUpperCase();
+      const normCat = (item.kategori_pekerjaan || '').trim();
+      const key = `${normLingkup}:::${normCat.toLowerCase()}:::${cleanDeskripsi.toLowerCase()}`;
+
+      const cabangUpper = (item.renovasi?.cabang || '').trim().toUpperCase();
+      const mat = Number(item.harga_material) || 0;
+      const upah = Number(item.harga_upah) || 0;
+
+      if (!historyMap.has(key)) {
+        historyMap.set(key, {
+          deskripsi: cleanDeskripsi,
+          lingkup: normLingkup,
+          kategori_pekerjaan: normCat,
+          latest_national_material: mat,
+          latest_national_upah: upah,
+          branch_prices: {}
+        });
+      }
+
+      const entry = historyMap.get(key)!;
+      // Karena di-order by created_at desc, entri pertama untuk setiap cabang adalah harga terbaru cabang tersebut
+      if (cabangUpper && !entry.branch_prices[cabangUpper]) {
+        entry.branch_prices[cabangUpper] = {
+          material: mat,
+          upah: upah
+        };
+      }
     }
 
-    // 3. Ambil kategori pekerjaan
+    const customItemHistory = Array.from(historyMap.values());
+
+    // 4. Ambil kategori pekerjaan
     const categories = await prisma.mh_kategori_pekerjaan.findMany({
       orderBy: { id: 'asc' }
     });
 
-    // 4. Ambil master items beserta harga cabangnya
+    // 5. Ambil master items beserta harga cabangnya
     const masterItems = await prisma.mh_master_item.findMany({
       include: {
         item_cabang: true
@@ -83,9 +162,11 @@ export async function GET() {
       status: 'success',
       data: {
         projects,
-        presets: presets.map((p) => ({ ...p, nama: toTitleCase(p.nama) })),
+        jenisRenovasiOptions,
+        presets: jenisRenovasiOptions.map((nama) => ({ nama, is_default: false })),
         categories,
-        masterItems
+        masterItems,
+        customItemHistory
       }
     });
   } catch (error: any) {

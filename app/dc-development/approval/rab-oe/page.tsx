@@ -9,7 +9,8 @@ import {
   canAccessApproval,
   isApprovalAdmin,
   getApprovalQueueFilterForRole,
-  canAccessRabOeApproval
+  canAccessRabOeApproval,
+  canUserViewRabOeSubmission
 } from "@/lib/permissions";
 import {
   ArrowLeft,
@@ -37,6 +38,7 @@ import { getBranchesUnderInduk, getUserCoverageBranches, isBranchAccessible } fr
 import { hasPreviousApprovalNotes } from "@/lib/approval-notes";
 import DetailRenovasiModal from "@/components/renovasi/DetailRenovasiModal";
 import ApprovalActionDialog, { ApprovalActionType } from "@/components/approval/ApprovalActionDialog";
+import { ApprovalFilterToolbar, ApprovalPageTitle } from "@/components/approval";
 import { FeedbackModal } from "@/components/ui/feedback-modal";
 
 export default function ApprovalRabOePage() {
@@ -179,22 +181,22 @@ export default function ApprovalRabOePage() {
         }
       }
 
-      // 4. Status scoping
+      // 4. Status scoping (Aturan Bertingkat)
       if (isAdmin) {
         if (adminStatusFilter !== "all") {
           return item.status === adminStatusFilter;
         }
+        return true;
       } else {
         if (activeTab === "MY_QUEUE") {
-          if (Array.isArray(userQueueStatus)) {
-            return userQueueStatus.includes(item.status);
-          }
+          return canUserApproveItem(item);
+        } else {
+          // Tab "Semua Berkas Terkait": Wajib terapkan aturan bertingkat
+          return canUserViewRabOeSubmission(user, item);
         }
       }
-
-      return true;
     });
-  }, [items, searchQuery, branchFilter, activeTab, adminStatusFilter, isAdmin, userQueueStatus, userCoverageBranches]);
+  }, [items, searchQuery, branchFilter, activeTab, adminStatusFilter, isAdmin, user, userQueueStatus, userCoverageBranches]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -224,7 +226,14 @@ export default function ApprovalRabOePage() {
     { value: "DITOLAK", label: "Ditolak" }
   ];
 
-  const pendingCountForMe = summary?.my_pending_count ?? 0;
+  const pendingCountForMe = useMemo(() => {
+    return items.filter((item) => canUserApproveItem(item)).length;
+  }, [items, userCoverageBranches, isAdmin, userQueueStatus]);
+
+  const totalCountForMe = useMemo(() => {
+    if (isAdmin) return items.length;
+    return items.filter((item) => canUserViewRabOeSubmission(user, item)).length;
+  }, [items, user, isAdmin]);
 
   if (!canAccessRabOe) {
     return (
@@ -251,26 +260,10 @@ export default function ApprovalRabOePage() {
   return (
     <Dashboard
       title={
-        <div className="flex items-center gap-3">
-          <Link href="/dc-development/approval">
-            <button
-              className="p-2 rounded-xl bg-white border border-[#EAEAEA] text-[#666666] hover:bg-[#F9F9F9] hover:text-slate-900 shadow-xs transition-all cursor-pointer"
-              title="Kembali ke Pusat Approval"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Pusat Approval / RAB & OE
-              </span>
-            </div>
-            <h2 className="text-xl md:text-2xl font-extrabold text-[#111111] tracking-tight">
-              Antrean Approval RAB / OE
-            </h2>
-          </div>
-        </div>
+        <ApprovalPageTitle
+          breadcrumb="Pusat Approval / RAB & OE"
+          title="Antrean Approval RAB / OE"
+        />
       }
       headerActions={
         <Button
@@ -287,81 +280,21 @@ export default function ApprovalRabOePage() {
     >
       <div className="flex-1 overflow-y-auto px-6 md:px-12 py-6 space-y-5">
         {/* Filter & Search Bar */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            {/* Tabs for Non-Admin */}
-            {!isAdmin ? (
-              <div className="inline-flex p-1 bg-slate-100 rounded-xl gap-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("MY_QUEUE")}
-                  className={cn(
-                    "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer",
-                    activeTab === "MY_QUEUE"
-                      ? "bg-white text-slate-900 shadow-xs"
-                      : "text-slate-500 hover:text-slate-800"
-                  )}
-                >
-                  <span>Perlu Tindakan Saya</span>
-                  {pendingCountForMe > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-[#E65F2B] text-white">
-                      {pendingCountForMe}
-                    </span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("ALL")}
-                  className={cn(
-                    "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
-                    activeTab === "ALL"
-                      ? "bg-white text-slate-900 shadow-xs"
-                      : "text-slate-500 hover:text-slate-800"
-                  )}
-                >
-                  <span>Semua Berkas Terkait</span>
-                  <span className="text-slate-400 font-mono text-[10px]">({items.length})</span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-500">Filter Status:</span>
-                <div className="w-56">
-                  <FilterSelect
-                    value={adminStatusFilter}
-                    onChange={setAdminStatusFilter}
-                    options={adminStatusOptions}
-                    placeholder="Pilih status"
-                    triggerClassName="h-9 rounded-xl text-xs bg-slate-50 border-slate-200"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Right side: Search & Branch */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-              <div className="relative w-full sm:w-64">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <Input
-                  type="text"
-                  placeholder="Cari no. pengajuan / proyek..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 rounded-xl text-xs bg-slate-50 border-slate-200 focus-visible:ring-[#E65F2B]/30"
-                />
-              </div>
-
-              <div className="w-full sm:w-48">
-                <BranchFilterSelect
-                  value={branchFilter}
-                  onChange={setBranchFilter}
-                  allLabel="Semua Cabang"
-                  triggerClassName="h-9 rounded-xl text-xs bg-slate-50 border-slate-200"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <ApprovalFilterToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Cari no. pengajuan / proyek..."
+          branchFilter={branchFilter}
+          onBranchChange={setBranchFilter}
+          isAdmin={isAdmin}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          pendingCount={pendingCountForMe}
+          totalCount={totalCountForMe}
+          adminStatusFilter={adminStatusFilter}
+          onAdminStatusChange={setAdminStatusFilter}
+          adminStatusOptions={adminStatusOptions}
+        />
 
         {/* Content Table */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -517,7 +450,7 @@ export default function ApprovalRabOePage() {
           renovasi={selectedItem}
           canEdit={false}
           showApprovalActions={canUserApproveItem(selectedItem)}
-          onApprovalAction={(action, item) => {
+          onApprovalAction={(action: ApprovalActionType, item: any) => {
             handleOpenAction(action, item);
           }}
         />

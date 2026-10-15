@@ -15,12 +15,13 @@ import {
   HardHat,
   ClipboardCheck,
   FolderKanban,
+  LayoutGrid,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/context/SessionContext";
 import { canAccessApprovalNavigation } from "@/lib/permissions";
 
-export type DcMenuId = "dc-profile" | "dc-documents" | "manajemen-user" | "master-harga" | "katalog-harga" | "renovasi-dc" | "approval" | "daftar-dokumen";
+export type DcMenuId = "dc-profile" | "dc-documents" | "manajemen-user" | "master-harga" | "katalog-harga" | "renovasi-dc" | "fungsi-ruang" | "approval" | "daftar-dokumen";
 
 export type DcMenuItem = {
   id: DcMenuId;
@@ -32,6 +33,7 @@ export type DcMenuItem = {
 
 export const dcMenus: DcMenuItem[] = [
   { id: "renovasi-dc", title: "Penawaran RAB/OE", href: "/dc-development/renovasi", icon: HardHat, group: "Proyek & Transaksi" },
+  { id: "fungsi-ruang", title: "Perubahan Fungsi Ruang", href: "/dc-development/fungsi-ruang", icon: LayoutGrid, group: "Proyek & Transaksi" },
   { id: "approval", title: "Approval", href: "/dc-development/approval", icon: ClipboardCheck, group: "Proyek & Transaksi" },
   { id: "dc-profile", title: "Profile DC", href: "/dc-development/profile", icon: Database, group: "Master Data" },
   { id: "dc-documents", title: "Dokumen DC", href: "/dc-development/dokumen-dc", icon: FolderArchive, group: "Master Data" },
@@ -95,8 +97,11 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
       if (menu.id === "approval") {
         return canAccessApprovalNavigation(role, userMenus);
       }
+      if (menu.id === "fungsi-ruang") {
+        return isAll || userMenus.includes("fungsi-ruang") || userMenus.includes("renovasi-dc");
+      }
       if (menu.id === "daftar-dokumen") {
-        return isAll || userMenus.includes("daftar-dokumen") || userMenus.includes("renovasi-dc") || userMenus.includes("dc-documents");
+        return isAll || userMenus.includes("daftar-dokumen") || userMenus.includes("renovasi-dc") || userMenus.includes("dc-documents") || userMenus.includes("fungsi-ruang");
       }
       if (isAll) return true;
       if (userMenus.includes(menu.id)) return true;

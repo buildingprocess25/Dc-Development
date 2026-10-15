@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import { getSession } from '@/lib/auth';
 import { getUserCoverageBranches, getBranchesUnderInduk } from '@/lib/branches';
-import { filterRenovasiByCreator } from '@/lib/permissions';
+import { getRabOePrismaFilter, canUserViewRabOeSubmission } from '@/lib/permissions';
 
 export async function GET(request: Request) {
   try {
@@ -17,10 +17,24 @@ export async function GET(request: Request) {
     const cabang = searchParams.get('cabang') || '';
     const status = searchParams.get('status') || '';
 
-    const allowedBranches = getUserCoverageBranches(session);
+    // Ambil data user terkini dari dc_users untuk coverage cabang & role yang up-to-date
+    const dbUser = await prisma.dc_users.findUnique({
+      where: { id: session.id },
+      select: {
+        id: true,
+        email: true,
+        nama: true,
+        cabang: true,
+        role: true,
+        coverage_cabang: true,
+      },
+    });
+
+    const currentUser = dbUser || session;
+    const allowedBranches = getUserCoverageBranches(currentUser);
     const andConditions: Prisma.dc_renovasiWhereInput[] = [];
 
-    // Filter coverage
+    // 1. Filter coverage cabang akun pengguna
     if (allowedBranches !== null) {
       if (cabang && cabang !== 'all') {
         const childBranches = getBranchesUnderInduk(cabang);
@@ -49,18 +63,27 @@ export async function GET(request: Request) {
       });
     }
 
-    // Filter status
-    if (status && status !== 'all') {
-      andConditions.push({ status });
+    // 2. Filter visibilitas bertingkat (Tiered Visibility) per role
+    const tierFilter = getRabOePrismaFilter(currentUser);
+    if (tierFilter) {
+      andConditions.push(tierFilter);
     }
 
-    // Filter pencarian
-    if (search) {
+    // 3. Filter status
+    if (status && status !== 'all') {
+      andConditions.push({ status: { equals: status, mode: 'insensitive' } });
+    }
+
+    // 4. Filter pencarian
+    if (search.trim()) {
+      const q = search.trim();
       andConditions.push({
         OR: [
-          { nomor_pengajuan: { contains: search, mode: 'insensitive' } },
-          { project: { nama_proyek: { contains: search, mode: 'insensitive' } } },
-          { project: { kode: { contains: search, mode: 'insensitive' } } }
+          { nomor_pengajuan: { contains: q, mode: 'insensitive' } },
+          { jenis_renovasi: { contains: q, mode: 'insensitive' } },
+          { project: { nama_proyek: { contains: q, mode: 'insensitive' } } },
+          { project: { kode: { contains: q, mode: 'insensitive' } } },
+          { project: { cabang: { contains: q, mode: 'insensitive' } } },
         ]
       });
     }
@@ -77,7 +100,8 @@ export async function GET(request: Request) {
       orderBy: { updated_at: 'desc' }
     });
 
-    const filteredData = filterRenovasiByCreator(data, session);
+    // 5. In-memory safety verification dengan canUserViewRabOeSubmission
+    const filteredData = data.filter((item) => canUserViewRabOeSubmission(currentUser, item));
 
     return NextResponse.json({
       status: 'success',

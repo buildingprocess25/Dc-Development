@@ -1,17 +1,27 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Dashboard from "@/components/dashboard/dashboard";
-import { ChevronLeft, Search, RefreshCw, FileSpreadsheet } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { BranchFilterSelect } from "@/components/ui/branch-filter-select";
-import { FilterSelect } from "@/components/ui/filter-select";
+import { FileSpreadsheet } from "lucide-react";
 import DetailRenovasiModal from "@/components/renovasi/DetailRenovasiModal";
 import DokumenRabOeTable, { DokumenRabOeItem } from "@/components/dokumen/DokumenRabOeTable";
+import DokumenHeaderCard from "@/components/dokumen/DokumenHeaderCard";
+import DokumenFilterToolbar from "@/components/dokumen/DokumenFilterToolbar";
+import { useSession } from "@/context/SessionContext";
+import { isApprovalAdmin, isBranchBuildingKoordinator, getRabOeVisibleStatuses } from "@/lib/permissions";
+
+const ALL_RAB_OE_STATUS_OPTIONS = [
+  { value: "DRAFT", label: "DRAFT" },
+  { value: "MENUNGGU APPROVAL B&M MANAGER", label: "MENUNGGU B&M MANAGER" },
+  { value: "MENUNGGU APPROVAL DC SPECIALIST", label: "MENUNGGU DC SPECIALIST" },
+  { value: "MENUNGGU APPROVAL DC MANAGER", label: "MENUNGGU DC MANAGER" },
+  { value: "APPROVED", label: "APPROVED" },
+  { value: "REVISI", label: "REVISI" },
+  { value: "DITOLAK", label: "DITOLAK" }
+];
 
 export default function DaftarDokumenRabOePage() {
+  const { user } = useSession();
   const [data, setData] = useState<DokumenRabOeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -23,11 +33,41 @@ export default function DaftarDokumenRabOePage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
+  // Status options dinamis sesuai role & visibilitas bertingkat
+  const statusOptions = useMemo(() => {
+    const isAdmin = isApprovalAdmin(user?.role);
+    const isMaker = isBranchBuildingKoordinator(user?.role);
+    const visibleStatuses = getRabOeVisibleStatuses(user?.role);
+
+    const baseOptions: { value: string; label: string }[] = [
+      { value: "all", label: "Semua Status" },
+    ];
+
+    if (isAdmin || isMaker) {
+      return [{ value: "all", label: "Semua Status" }, ...ALL_RAB_OE_STATUS_OPTIONS];
+    }
+
+    for (const opt of ALL_RAB_OE_STATUS_OPTIONS) {
+      if (Array.isArray(visibleStatuses) && visibleStatuses.includes(opt.value)) {
+        baseOptions.push(opt);
+      }
+    }
+
+    return baseOptions;
+  }, [user?.role]);
+
+  // Reset status filter jika status saat ini tidak ada dalam opsi role
+  useEffect(() => {
+    if (status !== "all" && !statusOptions.some((opt) => opt.value === status)) {
+      setStatus("all");
+    }
+  }, [statusOptions, status]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const query = new URLSearchParams();
-      if (search) query.set("search", search);
+      if (search.trim()) query.set("search", search.trim());
       if (cabang !== "all") query.set("cabang", cabang);
       if (status !== "all") query.set("status", status);
 
@@ -44,31 +84,8 @@ export default function DaftarDokumenRabOePage() {
   }, [search, cabang, status]);
 
   useEffect(() => {
-    let ignore = false;
-    async function initFetch() {
-      try {
-        const query = new URLSearchParams();
-        if (cabang !== "all") query.set("cabang", cabang);
-        if (status !== "all") query.set("status", status);
-
-        const res = await fetch(`/api/dokumen/rab-oe?${query.toString()}`);
-        const json = await res.json();
-        if (!ignore && json.status === "success") {
-          setData(json.data || []);
-        }
-      } catch (err) {
-        console.error("Gagal memuat dokumen RAB/OE:", err);
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
-      }
-    }
-    initFetch();
-    return () => {
-      ignore = true;
-    };
-  }, [cabang, status]);
+    fetchData();
+  }, [fetchData]);
 
   const handleDownload = async (item: DokumenRabOeItem) => {
     const existingDoc = item.dokumen?.find((d) => d.kategori_file === "DOKUMEN_RAB_OE_PDF");
@@ -98,81 +115,26 @@ export default function DaftarDokumenRabOePage() {
     <Dashboard title="Daftar Dokumen > RAB/OE">
       <div className="flex flex-col bg-[#FAFAFA] p-3 md:p-5 lg:p-6 animate-in fade-in duration-300 overflow-y-auto h-[calc(100vh-60px)] space-y-4">
         {/* Header Bar */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <Link
-                href="/dc-development/daftar-dokumen"
-                className="inline-flex items-center text-xs font-bold text-slate-500 hover:text-[#E65F2B] transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4 mr-0.5" />
-                Daftar Dokumen
-              </Link>
-              <span className="text-slate-300">/</span>
-              <span className="text-xs font-bold text-[#E65F2B]">RAB & OE</span>
-            </div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
-              <FileSpreadsheet className="w-6 h-6 text-[#E65F2B]" />
-              Dokumen Rencana Anggaran Biaya (RAB / OE)
-            </h1>
-            <p className="text-xs md:text-sm text-slate-500 mt-0.5">
-              Daftar seluruh berkas PDF pengajuan dan persetujuan resmi RAB/OE proyek renovasi DC.
-            </p>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchData}
-            disabled={loading}
-            className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 self-start md:self-auto cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-            Muat Ulang
-          </Button>
-        </div>
+        <DokumenHeaderCard
+          title="Dokumen Rencana Anggaran Biaya (RAB / OE)"
+          icon={FileSpreadsheet}
+          badgeLabel="RAB & OE"
+        />
 
         {/* Toolbar Filter Section */}
-        <div className="bg-white p-3 lg:p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input
-              placeholder="Cari nomor pengajuan atau nama proyek DC..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && fetchData()}
-              className="pl-9 w-full rounded-xl border-slate-200 focus-visible:ring-[#E65F2B] h-10 text-xs bg-slate-50/50"
-            />
-          </div>
-
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-            {/* Menggunakan Komponen Reusable BranchFilterSelect */}
-            <BranchFilterSelect
-              value={cabang}
-              onChange={setCabang}
-              placeholder="Semua Cabang"
-              className="w-full sm:w-[170px]"
-            />
-
-            {/* Menggunakan Komponen Reusable FilterSelect */}
-            <FilterSelect
-              value={status}
-              onChange={setStatus}
-              placeholder="Semua Status"
-              className="w-full sm:w-[180px]"
-              options={[
-                { value: "all", label: "Semua Status" },
-                { value: "DRAFT", label: "DRAFT" },
-                { value: "MENUNGGU APPROVAL B&M MANAGER", label: "MENUNGGU B&M MANAGER" },
-                { value: "MENUNGGU APPROVAL DC SPECIALIST", label: "MENUNGGU DC SPECIALIST" },
-                { value: "MENUNGGU APPROVAL DC MANAGER", label: "MENUNGGU DC MANAGER" },
-                { value: "APPROVED", label: "APPROVED" },
-                { value: "REVISI", label: "REVISI" },
-                { value: "DITOLAK", label: "DITOLAK" }
-              ]}
-            />
-          </div>
-        </div>
+        <DokumenFilterToolbar
+          search={search}
+          onSearchChange={setSearch}
+          onSearchEnter={fetchData}
+          searchPlaceholder="Cari nomor pengajuan atau nama proyek DC..."
+          cabang={cabang}
+          onCabangChange={setCabang}
+          status={status}
+          onStatusChange={setStatus}
+          statusOptions={statusOptions}
+          onRefresh={fetchData}
+          loading={loading}
+        />
 
         {/* Reusable Dokumen Table */}
         <DokumenRabOeTable

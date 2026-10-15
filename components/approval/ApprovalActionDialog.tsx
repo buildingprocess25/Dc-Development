@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatRupiah, cn, toTitleCase } from "@/lib/utils";
-import { getNextApprovalStatus } from "@/lib/permissions";
+import { getNextApprovalStatus, getNextFungsiRuangApprovalStatus } from "@/lib/permissions";
 import { RevisionDetailItem } from "@/lib/types/renovasi-revision";
 import {
   CheckCircle2,
@@ -21,16 +21,21 @@ import {
   ChevronUp,
   Search,
   ExternalLink,
-  Check
+  Check,
+  RotateCcw,
+  User
 } from "lucide-react";
 
 export type ApprovalActionType = "APPROVE" | "REVISI" | "TOLAK";
 
-interface ApprovalActionDialogProps {
+export interface ApprovalActionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   action: ApprovalActionType | null;
   target: any | null;
+  moduleType?: "rab-oe" | "fungsi-ruang";
+  roleName?: string;
+  nextStepLabel?: string;
   onSuccess: (updatedItem?: any) => void;
 }
 
@@ -39,6 +44,9 @@ export default function ApprovalActionDialog({
   onOpenChange,
   action,
   target,
+  moduleType = "rab-oe",
+  roleName,
+  nextStepLabel,
   onSuccess
 }: ApprovalActionDialogProps) {
   const [catatan, setCatatan] = useState("");
@@ -48,7 +56,7 @@ export default function ApprovalActionDialog({
   // Full item data if target passed is partial
   const [fullTarget, setFullTarget] = useState<any>(target);
 
-  // Granular Revision States
+  // Granular Revision States (hanya untuk modul rab-oe)
   const [revParamDurasi, setRevParamDurasi] = useState(false);
   const [revParamDurasiNote, setRevParamDurasiNote] = useState("");
 
@@ -97,8 +105,8 @@ export default function ApprovalActionDialog({
 
       setFullTarget(target);
 
-      // Fetch full target if dokumen or item_rab is not present
-      if (target?.id && (!target.dokumen || !target.item_rab)) {
+      // Fetch full target if module is rab-oe and dokumen or item_rab is not present
+      if (moduleType === "rab-oe" && target?.id && (!target.dokumen || !target.item_rab)) {
         fetch(`/api/dc-development/renovasi?id=${target.id}`)
           .then((res) => res.json())
           .then((json) => {
@@ -109,15 +117,20 @@ export default function ApprovalActionDialog({
           .catch((err) => console.error("Gagal memuat detail renovasi untuk modal revisi:", err));
       }
     }
-  }, [open, action, target]);
+  }, [open, action, target, moduleType]);
 
   if (!target || !action) return null;
 
   const currentData = fullTarget || target;
-  const nextStep = action === "APPROVE" ? getNextApprovalStatus(currentData.status) : null;
+
+  // Next step calculation
+  const nextStepRabOe = moduleType === "rab-oe" && action === "APPROVE" ? getNextApprovalStatus(currentData.status) : null;
+  const nextStepFungsiRuang = moduleType === "fungsi-ruang" && action === "APPROVE" ? getNextFungsiRuangApprovalStatus(currentData.status) : null;
+
+  // Catatan WAJIB diisi saat REVISI atau TOLAK, dan OPSIONAL saat APPROVE
   const isNotesMandatory = action === "REVISI" || action === "TOLAK";
 
-  // Documents separation
+  // Documents separation (modul rab-oe)
   const allDocs = currentData.dokumen || [];
   const drawingsList = allDocs.filter((d: any) =>
     d.kategori_file?.startsWith("GAMBAR_") || d.kategori_file === "GAMBAR_SIPIL" || d.kategori_file === "GAMBAR_ME"
@@ -136,8 +149,9 @@ export default function ApprovalActionDialog({
     );
   });
 
-  // Total flagged items count
+  // Total flagged items count (hanya berlaku jika ada granular selector di rab-oe)
   const flaggedCount = useMemo(() => {
+    if (moduleType !== "rab-oe") return 0;
     let count = 0;
     if (revParamDurasi) count++;
     if (revParamJenis) count++;
@@ -145,13 +159,52 @@ export default function ApprovalActionDialog({
     count += Object.values(revPhotos).filter((p) => p.selected).length;
     count += Object.values(revRabItems).filter((r) => r.selected).length;
     return count;
-  }, [revParamDurasi, revParamJenis, revDrawings, revPhotos, revRabItems]);
+  }, [moduleType, revParamDurasi, revParamJenis, revDrawings, revPhotos, revRabItems]);
 
   const toggleSection = (key: string) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const getActionConfig = () => {
+    if (moduleType === "fungsi-ruang") {
+      switch (action) {
+        case "APPROVE":
+          return {
+            title: "Konfirmasi Persetujuan Pengajuan",
+            description: "Pengajuan Perubahan Fungsi Ruang ini akan disetujui dan dialihkan ke tahap proses selanjutnya.",
+            icon: CheckCircle2,
+            iconBg: "bg-emerald-50 text-emerald-600 border border-emerald-200/80",
+            submitText: nextStepFungsiRuang?.nextStatus === "APPROVED" ? "Setujui & Terbitkan (Final)" : "Setujui (Approve)",
+            submitBtnClass: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20",
+            notePlaceholder: "Tuliskan catatan persetujuan jika diperlukan (opsional)...",
+            noteLabel: "Catatan Persetujuan (Opsional)"
+          };
+        case "REVISI":
+          return {
+            title: "Permintaan Revisi Pengajuan",
+            description: "Tuliskan catatan instruksi perbaikan yang wajib dipenuhi oleh pemohon.",
+            icon: RotateCcw,
+            iconBg: "bg-amber-50 text-amber-600 border border-amber-200/80",
+            submitText: "Kembalikan Revisi",
+            submitBtnClass: "bg-[#E65F2B] hover:bg-[#d45524] text-white shadow-[#E65F2B]/20",
+            notePlaceholder: "Tuliskan poin atau catatan instruksi perbaikan yang harus diperbaiki oleh pemohon (Wajib diisi)...",
+            noteLabel: "Catatan Instruksi Perbaikan"
+          };
+        case "TOLAK":
+          return {
+            title: "Penolakan Pengajuan",
+            description: "Pengajuan ini akan ditolak dan statusnya akan ditutup.",
+            icon: XCircle,
+            iconBg: "bg-rose-50 text-rose-600 border border-rose-200/80",
+            submitText: "Tolak Pengajuan",
+            submitBtnClass: "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20",
+            notePlaceholder: "Jelaskan alasan penolakan pengajuan ini (Wajib diisi)...",
+            noteLabel: "Alasan Penolakan"
+          };
+      }
+    }
+
+    // Default: modul rab-oe
     switch (action) {
       case "APPROVE":
         return {
@@ -159,19 +212,21 @@ export default function ApprovalActionDialog({
           description: "Pengajuan ini akan disetujui dan dialihkan ke tahap proses selanjutnya.",
           icon: CheckCircle2,
           iconBg: "bg-emerald-50 text-emerald-600 border border-emerald-200/80",
-          submitText: nextStep?.nextStatus === "APPROVED" ? "Setujui & Terbitkan (Final)" : "Setujui Pengajuan",
+          submitText: nextStepRabOe?.nextStatus === "APPROVED" ? "Setujui & Terbitkan (Final)" : "Setujui Pengajuan",
           submitBtnClass: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20",
-          notePlaceholder: "Tuliskan catatan persetujuan jika diperlukan (Opsional)..."
+          notePlaceholder: "Tuliskan catatan persetujuan jika diperlukan (Opsional)...",
+          noteLabel: "Catatan Persetujuan (Opsional)"
         };
       case "REVISI":
         return {
           title: "Permintaan Revisi Pengajuan",
-          description: "Tandai elemen yang wajib diperbaiki dan berikan catatan instruksi untuk Branch Building Koordinator.",
+          description: "Tandai elemen yang wajib diperbaiki dan berikan catatan instruksi untuk pembuat dokumen.",
           icon: AlertCircle,
           iconBg: "bg-amber-50 text-amber-600 border border-amber-200/80",
-          submitText: flaggedCount > 0 ? `Kirim Revisi (${flaggedCount} Poin Ditandai)` : "Kirim Permintaan Revisi",
+          submitText: flaggedCount > 0 ? `Kembalikan Revisi (${flaggedCount} Poin Ditandai)` : "Kembalikan Revisi",
           submitBtnClass: "bg-[#E65F2B] hover:bg-[#d45524] text-white shadow-[#E65F2B]/20",
-          notePlaceholder: "Tuliskan ringkasan umum instruksi revisi pengajuan (Wajib diisi)..."
+          notePlaceholder: "Tuliskan ringkasan umum instruksi revisi pengajuan (Wajib diisi)...",
+          noteLabel: "Catatan Instruksi Perbaikan"
         };
       case "TOLAK":
         return {
@@ -181,7 +236,8 @@ export default function ApprovalActionDialog({
           iconBg: "bg-rose-50 text-rose-600 border border-rose-200/80",
           submitText: "Tolak Pengajuan",
           submitBtnClass: "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20",
-          notePlaceholder: "Jelaskan alasan penolakan pengajuan renovasi ini (Wajib diisi)..."
+          notePlaceholder: "Jelaskan alasan penolakan pengajuan renovasi ini (Wajib diisi)...",
+          noteLabel: "Alasan Penolakan"
         };
     }
   };
@@ -194,15 +250,21 @@ export default function ApprovalActionDialog({
     setErrorMessage(null);
 
     const trimmedNote = catatan.trim();
-    if (isNotesMandatory && !trimmedNote && flaggedCount === 0) {
-      setErrorMessage(`Catatan umum atau poin revisi wajib diisi untuk tindakan ${action === "REVISI" ? "Permintaan Revisi" : "Penolakan"}`);
+
+    // Validasi catatan: WAJIB jika REVISI atau TOLAK
+    if (isNotesMandatory && !trimmedNote) {
+      setErrorMessage(
+        action === "REVISI"
+          ? "Catatan instruksi perbaikan wajib diisi ketika mengembalikan revisi."
+          : "Alasan penolakan pengajuan wajib diisi."
+      );
       return;
     }
 
-    // Build detail_revisi payload when action === "REVISI"
+    // Build detail_revisi payload when action === "REVISI" dan module === "rab-oe"
     const detailRevisiPayload: RevisionDetailItem[] = [];
 
-    if (action === "REVISI") {
+    if (moduleType === "rab-oe" && action === "REVISI") {
       // 1. Parameter: Durasi Pekerjaan (Hari)
       if (revParamDurasi) {
         detailRevisiPayload.push({
@@ -293,30 +355,47 @@ export default function ApprovalActionDialog({
     try {
       setLoading(true);
 
-      // Auto-fill general notes if approver checked specific items but left main notes blank
-      let finalCatatan = trimmedNote;
-      if (!finalCatatan && action === "REVISI" && detailRevisiPayload.length > 0) {
-        finalCatatan = `Mohon perbaiki ${detailRevisiPayload.length} poin yang ditandai pada formulir pengajuan renovasi.`;
+      const finalCatatan = trimmedNote;
+
+      if (moduleType === "fungsi-ruang") {
+        const res = await fetch("/api/dc-development/fungsi-ruang/approval", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: currentData.id,
+            action,
+            catatan: finalCatatan || undefined
+          })
+        });
+
+        const json = await res.json();
+        if (!res.ok || json.status !== "success") {
+          throw new Error(json.message || "Gagal memproses persetujuan fungsi ruang");
+        }
+
+        onOpenChange(false);
+        onSuccess(json.data);
+      } else {
+        // Modul rab-oe
+        const res = await fetch("/api/dc-development/renovasi/approval", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: currentData.id,
+            action,
+            catatan: finalCatatan || undefined,
+            detail_revisi: action === "REVISI" && detailRevisiPayload.length > 0 ? detailRevisiPayload : undefined
+          })
+        });
+
+        const json = await res.json();
+        if (!res.ok || json.status !== "success") {
+          throw new Error(json.message || "Gagal memproses persetujuan");
+        }
+
+        onOpenChange(false);
+        onSuccess(json.data);
       }
-
-      const res = await fetch("/api/dc-development/renovasi/approval", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: currentData.id,
-          action,
-          catatan: finalCatatan || undefined,
-          detail_revisi: action === "REVISI" ? detailRevisiPayload : undefined
-        })
-      });
-
-      const json = await res.json();
-      if (!res.ok || json.status !== "success") {
-        throw new Error(json.message || "Gagal memproses persetujuan");
-      }
-
-      onOpenChange(false);
-      onSuccess(json.data);
     } catch (err: any) {
       setErrorMessage(err.message || "Terjadi kesalahan saat memproses data");
     } finally {
@@ -324,21 +403,23 @@ export default function ApprovalActionDialog({
     }
   };
 
+  const isWideModal = moduleType === "rab-oe" && action === "REVISI";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
           "p-0 overflow-hidden rounded-2xl border-slate-200/80 shadow-2xl flex flex-col max-h-[92vh]",
-          action === "REVISI" ? "max-w-3xl" : "max-w-lg"
+          isWideModal ? "max-w-3xl" : "max-w-lg"
         )}
       >
-        {/* Header */}
+        {/* Header Dialog */}
         <div className="p-5 sm:p-6 border-b border-slate-100 flex items-start gap-4 shrink-0 bg-white">
           <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-2xs", config.iconBg)}>
             <IconComponent className="w-6 h-6" />
           </div>
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <DialogTitle className="text-base font-bold text-slate-900 leading-snug">
                 {config.title}
               </DialogTitle>
@@ -356,54 +437,121 @@ export default function ApprovalActionDialog({
 
         {/* Content Body - Scrollable */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 text-xs">
-          {/* Target Info Card */}
-          <div className="bg-slate-50/90 rounded-xl p-4 border border-slate-200/70 space-y-2 text-xs">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
-              <span className="text-slate-500 font-medium">Nomor Pengajuan:</span>
-              <span className="font-mono font-bold text-slate-900">{currentData.nomor_pengajuan}</span>
-            </div>
+          {/* Target Info Card: Tampilan Spesifik Modul */}
+          {moduleType === "fungsi-ruang" ? (
+            <div className="bg-slate-50/90 rounded-xl p-4 border border-slate-200/70 space-y-2 text-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                <span className="text-slate-500 font-medium">Nomor Pengajuan:</span>
+                <span className="font-mono font-bold text-slate-900">{currentData.nomor_pengajuan}</span>
+              </div>
 
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-medium">Proyek DC:</span>
-              <span className="font-bold text-slate-800 text-right">
-                {currentData.project?.kode ? `${currentData.project.kode} - ` : ""}
-                {currentData.project?.nama_proyek || "-"}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-medium">Cabang / Wilayah:</span>
-              <span className="font-semibold text-slate-700">
-                {currentData.cabang || currentData.project?.cabang || "-"}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-medium">Total Nilai RAB / OE:</span>
-              <span className="font-mono font-extrabold text-[#E65F2B]">
-                {formatRupiah(currentData.grand_total || 0)}
-              </span>
-            </div>
-
-            {/* Status Transition Preview */}
-            <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
-              <span className="text-slate-500 font-medium">Status Saat Ini:</span>
-              <span className="px-2 py-0.5 rounded-md font-bold bg-slate-200/80 text-slate-700 text-[10px]">
-                {currentData.status}
-              </span>
-            </div>
-
-            {action === "APPROVE" && nextStep && (
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                  Status Setelah Disetujui:
-                </span>
-                <span className="px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800 text-[10px]">
-                  {nextStep.nextStatus}
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Proyek DC:</span>
+                <span className="font-bold text-slate-800 text-right">
+                  {currentData.project?.kode ? `${currentData.project.kode} - ` : ""}
+                  {currentData.project?.nama_proyek || "DC"}
                 </span>
               </div>
-            )}
-          </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Cabang / Wilayah:</span>
+                <span className="font-semibold text-slate-700">
+                  {currentData.cabang || currentData.project?.cabang || currentData.renovasi?.cabang || "-"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Pemohon:</span>
+                <span className="font-bold text-slate-800">
+                  {currentData.nama_pemohon} {currentData.jabatan ? `(${currentData.jabatan})` : ""}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Jenis Pengajuan:</span>
+                <span className="font-bold text-[#E65F2B] px-2 py-0.5 rounded-md bg-orange-50 border border-orange-200 text-[11px]">
+                  {currentData.jenis_pengajuan || "-"}
+                </span>
+              </div>
+
+              {/* Status Transition Preview */}
+              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500 font-medium">Status Saat Ini:</span>
+                <span className="px-2 py-0.5 rounded-md font-bold bg-slate-200/80 text-slate-700 text-[10px]">
+                  {currentData.status}
+                </span>
+              </div>
+
+              {action === "APPROVE" && nextStepFungsiRuang && (
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                    Status Setelah Disetujui:
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800 text-[10px]">
+                    {nextStepFungsiRuang.nextStatus}
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-slate-50/90 rounded-xl p-4 border border-slate-200/70 space-y-2 text-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                <span className="text-slate-500 font-medium">Nomor Pengajuan:</span>
+                <span className="font-mono font-bold text-slate-900">{currentData.nomor_pengajuan}</span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Proyek DC:</span>
+                <span className="font-bold text-slate-800 text-right">
+                  {currentData.project?.kode ? `${currentData.project.kode} - ` : ""}
+                  {currentData.project?.nama_proyek || "-"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Cabang / Wilayah:</span>
+                <span className="font-semibold text-slate-700">
+                  {currentData.cabang || currentData.project?.cabang || "-"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Total Nilai RAB / OE:</span>
+                <span className="font-mono font-extrabold text-[#E65F2B]">
+                  {formatRupiah(currentData.grand_total || 0)}
+                </span>
+              </div>
+
+              {/* Status Transition Preview */}
+              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500 font-medium">Status Saat Ini:</span>
+                <span className="px-2 py-0.5 rounded-md font-bold bg-slate-200/80 text-slate-700 text-[10px]">
+                  {currentData.status}
+                </span>
+              </div>
+
+              {action === "APPROVE" && nextStepRabOe && (
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                    Status Setelah Disetujui:
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800 text-[10px]">
+                    {nextStepRabOe.nextStatus}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Banner Peringatan Wajib Isi Catatan Saat Revisi */}
+          {action === "REVISI" && (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200/80 flex items-start gap-2.5 text-xs text-rose-700">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+              <span className="font-medium">
+                Catatan instruksi perbaikan wajib diisi ketika mengembalikan revisi.
+              </span>
+            </div>
+          )}
 
           {/* Error Message */}
           {errorMessage && (
@@ -413,14 +561,14 @@ export default function ApprovalActionDialog({
             </div>
           )}
 
-          {/* Granular Revision Selector (HANYA MUNCUL KETIKA ACTION === 'REVISI') */}
-          {action === "REVISI" && (
+          {/* Granular Revision Selector (HANYA UNTUK MODUL RAB-OE SAAT REVISI) */}
+          {moduleType === "rab-oe" && action === "REVISI" && (
             <div className="space-y-3 pt-1">
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                     <SlidersHorizontal className="w-3.5 h-3.5 text-[#E65F2B]" />
-                    Pilih & Tandai Bagian Spesifik yang Perlu Direvisi
+                    Pilih & Tandai Bagian Spesifik yang Perlu Direvisi (Opsional)
                   </h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">
                     Elemen yang Anda tandai akan memiliki badge peringatan dan wajib diubah minimal satu kali oleh pemohon.
@@ -433,7 +581,7 @@ export default function ApprovalActionDialog({
                 )}
               </div>
 
-              {/* 1. SEKSI PARAMETER PENGAJUAN (Durasi Hari & Jenis Renovasi Saja) */}
+              {/* 1. SEKSI PARAMETER PENGAJUAN */}
               <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
                 <button
                   type="button"
@@ -460,7 +608,6 @@ export default function ApprovalActionDialog({
 
                 {openSections.params && (
                   <div className="p-4 space-y-3.5 divide-y divide-slate-100">
-                    {/* Item 1: Durasi Pekerjaan (Hari) */}
                     <div className="space-y-2">
                       <label className="flex items-start gap-2.5 cursor-pointer">
                         <input
@@ -493,7 +640,6 @@ export default function ApprovalActionDialog({
                       )}
                     </div>
 
-                    {/* Item 2: Jenis Renovasi */}
                     <div className="pt-3 space-y-2">
                       <label className="flex items-start gap-2.5 cursor-pointer">
                         <input
@@ -529,7 +675,7 @@ export default function ApprovalActionDialog({
                 )}
               </div>
 
-              {/* 2. SEKSI GAMBAR KERJA (Sipil & ME) */}
+              {/* 2. SEKSI GAMBAR KERJA */}
               <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
                 <button
                   type="button"
@@ -629,7 +775,7 @@ export default function ApprovalActionDialog({
                             {isSelected && (
                               <div className="pl-6.5 pt-1">
                                 <Input
-                                  placeholder={`Catatan spesifik revisi berkas ${badgeType} ini (contoh: Gambar denah loading dock belum ada dimensi detail)...`}
+                                  placeholder={`Catatan spesifik revisi berkas ${badgeType} ini...`}
                                   value={noteVal}
                                   onChange={(e) =>
                                     setRevDrawings((prev) => ({
@@ -652,7 +798,7 @@ export default function ApprovalActionDialog({
                 )}
               </div>
 
-              {/* 3. SEKSI FOTO LINGKUNGAN & EKSISTING */}
+              {/* 3. SEKSI FOTO LINGKUNGAN */}
               <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
                 <button
                   type="button"
@@ -737,8 +883,7 @@ export default function ApprovalActionDialog({
                                 </label>
                               </div>
 
-                              {/* Tombol langsung buka ke Google Drive */}
-                              {photo.file_url ? (
+                              {photo.file_url && (
                                 <a
                                   href={photo.file_url}
                                   target="_blank"
@@ -749,16 +894,12 @@ export default function ApprovalActionDialog({
                                   <span>Buka di Google Drive</span>
                                   <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                                 </a>
-                              ) : (
-                                <div className="text-[10px] text-slate-400 italic text-center py-1">
-                                  Tautan Drive tidak tersedia
-                                </div>
                               )}
 
                               {isSelected && (
                                 <div className="pt-0.5">
                                   <Input
-                                    placeholder="Catatan revisi foto ini (contoh: Foto buram, ambil ulang sudut tampak depan)..."
+                                    placeholder="Catatan revisi foto ini..."
                                     value={noteVal}
                                     onChange={(e) =>
                                       setRevPhotos((prev) => ({
@@ -812,7 +953,6 @@ export default function ApprovalActionDialog({
 
                 {openSections.rab && (
                   <div className="p-4 space-y-3">
-                    {/* Search bar inside RAB list */}
                     <div className="relative">
                       <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
                       <Input
@@ -889,7 +1029,7 @@ export default function ApprovalActionDialog({
                               {isSelected && (
                                 <div className="pl-6.5 pt-1">
                                   <Input
-                                    placeholder="Catatan revisi item RAB ini (contoh: Volume 100 terlalu besar, kurangi ke 75)..."
+                                    placeholder="Catatan revisi item RAB ini..."
                                     value={noteVal}
                                     onChange={(e) =>
                                       setRevRabItems((prev) => ({
@@ -915,21 +1055,22 @@ export default function ApprovalActionDialog({
             </div>
           )}
 
-          {/* Catatan Field (Ringkasan / Catatan Utama) */}
-          <div className="space-y-1.5 pt-2">
+          {/* Form Input Catatan (Hanya Muncul di Modal Konfirmasi Ini) */}
+          <div className="space-y-1.5 pt-1">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-slate-700">
-                {action === "APPROVE"
-                  ? "Catatan Persetujuan (Opsional)"
-                  : action === "REVISI"
-                  ? "Ringkasan Catatan Instruksi Revisi"
-                  : "Alasan Penolakan (Wajib Diisi)"}
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                {config.noteLabel}
               </label>
-              {isNotesMandatory && (
-                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">
-                  {action === "REVISI" && flaggedCount > 0 ? "Opsional Jika Ada Poin" : "Wajib Diisi"}
-                </span>
-              )}
+              <span
+                className={cn(
+                  "text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded",
+                  isNotesMandatory
+                    ? "bg-rose-100 text-rose-700 border border-rose-200"
+                    : "bg-slate-100 text-slate-500 border border-slate-200"
+                )}
+              >
+                {isNotesMandatory ? "Wajib Diisi" : "Opsional"}
+              </span>
             </div>
             <Textarea
               value={catatan}
@@ -937,7 +1078,7 @@ export default function ApprovalActionDialog({
               placeholder={config.notePlaceholder}
               rows={action === "REVISI" ? 3 : 4}
               className="rounded-xl border-slate-200 text-xs focus-visible:ring-[#E65F2B]/30"
-              required={isNotesMandatory && flaggedCount === 0}
+              required={isNotesMandatory}
             />
           </div>
 
@@ -954,7 +1095,7 @@ export default function ApprovalActionDialog({
             </Button>
             <Button
               type="submit"
-              disabled={loading || (isNotesMandatory && !catatan.trim() && flaggedCount === 0)}
+              disabled={loading || (isNotesMandatory && !catatan.trim())}
               className={cn("rounded-xl text-xs h-9 px-4 font-bold shadow-md cursor-pointer transition-all", config.submitBtnClass)}
             >
               {loading ? (

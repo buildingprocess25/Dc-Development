@@ -242,7 +242,8 @@ export default function FormRenovasi() {
   // Master Data State
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [presets, setPresets] = useState<{ id: number; nama: string }[]>([]);
+  const [jenisRenovasiList, setJenisRenovasiList] = useState<string[]>([]);
+  const [customItemHistory, setCustomItemHistory] = useState<any[]>([]);
   const [categories, setCategories] = useState<{ id: number; lingkup: string; nama: string }[]>([]);
   const [masterItems, setMasterItems] = useState<any[]>([]);
 
@@ -338,9 +339,14 @@ export default function FormRenovasi() {
         const json = await res.json();
         if (json.status === "success") {
           setProjects(json.data.projects || []);
-          setPresets(json.data.presets || []);
+          if (json.data.jenisRenovasiOptions) {
+            setJenisRenovasiList(json.data.jenisRenovasiOptions);
+          } else if (json.data.presets) {
+            setJenisRenovasiList(json.data.presets.map((p: any) => p.nama));
+          }
           setCategories(json.data.categories || []);
           setMasterItems(json.data.masterItems || []);
+          setCustomItemHistory(json.data.customItemHistory || []);
         }
       } catch (err) {
         console.error("Gagal memuat master data renovasi:", err);
@@ -830,11 +836,11 @@ export default function FormRenovasi() {
   }, [accessibleProjects, existingDraftId]);
 
   const presetOptions = useMemo(() => {
-    return presets.map((pr) => ({
-      value: toTitleCase(pr.nama),
-      label: toTitleCase(pr.nama)
+    return jenisRenovasiList.map((nama) => ({
+      value: toTitleCase(nama),
+      label: toTitleCase(nama)
     }));
-  }, [presets]);
+  }, [jenisRenovasiList]);
 
   // Kategori dinamis dari database mh_kategori_pekerjaan
   const dbSipilCategories = useMemo(() => {
@@ -1164,71 +1170,205 @@ export default function FormRenovasi() {
     }
   };
 
-  // Helper List Master Item Dropdown yang disesuaikan persis dengan Kategori Pekerjaan
+  // Helper List Item Dropdown yang disesuaikan persis dengan Kategori Pekerjaan (Master Item + Riwayat Inputan Bebas)
+  // Hanya menampilkan item yang SUDAH MEMILIKI HARGA untuk cabang proyek yang sedang dipilih
   const getMasterItemOptions = useCallback(
     (kategori: string) => {
       const normCat = (kategori || "").trim().toLowerCase();
-      return masterItems
+      const projBranch = (selectedProject?.cabang || "").trim().toLowerCase();
+      const currentBranchUpper = (selectedProject?.cabang || "").trim().toUpperCase();
+
+      // 1. Opsi dari mh_master_item (hanya yang memiliki harga > 0 di cabang proyek ini)
+      const masterOpts = masterItems
         .filter((m) => {
           const scopeMatch = (m.lingkup || "SIPIL").toUpperCase() === activeRabTab;
           const catMatch = (m.kategori_pekerjaan || "").trim().toLowerCase() === normCat;
-          return scopeMatch && catMatch;
+          if (!scopeMatch || !catMatch || !projBranch) return false;
+
+          const branchPrice = m.item_cabang?.find(
+            (c: any) =>
+              (c.cabang?.trim().toLowerCase() === projBranch ||
+                c.coverage_cabang?.trim().toLowerCase() === projBranch) &&
+              (Number(c.total_material || 0) > 0 || Number(c.total_upah || 0) > 0)
+          );
+          return Boolean(branchPrice);
         })
-        .map((m) => ({
-          value: String(m.id),
-          label: m.deskripsi_otomatis || m.item_material || "Tanpa Deskripsi",
-          masterItem: m
-        }));
+        .map((m) => {
+          const branchPrice = m.item_cabang?.find(
+            (c: any) =>
+              (c.cabang?.trim().toLowerCase() === projBranch ||
+                c.coverage_cabang?.trim().toLowerCase() === projBranch) &&
+              (Number(c.total_material || 0) > 0 || Number(c.total_upah || 0) > 0)
+          );
+          return {
+            value: `master-${m.id}`,
+            label: m.deskripsi_otomatis || m.item_material || "Tanpa Deskripsi",
+            source: "master" as const,
+            masterItem: m,
+            masterItemId: m.id,
+            recommendedMaterial: branchPrice ? Number(branchPrice.total_material || 0) : 0,
+            recommendedUpah: branchPrice ? Number(branchPrice.total_upah || 0) : 0,
+            kategori_pekerjaan: m.kategori_pekerjaan,
+            lingkup: m.lingkup || "SIPIL"
+          };
+        });
+
+      const masterLabelSet = new Set(masterOpts.map((o) => o.label.trim().toLowerCase()));
+
+      // 2. Opsi dari customItemHistory (riwayat inputan bebas yang memiliki harga di cabang proyek ini)
+      const historyOpts = customItemHistory
+        .filter((h) => {
+          const scopeMatch = (h.lingkup || "SIPIL").toUpperCase() === activeRabTab;
+          const catMatch = (h.kategori_pekerjaan || "").trim().toLowerCase() === normCat;
+          const notInMaster = !masterLabelSet.has((h.deskripsi || "").trim().toLowerCase());
+          if (!scopeMatch || !catMatch || !notInMaster || !currentBranchUpper) return false;
+
+          const bPrice = h.branch_prices ? h.branch_prices[currentBranchUpper] : null;
+          return Boolean(bPrice && (Number(bPrice.material || 0) > 0 || Number(bPrice.upah || 0) > 0));
+        })
+        .map((h, idx) => {
+          const bPrice = currentBranchUpper && h.branch_prices ? h.branch_prices[currentBranchUpper] : null;
+          const recMat = bPrice ? bPrice.material : 0;
+          const recUpah = bPrice ? bPrice.upah : 0;
+
+          return {
+            value: `history-${idx}-${h.deskripsi}`,
+            label: h.deskripsi,
+            source: "history" as const,
+            masterItemId: undefined,
+            recommendedMaterial: recMat,
+            recommendedUpah: recUpah,
+            kategori_pekerjaan: h.kategori_pekerjaan,
+            lingkup: h.lingkup
+          };
+        });
+
+      return [...masterOpts, ...historyOpts];
     },
-    [masterItems, activeRabTab]
+    [masterItems, customItemHistory, activeRabTab, selectedProject?.cabang]
   );
 
-  // Helper Mendapatkan Harga Rekomendasi dari Master Item untuk Cabang Proyek Terpilih
+  // Helper Mendapatkan Harga Rekomendasi dari Master Item atau Riwayat Bebas untuk cabang terpilih
   const getMasterPriceRecommendation = useCallback(
-    (masterItemId: number | null) => {
-      if (!masterItemId) return null;
-      const itemData = masterItems.find((m) => m.id === masterItemId);
-      if (!itemData) return null;
-      const branchPrice = itemData.item_cabang?.find(
-        (c: any) => c.cabang?.toLowerCase() === selectedProject?.cabang?.toLowerCase()
-      );
-      return {
-        material: branchPrice ? Number(branchPrice.total_material || 0) : 0,
-        upah: branchPrice ? Number(branchPrice.total_upah || 0) : 0
-      };
+    (masterItemId: number | null, deskripsi?: string, kategori?: string) => {
+      const projBranch = (selectedProject?.cabang || "").trim().toLowerCase();
+      const currentBranchUpper = (selectedProject?.cabang || "").trim().toUpperCase();
+      if (!projBranch) return null;
+
+      // 1. Cek master item (baik lewat ID maupun pencocokan nama deskripsi)
+      const masterItem = masterItemId
+        ? masterItems.find((m) => Number(m.id) === Number(masterItemId))
+        : deskripsi
+        ? masterItems.find(
+            (m) =>
+              (m.deskripsi_otomatis || "").trim().toLowerCase() === deskripsi.trim().toLowerCase() ||
+              (m.item_material || "").trim().toLowerCase() === deskripsi.trim().toLowerCase()
+          )
+        : null;
+
+      if (masterItem) {
+        // Ambil harga cabang proyek jika ada dan harganya > 0
+        const branchPrice = masterItem.item_cabang?.find(
+          (c: any) =>
+            (c.cabang?.trim().toLowerCase() === projBranch ||
+              c.coverage_cabang?.trim().toLowerCase() === projBranch) &&
+            (Number(c.total_material || 0) > 0 || Number(c.total_upah || 0) > 0)
+        );
+
+        if (branchPrice) {
+          return {
+            material: Number(branchPrice.total_material || 0),
+            upah: Number(branchPrice.total_upah || 0),
+            source: "master" as const
+          };
+        }
+        return null;
+      }
+
+      // 2. Cek apakah ada di customItemHistory berdasarkan deskripsi & kategori untuk cabang proyek
+      if (deskripsi && deskripsi.trim()) {
+        const normDesc = deskripsi.trim().toLowerCase();
+        const normCat = (kategori || "").trim().toLowerCase();
+
+        const historyItem = customItemHistory.find((h) => {
+          const catMatch = !normCat || (h.kategori_pekerjaan || "").trim().toLowerCase() === normCat;
+          return catMatch && (h.deskripsi || "").trim().toLowerCase() === normDesc;
+        });
+
+        if (historyItem && historyItem.branch_prices) {
+          const bPrice = historyItem.branch_prices[currentBranchUpper];
+          if (bPrice && (Number(bPrice.material || 0) > 0 || Number(bPrice.upah || 0) > 0)) {
+            return {
+              material: Number(bPrice.material || 0),
+              upah: Number(bPrice.upah || 0),
+              source: "history" as const
+            };
+          }
+        }
+      }
+
+      return null;
     },
-    [masterItems, selectedProject?.cabang]
+    [masterItems, customItemHistory, selectedProject?.cabang]
   );
 
-  // Handler Pemilihan Master Item di Row
-  const handleSelectMasterItem = (rowId: string, masterItemIdStr: string) => {
-    const masterId = Number(masterItemIdStr);
-    const itemData = masterItems.find((m) => m.id === masterId);
+  // Handler Pemilihan Opsi Item di Row (Master Item maupun Riwayat Bebas)
+  const handleSelectMasterItem = (rowId: string, val: string, option?: any) => {
+    if (!option) {
+      // Fallback legacy jika dipanggil hanya dengan ID master
+      const masterId = Number(val);
+      const itemData = masterItems.find((m) => m.id === masterId);
+      if (!itemData) return;
+      setRabItems((prev) =>
+        prev.map((row) =>
+          row.id === rowId
+            ? {
+                ...row,
+                master_item_id: masterId,
+                deskripsi: itemData.deskripsi_otomatis || itemData.item_material || "",
+                harga_material: 0,
+                harga_upah: 0,
+                is_custom: false
+              }
+            : row
+        )
+      );
+      return;
+    }
 
-    if (!itemData) return;
-
-    // Cari harga cabang yang sesuai dengan cabang proyek
-    const branchPrice = itemData.item_cabang?.find(
-      (c: any) => c.cabang?.toLowerCase() === selectedProject?.cabang?.toLowerCase()
-    );
-
-    const matPrice = branchPrice ? branchPrice.total_material : 0;
-    const upahPrice = branchPrice ? branchPrice.total_upah : 0;
-
-    setRabItems((prev) =>
-      prev.map((row) =>
-        row.id === rowId
-          ? {
-            ...row,
-            master_item_id: masterId,
-            deskripsi: itemData.deskripsi_otomatis || itemData.item_material || "",
-            harga_material: matPrice,
-            harga_upah: upahPrice,
-            is_custom: false
-          }
-          : row
-      )
-    );
+    if (option.source === "history") {
+      setRabItems((prev) =>
+        prev.map((row) =>
+          row.id === rowId
+            ? {
+                ...row,
+                master_item_id: null,
+                deskripsi: option.label,
+                harga_material: 0,
+                harga_upah: 0,
+                is_custom: true
+              }
+            : row
+        )
+      );
+    } else {
+      // Master item
+      const masterId = option.masterItemId || Number(val.replace("master-", ""));
+      setRabItems((prev) =>
+        prev.map((row) =>
+          row.id === rowId
+            ? {
+                ...row,
+                master_item_id: masterId,
+                deskripsi: option.label,
+                harga_material: 0,
+                harga_upah: 0,
+                is_custom: false
+              }
+            : row
+        )
+      );
+    }
   };
 
   // Handler Pengaturan Custom/Manual Item di Row (Input Bebas Otomatis)
@@ -1407,7 +1547,7 @@ export default function FormRenovasi() {
           open: true,
           type: "error",
           title: "Durasi Pekerjaan Wajib Diisi",
-          message: "Silakan masukkan estimasi Durasi Pekerjaan (minimal 1 hari kalender) pada Bagian 2."
+          message: "Silakan masukkan estimasi Durasi Pekerjaan (minimal 1 hari) pada Bagian 2."
         });
         return;
       }
@@ -1967,7 +2107,7 @@ export default function FormRenovasi() {
                   value={durasiHari}
                   onChange={(val) => setDurasiHari(val)}
                   placeholder="Contoh: 45"
-                  suffix="Hari Kalender"
+                  suffix="Hari"
                   className="h-11 text-xs font-bold text-slate-800"
                   containerClassName="h-11"
                   min={1}
@@ -2950,12 +3090,14 @@ export default function FormRenovasi() {
                               const wgeVol = (Number(row.harga_upah) || 0) * (Number(row.volume) || 0);
                               const totalItem = matVol + wgeVol;
 
-                              const rec = getMasterPriceRecommendation(row.master_item_id);
-                              const hasRec = Boolean(rec);
+                              const rec = getMasterPriceRecommendation(row.master_item_id, row.deskripsi, kategori);
+                              const hasRec = Boolean(rec && (rec.material > 0 || rec.upah > 0));
+                              const isMaster = rec?.source === "master" || (!row.is_custom && Boolean(row.master_item_id));
                               const recMat = rec ? rec.material : 0;
                               const recUpah = rec ? rec.upah : 0;
-                              const isMatCustomized = hasRec && Number(row.harga_material) !== recMat;
-                              const isUpahCustomized = hasRec && Number(row.harga_upah) !== recUpah;
+                              const recLabel = isMaster ? "Master" : "Riwayat";
+                              const isMatCustomized = hasRec && recMat > 0 && Number(row.harga_material) !== recMat;
+                              const isUpahCustomized = hasRec && recUpah > 0 && Number(row.harga_upah) !== recUpah;
 
                               const flaggedRab = flaggedRevisionItems.find(
                                 (f) =>
@@ -2971,13 +3113,12 @@ export default function FormRenovasi() {
                               return (
                                 <div
                                   key={row.id}
-                                  className={`p-3 sm:p-3.5 bg-white rounded-xl border shadow-2xs flex flex-col gap-2.5 transition-all hover:shadow-xs w-full max-w-full overflow-hidden ${
-                                    flaggedRab && !isRabMod
+                                  className={`p-3 sm:p-3.5 bg-white rounded-xl border shadow-2xs flex flex-col gap-2.5 transition-all hover:shadow-xs w-full max-w-full overflow-hidden ${flaggedRab && !isRabMod
                                       ? "border-amber-300 ring-2 ring-amber-300/40 bg-amber-50/15"
                                       : flaggedRab && isRabMod
-                                      ? "border-emerald-300/80 bg-emerald-50/10"
-                                      : "border-slate-200/90 hover:border-slate-300"
-                                  }`}
+                                        ? "border-emerald-300/80 bg-emerald-50/10"
+                                        : "border-slate-200/90 hover:border-slate-300"
+                                    }`}
                                 >
                                   {/* Baris 1: Nomor, Selector Item, Subtotal Item, Tombol Hapus */}
                                   <div className="flex items-center gap-2.5 w-full max-w-full overflow-hidden">
@@ -2999,7 +3140,7 @@ export default function FormRenovasi() {
                                         deskripsi={row.deskripsi}
                                         isCustom={row.is_custom}
                                         options={categoryOptions}
-                                        onSelectMasterItem={(val) => handleSelectMasterItem(row.id, val)}
+                                        onSelectMasterItem={(val, opt) => handleSelectMasterItem(row.id, val, opt)}
                                         onSetCustomItem={(customText) => handleSetCustomRabItem(row.id, customText)}
                                       />
                                     </div>
@@ -3021,53 +3162,74 @@ export default function FormRenovasi() {
 
                                   {/* Baris 2: Harga Material, Harga Upah, Volume, Catatan */}
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-slate-100">
-                                    {/* Kolom 1: Harga Material (Selalu dapat diedit, rekomendasi master ditampilkan) */}
+                                    {/* Kolom 1: Harga Material (Selalu dapat diedit, rekomendasi ditampilkan) */}
                                     <div>
                                       <div className="flex items-center justify-between gap-1 mb-1">
                                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                                           Harga Material
                                         </label>
-                                        {hasRec && (
-                                          <span
-                                            className={cn(
-                                              "text-[9px] font-semibold px-1.5 py-0.2 rounded border flex items-center gap-0.5 select-none transition-colors",
-                                              isMatCustomized
-                                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                                : "bg-blue-50 text-blue-700 border-blue-200"
-                                            )}
-                                            title={
-                                              isMatCustomized
-                                                ? `Harga telah disesuaikan dari rekomendasi master (${formatRupiah(recMat)})`
-                                                : `Sesuai rekomendasi master harga (${formatRupiah(recMat)})`
-                                            }
-                                          >
-                                            <Sparkles className="w-2.5 h-2.5 shrink-0" />
-                                            {isMatCustomized ? "Disesuaikan" : "Rekomendasi"}
-                                          </span>
-                                        )}
+                                        {recMat > 0 ? (
+                                          Number(row.harga_material || 0) === 0 ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleUpdateRabRow(row.id, "harga_material", recMat)}
+                                              className="text-[9px] font-semibold px-1.5 py-0.2 rounded border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 flex items-center gap-0.5 cursor-pointer transition-colors"
+                                              title={`Klik untuk mengisi rekomendasi (${formatRupiah(recMat)})`}
+                                            >
+                                              <Sparkles className="w-2.5 h-2.5 shrink-0" />
+                                              Rekomendasi
+                                            </button>
+                                          ) : isMatCustomized ? (
+                                            <span
+                                              className="text-[9px] font-semibold px-1.5 py-0.2 rounded border bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-0.5 select-none"
+                                              title={`Harga telah disesuaikan dari rekomendasi (${formatRupiah(recMat)})`}
+                                            >
+                                              <Sparkles className="w-2.5 h-2.5 shrink-0" />
+                                              Disesuaikan
+                                            </span>
+                                          ) : (
+                                            <span
+                                              className="text-[9px] font-semibold px-1.5 py-0.2 rounded border bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-0.5 select-none"
+                                              title={`Sesuai rekomendasi (${formatRupiah(recMat)})`}
+                                            >
+                                              <Check className="w-2.5 h-2.5 shrink-0" />
+                                              Pas
+                                            </span>
+                                          )
+                                        ) : null}
                                       </div>
                                       <CurrencyInput
                                         disabled={false}
                                         value={row.harga_material || 0}
                                         onChange={(val) => handleUpdateRabRow(row.id, "harga_material", val)}
-                                        placeholder={hasRec ? formatRupiahNumber(recMat) : "0"}
+                                        placeholder={recMat > 0 ? formatRupiahNumber(recMat) : "0"}
                                         className={cn(
                                           "transition-all",
-                                          isMatCustomized && "border-amber-300 ring-1 ring-amber-300/30"
+                                          isMatCustomized && Number(row.harga_material || 0) > 0 && "border-amber-300 ring-1 ring-amber-300/30"
                                         )}
                                       />
                                       <div className="flex items-center justify-between mt-1 text-[10px] min-h-[16px]">
-                                        {hasRec ? (
+                                        {recMat > 0 ? (
                                           <>
-                                            <span className="text-slate-400 font-medium truncate" title={`Rekomendasi Master: ${formatRupiah(recMat)}`}>
-                                              Master: <span className="font-mono">{formatRupiah(recMat)}</span>
+                                            <span className="text-slate-400 font-medium truncate" title={`Rekomendasi ${recLabel}: ${formatRupiah(recMat)}`}>
+                                              {recLabel}: <span className="font-mono text-slate-600 font-semibold">{formatRupiah(recMat)}</span>
                                             </span>
-                                            {isMatCustomized ? (
+                                            {Number(row.harga_material || 0) === 0 ? (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleUpdateRabRow(row.id, "harga_material", recMat)}
+                                                className="text-[9px] font-bold text-[#E65F2B] hover:text-[#d04e1c] bg-orange-50 hover:bg-orange-100 px-1.5 py-0.5 rounded border border-orange-200 flex items-center gap-0.5 shrink-0 cursor-pointer transition-colors"
+                                                title="Terapkan harga rekomendasi"
+                                              >
+                                                <Sparkles className="w-2.5 h-2.5" />
+                                                <span>Terapkan</span>
+                                              </button>
+                                            ) : isMatCustomized ? (
                                               <button
                                                 type="button"
                                                 onClick={() => handleUpdateRabRow(row.id, "harga_material", recMat)}
                                                 className="text-[9px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-0.5 shrink-0 cursor-pointer transition-colors"
-                                                title="Kembalikan ke harga rekomendasi master"
+                                                title={`Kembalikan ke harga rekomendasi ${recLabel}`}
                                               >
                                                 <RotateCcw className="w-2.5 h-2.5" />
                                                 <span>Reset</span>
@@ -3078,11 +3240,7 @@ export default function FormRenovasi() {
                                               </span>
                                             )}
                                           </>
-                                        ) : (
-                                          <span className="text-[10px] text-slate-400 font-medium">
-                                            Input Bebas
-                                          </span>
-                                        )}
+                                        ) : null}
                                       </div>
                                       {row.volume > 0 && (
                                         <span className="text-[10px] text-slate-500 font-medium block text-right mt-0.5 font-mono">
@@ -3091,53 +3249,74 @@ export default function FormRenovasi() {
                                       )}
                                     </div>
 
-                                    {/* Kolom 2: Harga Upah (Selalu dapat diedit, rekomendasi master ditampilkan) */}
+                                    {/* Kolom 2: Harga Upah (Selalu dapat diedit, rekomendasi ditampilkan) */}
                                     <div>
                                       <div className="flex items-center justify-between gap-1 mb-1">
                                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                                           Harga Upah
                                         </label>
-                                        {hasRec && (
-                                          <span
-                                            className={cn(
-                                              "text-[9px] font-semibold px-1.5 py-0.2 rounded border flex items-center gap-0.5 select-none transition-colors",
-                                              isUpahCustomized
-                                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                                : "bg-blue-50 text-blue-700 border-blue-200"
-                                            )}
-                                            title={
-                                              isUpahCustomized
-                                                ? `Harga telah disesuaikan dari rekomendasi master (${formatRupiah(recUpah)})`
-                                                : `Sesuai rekomendasi master harga (${formatRupiah(recUpah)})`
-                                            }
-                                          >
-                                            <Sparkles className="w-2.5 h-2.5 shrink-0" />
-                                            {isUpahCustomized ? "Disesuaikan" : "Rekomendasi"}
-                                          </span>
-                                        )}
+                                        {recUpah > 0 ? (
+                                          Number(row.harga_upah || 0) === 0 ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleUpdateRabRow(row.id, "harga_upah", recUpah)}
+                                              className="text-[9px] font-semibold px-1.5 py-0.2 rounded border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 flex items-center gap-0.5 cursor-pointer transition-colors"
+                                              title={`Klik untuk mengisi rekomendasi (${formatRupiah(recUpah)})`}
+                                            >
+                                              <Sparkles className="w-2.5 h-2.5 shrink-0" />
+                                              Rekomendasi
+                                            </button>
+                                          ) : isUpahCustomized ? (
+                                            <span
+                                              className="text-[9px] font-semibold px-1.5 py-0.2 rounded border bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-0.5 select-none"
+                                              title={`Harga telah disesuaikan dari rekomendasi (${formatRupiah(recUpah)})`}
+                                            >
+                                              <Sparkles className="w-2.5 h-2.5 shrink-0" />
+                                              Disesuaikan
+                                            </span>
+                                          ) : (
+                                            <span
+                                              className="text-[9px] font-semibold px-1.5 py-0.2 rounded border bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-0.5 select-none"
+                                              title={`Sesuai rekomendasi (${formatRupiah(recUpah)})`}
+                                            >
+                                              <Check className="w-2.5 h-2.5 shrink-0" />
+                                              Pas
+                                            </span>
+                                          )
+                                        ) : null}
                                       </div>
                                       <CurrencyInput
                                         disabled={false}
                                         value={row.harga_upah || 0}
                                         onChange={(val) => handleUpdateRabRow(row.id, "harga_upah", val)}
-                                        placeholder={hasRec ? formatRupiahNumber(recUpah) : "0"}
+                                        placeholder={recUpah > 0 ? formatRupiahNumber(recUpah) : "0"}
                                         className={cn(
                                           "transition-all",
-                                          isUpahCustomized && "border-amber-300 ring-1 ring-amber-300/30"
+                                          isUpahCustomized && Number(row.harga_upah || 0) > 0 && "border-amber-300 ring-1 ring-amber-300/30"
                                         )}
                                       />
                                       <div className="flex items-center justify-between mt-1 text-[10px] min-h-[16px]">
-                                        {hasRec ? (
+                                        {recUpah > 0 ? (
                                           <>
-                                            <span className="text-slate-400 font-medium truncate" title={`Rekomendasi Master: ${formatRupiah(recUpah)}`}>
-                                              Master: <span className="font-mono">{formatRupiah(recUpah)}</span>
+                                            <span className="text-slate-400 font-medium truncate" title={`Rekomendasi ${recLabel}: ${formatRupiah(recUpah)}`}>
+                                              {recLabel}: <span className="font-mono text-slate-600 font-semibold">{formatRupiah(recUpah)}</span>
                                             </span>
-                                            {isUpahCustomized ? (
+                                            {Number(row.harga_upah || 0) === 0 ? (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleUpdateRabRow(row.id, "harga_upah", recUpah)}
+                                                className="text-[9px] font-bold text-[#E65F2B] hover:text-[#d04e1c] bg-orange-50 hover:bg-orange-100 px-1.5 py-0.5 rounded border border-orange-200 flex items-center gap-0.5 shrink-0 cursor-pointer transition-colors"
+                                                title="Terapkan harga rekomendasi"
+                                              >
+                                                <Sparkles className="w-2.5 h-2.5" />
+                                                <span>Terapkan</span>
+                                              </button>
+                                            ) : isUpahCustomized ? (
                                               <button
                                                 type="button"
                                                 onClick={() => handleUpdateRabRow(row.id, "harga_upah", recUpah)}
                                                 className="text-[9px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-0.5 shrink-0 cursor-pointer transition-colors"
-                                                title="Kembalikan ke harga rekomendasi master"
+                                                title={`Kembalikan ke harga rekomendasi ${recLabel}`}
                                               >
                                                 <RotateCcw className="w-2.5 h-2.5" />
                                                 <span>Reset</span>
@@ -3148,11 +3327,7 @@ export default function FormRenovasi() {
                                               </span>
                                             )}
                                           </>
-                                        ) : (
-                                          <span className="text-[10px] text-slate-400 font-medium">
-                                            Input Bebas
-                                          </span>
-                                        )}
+                                        ) : null}
                                       </div>
                                       {row.volume > 0 && (
                                         <span className="text-[10px] text-slate-500 font-medium block text-right mt-0.5 font-mono">

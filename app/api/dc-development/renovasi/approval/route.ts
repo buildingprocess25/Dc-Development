@@ -6,7 +6,9 @@ import {
   canAccessRabOeApproval,
   isApprovalAdmin,
   getApprovalQueueFilterForRole,
-  getNextApprovalStatus
+  getNextApprovalStatus,
+  getRabOePrismaFilter,
+  canUserViewRabOeSubmission
 } from '@/lib/permissions';
 import { toTitleCase } from '@/lib/utils';
 import { syncRenovasiPdfToDrive } from '@/lib/renovasi-sync';
@@ -14,7 +16,26 @@ import { syncRenovasiPdfToDrive } from '@/lib/renovasi-sync';
 export async function GET(request: Request) {
   try {
     const session = await getSession();
-    if (!session || !canAccessRabOeApproval(session.role)) {
+    if (!session) {
+      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Ambil data user terkini dari tabel dc_users untuk coverage cabang & role yang up-to-date
+    const dbUser = await prisma.dc_users.findUnique({
+      where: { id: session.id },
+      select: {
+        id: true,
+        email: true,
+        nama: true,
+        cabang: true,
+        role: true,
+        coverage_cabang: true,
+      },
+    });
+
+    const currentUser = dbUser || session;
+
+    if (!canAccessRabOeApproval(currentUser.role)) {
       return NextResponse.json(
         {
           status: 'error',
@@ -30,17 +51,28 @@ export async function GET(request: Request) {
     const statusParam = searchParams.get('status') || '';
     const tab = searchParams.get('tab') || 'pending'; // 'pending' | 'history' | 'all'
 
-    const isAdmin = isApprovalAdmin(session.role);
-    const rolePendingStatuses = getApprovalQueueFilterForRole(session.role);
-    const allowedBranches = getUserCoverageBranches(session);
+    const isAdmin = isApprovalAdmin(currentUser.role);
+    const rolePendingStatuses = getApprovalQueueFilterForRole(currentUser.role);
+    const allowedBranches = getUserCoverageBranches(currentUser);
+    const tierFilter = getRabOePrismaFilter(currentUser);
 
-    // Hitung ringkasan data statistik ter-filter coverage akun
-    const summaryWhere = allowedBranches !== null ? {
-      OR: [
-        { cabang: { in: allowedBranches, mode: 'insensitive' } },
-        { project: { cabang: { in: allowedBranches, mode: 'insensitive' } } }
-      ]
-    } : undefined;
+    // Hitung ringkasan data statistik ter-filter coverage akun dan tier role
+    const summaryWhereConditions: any[] = [];
+    if (allowedBranches !== null) {
+      summaryWhereConditions.push({
+        OR: [
+          { cabang: { in: allowedBranches, mode: 'insensitive' } },
+          { project: { cabang: { in: allowedBranches, mode: 'insensitive' } } }
+        ]
+      });
+    }
+
+    // Untuk approver non-admin, summary hanya mencakup dokumen yang sah dilihat sesuai tingkatannya
+    if (tierFilter) {
+      summaryWhereConditions.push(tierFilter);
+    }
+
+    const summaryWhere = summaryWhereConditions.length > 0 ? { AND: summaryWhereConditions } : undefined;
 
     const allRenovasi = await prisma.dc_renovasi.findMany({
       where: summaryWhere as any,
@@ -80,11 +112,11 @@ export async function GET(request: Request) {
     // Bangun filter query
     const andConditions: any[] = [];
 
-    // Filter status berdasarkan role dan tab
+    // Filter status berdasarkan role, tab, dan aturan bertingkat
     if (tab === 'pending') {
       if (isAdmin) {
         if (statusParam && statusParam !== 'all') {
-          andConditions.push({ status: statusParam });
+          andConditions.push({ status: { equals: statusParam, mode: 'insensitive' } });
         } else {
           andConditions.push({
             status: {
@@ -97,22 +129,30 @@ export async function GET(request: Request) {
           });
         }
       } else {
-        // Non-admin hanya bisa melihat status miliknya
+        // Non-admin hanya bisa melihat status antrean tugas miliknya
         const statuses = Array.isArray(rolePendingStatuses) ? rolePendingStatuses : [];
         andConditions.push({ status: { in: statuses } });
       }
     } else if (tab === 'history') {
       if (statusParam && statusParam !== 'all') {
-        andConditions.push({ status: statusParam });
+        andConditions.push({ status: { equals: statusParam, mode: 'insensitive' } });
       } else {
         andConditions.push({
           status: { in: ['APPROVED', 'REVISI', 'DITOLAK'] }
         });
       }
+      // Terapkan pembatasan bertingkat untuk non-admin
+      if (tierFilter) {
+        andConditions.push(tierFilter);
+      }
     } else {
-      // Tab 'all' (hanya bisa diakses jika admin)
+      // Tab 'all' ("Semua Berkas Terkait")
+      // Wajib menerapkan aturan bertingkat untuk non-admin!
+      if (tierFilter) {
+        andConditions.push(tierFilter);
+      }
       if (statusParam && statusParam !== 'all') {
-        andConditions.push({ status: statusParam });
+        andConditions.push({ status: { equals: statusParam, mode: 'insensitive' } });
       }
     }
 
@@ -148,14 +188,15 @@ export async function GET(request: Request) {
     }
 
     // Filter Pencarian
-    if (search) {
+    if (search.trim()) {
+      const q = search.trim();
       andConditions.push({
         OR: [
-          { nomor_pengajuan: { contains: search, mode: 'insensitive' } },
-          { jenis_renovasi: { contains: search, mode: 'insensitive' } },
-          { project: { nama_proyek: { contains: search, mode: 'insensitive' } } },
-          { project: { kode: { contains: search, mode: 'insensitive' } } },
-          { cabang: { contains: search, mode: 'insensitive' } }
+          { nomor_pengajuan: { contains: q, mode: 'insensitive' } },
+          { jenis_renovasi: { contains: q, mode: 'insensitive' } },
+          { project: { nama_proyek: { contains: q, mode: 'insensitive' } } },
+          { project: { kode: { contains: q, mode: 'insensitive' } } },
+          { cabang: { contains: q, mode: 'insensitive' } }
         ]
       });
     }
@@ -172,7 +213,10 @@ export async function GET(request: Request) {
       orderBy: { created_at: 'desc' }
     });
 
-    const revisiIds = items
+    // In-memory safety verification dengan canUserViewRabOeSubmission
+    const safeItems = items.filter((item) => canUserViewRabOeSubmission(currentUser, item));
+
+    const revisiIds = safeItems
       .filter((r) => r.status === 'REVISI')
       .map((r) => String(r.id));
 
@@ -199,7 +243,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const itemsWithDetailRevisi = items.map((r) => ({
+    const itemsWithDetailRevisi = safeItems.map((r) => ({
       ...r,
       detail_revisi: revisiMap[String(r.id)] || null
     }));
@@ -208,7 +252,7 @@ export async function GET(request: Request) {
       status: 'success',
       data: itemsWithDetailRevisi,
       summary,
-      userRole: session.role,
+      userRole: currentUser.role,
       isAdmin
     });
   } catch (error: any) {

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatRupiah, cn, toTitleCase } from "@/lib/utils";
+import SubmissionReasonCard from "@/components/approval/SubmissionReasonCard";
 import {
   Building2,
   Calendar,
@@ -293,26 +294,18 @@ export default function ReviewRenovasiModal({
                     <div>
                       <span className="text-[11px] text-slate-400 block font-medium">Estimasi Durasi</span>
                       <span className="text-sm font-bold text-slate-900 mt-0.5 block">
-                        {durasiHari ? `${durasiHari} Hari Kalender` : "-"}
+                        {durasiHari ? `${durasiHari} Hari` : "-"}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Catatan Pengajuan */}
-              {catatanPengajuan ? (
-                <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/90 text-xs">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Catatan Khusus Pengajuan:
-                  </span>
-                  <p className="text-slate-700 leading-relaxed">{toTitleCase(catatanPengajuan)}</p>
-                </div>
-              ) : (
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-slate-400 text-xs italic">
-                  Tidak ada catatan khusus yang dilampirkan.
-                </div>
-              )}
+              {/* Rincian & Catatan Pengajuan (Komponen Reusable) */}
+              <SubmissionReasonCard
+                reason={catatanPengajuan}
+                title="Catatan Khusus Pengajuan"
+              />
 
               {/* Financial Summary Card */}
               <div className="p-4 sm:p-5 bg-orange-50/40 border border-orange-200/80 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -393,8 +386,8 @@ export default function ReviewRenovasiModal({
                                 </span>
                                 <span
                                   className={`text-[9px] font-extrabold uppercase px-1 py-0.2 rounded border shrink-0 ${isPdf
-                                      ? "bg-rose-100 text-rose-700 border-rose-200"
-                                      : "bg-indigo-100 text-indigo-700 border-indigo-200"
+                                    ? "bg-rose-100 text-rose-700 border-rose-200"
+                                    : "bg-indigo-100 text-indigo-700 border-indigo-200"
                                     }`}
                                 >
                                   {isPdf ? "PDF" : "DWG"}
@@ -458,8 +451,8 @@ export default function ReviewRenovasiModal({
                                 </span>
                                 <span
                                   className={`text-[9px] font-extrabold uppercase px-1 py-0.2 rounded border shrink-0 ${isPdf
-                                      ? "bg-rose-100 text-rose-700 border-rose-200"
-                                      : "bg-indigo-100 text-indigo-700 border-indigo-200"
+                                    ? "bg-rose-100 text-rose-700 border-rose-200"
+                                    : "bg-indigo-100 text-indigo-700 border-indigo-200"
                                     }`}
                                 >
                                   {isPdf ? "PDF" : "DWG"}

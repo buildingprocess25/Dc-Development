@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Formulir Pengajuan Perubahan Fungsi Ruang - {{ submission.nomor_pengajuan }}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 15mm 12mm 15mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 10px;
+      color: #1f2937;
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+      position: relative;
+      line-height: 1.35;
+    }
+
+    /* Header Banner Orange (Standar rab-oe.njk) */
+    .header-main {
+      background-color: #E65F2B;
+      color: #ffffff;
+      padding: 11px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      border-radius: 4px;
+    }
+
+    .header-alfamart-logo {
+      height: 34px;
+      margin-right: 12px;
+      padding-right: 12px;
+      border-right: 2px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .header-sparta-logo {
+      height: 28px;
+      margin-right: 8px;
+    }
+
+    .header-title {
+      font-size: 19px;
+      font-weight: bold;
+      margin: 0;
+      letter-spacing: 1.5px;
+      line-height: 1.1;
+    }
+
+    .header-subtitle {
+      font-size: 9.5px;
+      margin: 0;
+      opacity: 0.85;
+      letter-spacing: 0.5px;
+    }
+
+    /* Watermark Logo SPARTA */
+    .watermark-img {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 400px;
+      transform: translate(-50%, -50%);
+      opacity: 0.05;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Judul Formulir Tengah */
+    .form-title-container {
+      text-align: center;
+      margin-top: 4px;
+      margin-bottom: 20px;
+    }
+
+    .form-title-main {
+      font-size: 12px;
+      font-weight: 900;
+      color: #111827;
+      letter-spacing: 0.3px;
+      line-height: 1.35;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+    }
+
+    .form-title-sub {
+      font-size: 11.5px;
+      font-weight: 900;
+      color: #111827;
+      letter-spacing: 0.3px;
+      line-height: 1.3;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .form-doc-no {
+      font-size: 10.5px;
+      font-weight: bold;
+      color: #E65F2B;
+      letter-spacing: 0.5px;
+    }
+
+    /* Teks Pembuka */
+    .intro-text {
+      font-size: 10px;
+      color: #1f2937;
+      margin-bottom: 12px;
+    }
+
+    /* Tabel Formulir */
+    .form-content-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+    }
+
+    .form-content-table td {
+      padding: 5.5px 0;
+      font-size: 10px;
+      vertical-align: middle;
+    }
+
+    .form-label {
+      width: 140px;
+      font-weight: bold;
+      color: #1f2937;
+    }
+
+    .form-colon {
+      width: 16px;
+      color: #1f2937;
+      font-weight: bold;
+      text-align: left;
+    }
+
+    .form-value {
+      color: #111827;
+    }
+
+    /* Kotak Alasan Pengajuan */
+    .alasan-box {
+      background-color: #fafafa;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 10px;
+      line-height: 1.5;
+      color: #1f2937;
+      white-space: pre-wrap;
+      min-height: 75px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Status Badge & Alert Revisi */
+    .status-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 9.5px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .status-badge.approved {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    .status-badge.revisi {
+      background: #fffbeb;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+    .status-badge.pending {
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+
+    .revisi-alert-box {
+      background: #fffbeb;
+      border: 1.5px dashed #f59e0b;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 9px;
+      color: #92400e;
+      line-height: 1.4;
+      margin-top: 2px;
+    }
+
+    /* Teks Penutup & Tanggal Lokasi */
+    .closing-text {
+      font-size: 10px;
+      color: #1f2937;
+      margin-top: 14px;
+      margin-bottom: 14px;
+      line-height: 1.45;
+    }
+
+    .location-date-row {
+      text-align: right;
+      font-size: 10.5px;
+      font-weight: bold;
+      color: #111827;
+      margin-bottom: 18px;
+    }
+
+    /* Matriks Tanda Tangan 8 Kolom (Header Terkelompok & Kolom Tersekat) */
+    .approval-table {
+      width: 100%;
+      margin-top: 10px;
+      border-collapse: collapse;
+      text-align: center;
+      page-break-inside: avoid;
+      border: 1px solid #d1d5db;
+    }
+
+    .approval-group-header {
+      font-size: 8.5px;
+      font-weight: bold;
+      color: #ffffff;
+      background: #E65F2B;
+      padding: 6px 4px;
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 0.5px;
+      border: 1px solid #d9531e;
+    }
+
+    .approval-group-header.dibuat {
+      border-right: 2px solid #ffffff;
+    }
+
+    .approval-group-header.mengetahui {
+      border-right: 2px solid #ffffff;
+    }
+
+    .approval-cell {
+      width: 12.5%;
+      vertical-align: top;
+      padding: 0;
+      border: 1px solid #d1d5db;
+      background: #fafbfc;
+    }
+
+    .approval-box {
+      padding: 6px 3px 5px 3px;
+      text-align: center;
+      min-height: 102px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-sizing: border-box;
+    }
+
+    /* Area Tengah untuk Tanggal Persetujuan (di tengah-tengah antara atas dan bawah) */
+    .approval-mid-space {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 4px 1px;
+    }
+
+    .approval-date {
+      font-size: 7.5px;
+      color: #6b7280;
+      font-style: italic;
+      line-height: 1.25;
+      text-align: center;
+      word-break: break-word;
+    }
+
+    .approval-name {
+      font-weight: bold;
+      font-size: 8.5px;
+      text-align: center;
+      color: #111827;
+      word-break: break-word;
+      line-height: 1.2;
+      min-height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .approval-role {
+      font-size: 7.5px;
+      color: #4b5563;
+      margin-top: 4px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 4px;
+      text-align: center;
+      line-height: 1.2;
+      min-height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 16px;
+      font-size: 8px;
+      color: #9ca3af;
+      text-align: center;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  {% if watermark_logo_path %}
+  <img src="{{ watermark_logo_path }}" class="watermark-img" alt="watermark" />
+  {% endif %}
+
+  <!-- Header Banner Orange (Format rab-oe.njk) -->
+  <div class="header-main">
+    <div style="display: flex; align-items: center;">
+      {% if alfamart_logo_path %}
+      <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
+      {% endif %}
+      {% if sparta_logo_path %}
+      <img src="{{ sparta_logo_path }}" class="header-sparta-logo" alt="SPARTA" />
+      {% endif %}
+      <div>
+        <h1 class="header-title">SPARTA</h1>
+        <p class="header-subtitle">Building &bull; DC Development</p>
+      </div>
+    </div>
+    <div style="text-align: right; color: #fff;">
+      <div style="font-size: 12.5px; font-weight: bold; letter-spacing: 0.5px;">FORM PERUBAHAN FUNGSI RUANG</div>
+      <div style="font-size: 8px; opacity: 0.85; margin-top: 2px;">
+        SOP SAT/FRM/DCB/010_Rev_000_200323 &bull; Reff NRA: SAT/SOP/DCB/008
+      </div>
+    </div>
+  </div>
+
+  <!-- Judul Dokumen Tengah (Sesuai Referensi Pengguna) -->
+  <div class="form-title-container">
+    <div class="form-title-main">
+      FORM PENGAJUAN PERUBAHAN, PENGURANGAN, DAN/ATAU PENAMBAHAN FUNGSI RUANG
+    </div>
+    <div class="form-title-sub">
+      PADA DEPO/BULKY/WAREHOUSE/OFFICE BRANCH EXISTING
+    </div>
+    <div class="form-doc-no">
+      No. Dokumen: {{ submission.nomor_pengajuan }}
+    </div>
+  </div>
+
+  <!-- Teks Pengantar -->
+  <div class="intro-text">
+    Saya yang bertanda tangan dibawah ini :
+  </div>
+
+  <!-- Form Fields -->
+  <table class="form-content-table">
+    <tr>
+      <td class="form-label">Nama Pemohon</td>
+      <td class="form-colon">:</td>
+      <td class="form-value"><strong>{{ submission.nama_pemohon }}</strong></td>
+    </tr>
+    <tr>
+      <td class="form-label">Jabatan</td>
+      <td class="form-colon">:</td>
+      <td class="form-value">{{ submission.jabatan }}</td>
+    </tr>
+    <tr>
+      <td class="form-label">Divisi</td>
+      <td class="form-colon">:</td>
+      <td class="form-value">{{ submission.divisi }}</td>
+    </tr>
+    <tr>
+      <td class="form-label">Departemen</td>
+      <td class="form-colon">:</td>
+      <td class="form-value">{{ submission.departemen }}</td>
+    </tr>
+    <tr>
+      <td class="form-label">Lokasi</td>
+      <td class="form-colon">:</td>
+      <td class="form-value">{{ lokasi_tipe }}</td>
+    </tr>
+    <tr>
+      <td class="form-label">Jenis Pengajuan</td>
+      <td class="form-colon">:</td>
+      <td class="form-value"><strong>{{ submission.jenis_pengajuan }}</strong></td>
+    </tr>
+    <tr>
+      <td class="form-label">Status Dokumen</td>
+      <td class="form-colon">:</td>
+      <td class="form-value">
+        {% if is_approved %}
+          <span class="status-badge approved">APPROVED (DISETUJUI)</span>
+        {% elif is_revision %}
+          <span class="status-badge revisi">REVISI (PERLU PERBAIKAN)</span>
+        {% else %}
+          <span class="status-badge pending">{{ submission.status }}</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% if is_revision and catatan_revisi %}
+    <tr>
+      <td class="form-label" style="vertical-align: top; padding-top: 7px; color: #b45309;">Catatan Revisi</td>
+      <td class="form-colon" style="vertical-align: top; padding-top: 7px; color: #b45309;">:</td>
+      <td class="form-value" style="padding-top: 3px;">
+        <div class="revisi-alert-box">
+          <strong>Instruksi Perbaikan Approver:</strong><br/>
+          {{ catatan_revisi }}
+        </div>
+      </td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td class="form-label" style="vertical-align: top; padding-top: 7px;">Alasan Pengajuan</td>
+      <td class="form-colon" style="vertical-align: top; padding-top: 7px;">:</td>
+      <td class="form-value" style="padding-top: 3px;">
+        <div class="alasan-box">
+          {{ submission.alasan_pengajuan }}
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Teks Penutup -->
+  <div class="closing-text">
+    Demikian pengajuan ini saya buat dengan sebenar-benarnya, atas perhatian dan kerja samanya saya ucapkan terima kasih.
+  </div>
+
+  <!-- Lokasi & Tanggal Pengajuan -->
+  <div class="location-date-row">
+    Branch {{ project_cabang }}, {{ tgl_pengajuan_indo }}
+  </div>
+
+  <!-- Matriks Tanda Tangan 8 Kolom (Header Terkelompok: Dibuat, Mengetahui rata tengah, Menyetujui rata tengah) -->
+  <table class="approval-table">
+    <thead>
+      <tr>
+        <th class="approval-group-header dibuat" style="width: 12.5%;">DIBUAT</th>
+        <th class="approval-group-header mengetahui" colspan="5" style="width: 62.5%;">MENGETAHUI</th>
+        <th class="approval-group-header menyetujui" colspan="2" style="width: 25%;">MENYETUJUI</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        {% set cols = [
+          { sig: signatures.pemohon, default_role: 'Pemohon' },
+          { sig: signatures.bm_mgr, default_role: 'Branch B&M Manager' },
+          { sig: signatures.bm_dbm, default_role: 'Branch Manager / DBM' },
+          { sig: signatures.reg_bm_mgr, default_role: 'Regional B&M Manager' },
+          { sig: signatures.dc_specialist, default_role: 'DC Specialist' },
+          { sig: signatures.bm_gm, default_role: 'B&M General Manager' },
+          { sig: signatures.op_director, default_role: 'Operation Director' },
+          { sig: signatures.prop_dev_mgr, default_role: 'Property Dev Manager' }
+        ] %}
+
+        {% for col in cols %}
+        <td class="approval-cell">
+          <div class="approval-box">
+            <!-- Area Tanggal di Tengah-tengah Antara Atas dan Bawah -->
+            <div class="approval-mid-space">
+              {% if col.sig.approved and col.sig.date %}
+                <div class="approval-date">{{ col.sig.date }}</div>
+              {% endif %}
+            </div>
+            <!-- Bawah: Nama & Jabatan -->
+            <div class="approval-bottom">
+              <div class="approval-name">{{ col.sig.name if col.sig.approved else '' }}</div>
+              <div class="approval-role">{{ col.sig.role or col.default_role }}</div>
+            </div>
+          </div>
+        </td>
+        {% endfor %}
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Footer -->
+  <div class="footer">
+    No. Dokumen: {{ submission.nomor_pengajuan }} &bull; Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ generated_at }}
+  </div>
+</body>
+</html>

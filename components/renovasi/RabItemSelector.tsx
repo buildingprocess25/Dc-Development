@@ -2,13 +2,19 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Search, Plus, Check, ChevronDown, Sparkles, CornerDownLeft, RefreshCw } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Search, Plus, Check, ChevronDown, Sparkles, CornerDownLeft, RefreshCw, History, Package } from "lucide-react";
+import { cn, formatRupiah } from "@/lib/utils";
 
 export interface MasterItemOption {
-  value: string; // master item id as string
+  value: string; // master item id as string or history key
   label: string; // display description
-  masterItem: any;
+  masterItem?: any;
+  source?: 'master' | 'history';
+  masterItemId?: number;
+  recommendedMaterial?: number;
+  recommendedUpah?: number;
+  kategori_pekerjaan?: string;
+  lingkup?: string;
 }
 
 export interface RabItemSelectorProps {
@@ -16,7 +22,7 @@ export interface RabItemSelectorProps {
   deskripsi: string;
   isCustom: boolean;
   options: MasterItemOption[];
-  onSelectMasterItem: (masterItemId: string) => void;
+  onSelectMasterItem: (val: string, option?: MasterItemOption) => void;
   onSetCustomItem: (customDeskripsi: string) => void;
   placeholder?: string;
   disabled?: boolean;
@@ -83,8 +89,8 @@ export function RabItemSelector({
     }
   }, [open, deskripsi]);
 
-  const handleSelectMaster = (idStr: string) => {
-    onSelectMasterItem(idStr);
+  const handleSelectOption = (opt: MasterItemOption) => {
+    onSelectMasterItem(opt.value, opt);
     setOpen(false);
   };
 
@@ -95,9 +101,7 @@ export function RabItemSelector({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Total selectable targets = filteredOptions.length + (query.trim() ? 1 : 0)
-    const hasCustomOption = !!query.trim();
-    const totalItems = filteredOptions.length + (hasCustomOption ? 1 : 0);
+    const totalItems = filteredOptions.length;
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -112,13 +116,12 @@ export function RabItemSelector({
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (filteredOptions.length === 0) {
-        // No match -> directly use as custom input
+        // Tidak ada yang cocok -> otomatis gunakan teks yang diketik sebagai item manual
         handleApplyCustom(query);
-      } else if (highlightedIndex < filteredOptions.length) {
-        // Selected a master item
-        handleSelectMaster(filteredOptions[highlightedIndex].value);
+      } else if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+        // Memilih opsi yang disorot
+        handleSelectOption(filteredOptions[highlightedIndex]);
       } else {
-        // Selected the custom item at the bottom
         handleApplyCustom(query);
       }
     } else if (e.key === "Escape") {
@@ -137,6 +140,15 @@ export function RabItemSelector({
     return deskripsi;
   }, [deskripsi, placeholder]);
 
+  // Deteksi apakah item saat ini bersumber dari Riwayat terdahulu
+  const isHistoryItem = useMemo(() => {
+    if (!isCustom || !deskripsi) return false;
+    const norm = deskripsi.trim().toLowerCase();
+    return options.some(
+      (opt) => opt.source === "history" && opt.label.trim().toLowerCase() === norm
+    );
+  }, [isCustom, deskripsi, options]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild disabled={disabled}>
@@ -151,11 +163,19 @@ export function RabItemSelector({
         >
           <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">
             {isCustom ? (
-              <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/80 font-bold text-[10px]">
-                Manual
-              </span>
+              isHistoryItem ? (
+                <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-bold text-[10px] flex items-center gap-0.5">
+                  <History className="w-2.5 h-2.5" />
+                  Riwayat
+                </span>
+              ) : (
+                <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/80 font-bold text-[10px]">
+                  Manual
+                </span>
+              )
             ) : masterItemId ? (
-              <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 font-bold text-[10px]">
+              <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 font-bold text-[10px] flex items-center gap-0.5">
+                <Package className="w-2.5 h-2.5" />
                 Master
               </span>
             ) : null}
@@ -187,7 +207,7 @@ export function RabItemSelector({
         onWheel={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        {/* Search / Creatable Input */}
+        {/* Search Input */}
         <div className="p-2.5 border-b border-slate-100 bg-slate-50/70">
           <div className="relative flex items-center">
             <Search className="absolute left-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
@@ -197,7 +217,7 @@ export function RabItemSelector({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Cari item master atau ketik item bebas..."
+              placeholder="Cari atau ketik nama item..."
               className="w-full pl-8 pr-16 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-[#E65F2B] focus:ring-1 focus:ring-[#E65F2B] text-slate-800 placeholder-slate-400"
               autoFocus
             />
@@ -206,50 +226,22 @@ export function RabItemSelector({
               <span>Enter</span>
             </div>
           </div>
-          <p className="text-[10px] text-slate-400 mt-1 pl-1">
-            Ketik nama item. Jika tidak ada di master harga, tekan Enter untuk otomatis mengisi sebagai item manual.
-          </p>
         </div>
 
         {/* Scrollable Master Items List */}
         <div
           ref={listRef}
-          className="max-h-60 overflow-y-auto overscroll-contain p-1.5 space-y-0.5"
+          className="max-h-64 overflow-y-auto overscroll-contain p-1.5 space-y-0.5"
           onWheel={(e) => e.stopPropagation()}
         >
-          {/* Custom / Creatable Option (Top / if query exists) */}
-          {query.trim() && (
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => handleApplyCustom(query)}
-              className={cn(
-                "w-full px-3 py-2 text-xs text-left rounded-xl flex items-center justify-between gap-2 border transition-all cursor-pointer select-none",
-                highlightedIndex === filteredOptions.length
-                  ? "bg-amber-100 border-amber-300 text-amber-900 font-bold"
-                  : "bg-amber-50/60 border-amber-200/80 text-amber-800 hover:bg-amber-100/70"
-              )}
-            >
-              <div className="flex items-center gap-2 truncate">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span className="truncate">
-                  Gunakan sebagai <strong className="underline">Input Bebas (Manual)</strong>: &quot;{query}&quot;
-                </span>
-              </div>
-              <span className="text-[10px] font-mono text-amber-700 bg-amber-200/60 px-1.5 py-0.5 rounded shrink-0">
-                ↵ Enter
-              </span>
-            </button>
-          )}
-
-          {/* Master Item Options */}
+          {/* Master Item & History Item Options */}
           {filteredOptions.length === 0 ? (
             !query.trim() ? (
               options.length === 0 ? (
                 <div className="py-6 px-4 text-center flex flex-col items-center justify-center gap-1.5 text-xs text-slate-400">
-                  <span className="font-semibold text-slate-600">Belum ada Master Item di kategori ini</span>
+                  <span className="font-semibold text-slate-600">Belum ada item di kategori ini</span>
                   <span className="text-[11px] text-slate-400">
-                    Ketik nama item di atas lalu tekan <strong className="text-slate-700">Enter</strong> untuk Input Bebas (Manual).
+                    Ketik nama item di atas lalu tekan <strong className="text-slate-700">Enter</strong> untuk menambahkan.
                   </span>
                 </div>
               ) : (
@@ -260,8 +252,11 @@ export function RabItemSelector({
             ) : null
           ) : (
             filteredOptions.map((opt, idx) => {
-              const isSelected = !isCustom && String(masterItemId) === opt.value;
+              const isSelected =
+                (!isCustom && opt.source === "master" && String(masterItemId) === opt.value) ||
+                (isCustom && opt.source === "history" && deskripsi && opt.label.trim().toLowerCase() === deskripsi.trim().toLowerCase());
               const isHighlighted = idx === highlightedIndex;
+              const isHistory = opt.source === "history";
 
               return (
                 <button
@@ -271,10 +266,10 @@ export function RabItemSelector({
                   }}
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => handleSelectMaster(opt.value)}
+                  onClick={() => handleSelectOption(opt)}
                   onMouseEnter={() => setHighlightedIndex(idx)}
                   className={cn(
-                    "w-full px-3 py-2 text-xs text-left rounded-xl flex items-center justify-between gap-2 transition-all cursor-pointer select-none overflow-hidden",
+                    "w-full px-3 py-2 text-xs text-left rounded-xl flex items-center justify-between gap-2.5 transition-all cursor-pointer select-none overflow-hidden",
                     isSelected && isHighlighted
                       ? "bg-orange-100 text-[#E65F2B] font-bold border border-orange-300"
                       : isSelected
@@ -284,10 +279,29 @@ export function RabItemSelector({
                       : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                   )}
                 >
-                  <span className="truncate flex-1 min-w-0" title={opt.label}>{opt.label}</span>
-                  {isSelected && (
-                    <Check className="w-3.5 h-3.5 text-[#E65F2B] shrink-0" />
-                  )}
+                  <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
+                    {isHistory ? (
+                      <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-bold text-[9px] flex items-center gap-0.5">
+                        <History className="w-2.5 h-2.5" />
+                        Riwayat
+                      </span>
+                    ) : (
+                      <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 font-bold text-[9px] flex items-center gap-0.5">
+                        <Package className="w-2.5 h-2.5" />
+                        Master
+                      </span>
+                    )}
+
+                    <span className="truncate flex-1 min-w-0" title={opt.label}>
+                      {opt.label}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isSelected && (
+                      <Check className="w-3.5 h-3.5 text-[#E65F2B] shrink-0" />
+                    )}
+                  </div>
                 </button>
               );
             })

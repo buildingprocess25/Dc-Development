@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { syncRenovasiPdfToDrive } from '@/lib/renovasi-sync';
 import { getSession } from '@/lib/auth';
+import { canUserViewRabOeSubmission } from '@/lib/permissions';
 
 export async function GET(
   request: Request,
@@ -17,6 +18,23 @@ export async function GET(
     const renovasiId = parseInt(id, 10);
     if (isNaN(renovasiId)) {
       return NextResponse.json({ status: 'error', message: 'ID pengajuan tidak valid' }, { status: 400 });
+    }
+
+    // Ambil data renovasi dan validasi izin akses bertingkat
+    const renovasi = await prisma.dc_renovasi.findUnique({
+      where: { id: renovasiId },
+      include: { project: true }
+    });
+
+    if (!renovasi) {
+      return NextResponse.json({ status: 'error', message: 'Data renovasi tidak ditemukan' }, { status: 404 });
+    }
+
+    if (!canUserViewRabOeSubmission(session, renovasi)) {
+      return NextResponse.json(
+        { status: 'error', message: 'Akses ditolak: Dokumen renovasi belum mencapai tahapan persetujuan Anda atau berada di luar coverage cabang Anda.' },
+        { status: 403 }
+      );
     }
 
     // Cek apakah dokumen PDF sudah tersinkronisasi di Google Drive

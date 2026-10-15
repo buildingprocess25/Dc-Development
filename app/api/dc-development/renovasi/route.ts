@@ -421,21 +421,6 @@ export async function POST(request: Request) {
 
     // Simpan ke database via Prisma transaction
     const newRenovasi = await prisma.$transaction(async (tx) => {
-      // 1. Simpan jenis renovasi ke preset jika baru
-      if (jenis_renovasi && jenis_renovasi.trim()) {
-        const titleJenis = toTitleCase(jenis_renovasi.trim());
-        const existingPreset = await tx.dc_jenis_renovasi_preset.findUnique({
-          where: { nama: titleJenis }
-        });
-        if (!existingPreset) {
-          await tx.dc_jenis_renovasi_preset.create({
-            data: {
-              nama: titleJenis,
-              is_default: false
-            }
-          });
-        }
-      }
 
       // 2. Jika body.id ada, lakukan update pada pengajuan/draft yang sudah ada
       if (body.id) {

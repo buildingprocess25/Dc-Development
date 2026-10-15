@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Button } from "@/components/ui/button";
 import { formatRupiah, cn, toTitleCase } from "@/lib/utils";
 import { useSession } from "@/context/SessionContext";
-import { canEditRenovasiSubmission, canUserApproveSubmission } from "@/lib/permissions";
+import { canEditRenovasiSubmission, canUserApproveSubmission, getNextApprovalStatus } from "@/lib/permissions";
 import {
   Building2,
   Calendar,
@@ -37,6 +37,10 @@ import {
   hasPreviousRevisionNotes
 } from "@/lib/approval-notes";
 import { normalizeRevisionDetails, RevisionDetailItem } from "@/lib/types/renovasi-revision";
+import ApprovalStepper from "@/components/approval/ApprovalStepper";
+import ApprovalNotesHistory from "@/components/approval/ApprovalNotesHistory";
+import SubmissionReasonCard from "@/components/approval/SubmissionReasonCard";
+import ApprovalActionCard from "@/components/approval/ApprovalActionCard";
 
 interface DetailRenovasiModalProps {
   open: boolean;
@@ -295,6 +299,13 @@ export default function DetailRenovasiModal({
         <div className="p-6 overflow-y-auto flex-1 text-xs">
           {activeTab === "INFO" && (
             <div className="flex flex-col gap-5">
+              {/* Alur Persetujuan Berjenjang (4 Tahapan) */}
+              <ApprovalStepper
+                currentStatus={renovasi.status}
+                type="rab-oe"
+                catatanRevisi={revisionNotes?.[0]?.note || null}
+              />
+
               {/* Specification Panel */}
               <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs divide-y divide-slate-100">
                 <div className="p-4 sm:p-5">
@@ -323,7 +334,7 @@ export default function DetailRenovasiModal({
                     <div>
                       <span className="text-[11px] text-slate-400 block font-medium">Estimasi Durasi</span>
                       <span className="text-sm font-bold text-slate-900 mt-0.5 block">
-                        {renovasi.durasi_hari || 0} Hari Kalender
+                        {renovasi.durasi_hari || 0} Hari
                       </span>
                     </div>
                   </div>
@@ -353,84 +364,14 @@ export default function DetailRenovasiModal({
                 </div>
               </div>
 
-              {/* Catatan Persetujuan Peninjau Terdahulu (HANYA tampil saat tahap Persetujuan / bukan REVISI) */}
-              {renovasi.status !== "REVISI" && approvalNotes.length > 0 && (
-                <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200/90 text-xs shadow-2xs">
-                  <div className="flex items-center gap-1.5 font-bold text-blue-900 mb-2 pb-2 border-b border-blue-200/60">
-                    <MessageSquare className="w-4 h-4 text-blue-600" />
-                    <span>Catatan Persetujuan Peninjau Sebelumnya ({approvalNotes.length})</span>
-                  </div>
-                  <div className="space-y-2">
-                    {approvalNotes.map((item) => (
-                      <div key={item.id} className="p-2.5 rounded-lg bg-white/95 border border-blue-100 text-xs shadow-2xs">
-                        <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400 font-semibold mb-1">
-                          <span className="font-bold text-blue-900">
-                            {item.author} {item.role ? `(${item.role})` : ""}
-                          </span>
-                          <span className="font-mono">{item.date}</span>
-                        </div>
-                        <p className="text-slate-800 font-medium leading-relaxed whitespace-pre-wrap">{item.note}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Rincian & Alasan Pengajuan (Komponen Reusable) */}
+              <SubmissionReasonCard data={renovasi} />
 
-              {/* Catatan Instruksi Revisi (HANYA tampil saat status pengajuan REVISI) */}
-              {renovasi.status === "REVISI" && (revisionNotes.length > 0 || revisionDetails.length > 0) && (
-                <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/90 text-xs shadow-2xs">
-                  <div className="flex items-center gap-1.5 font-bold text-amber-900 mb-2 pb-2 border-b border-amber-200/60">
-                    <AlertCircle className="w-4 h-4 text-amber-600" />
-                    <span>Instruksi Catatan Revisi dari Peninjau {revisionNotes.length > 0 ? `(${revisionNotes.length})` : ""}</span>
-                  </div>
-                  {revisionNotes.length > 0 && (
-                    <div className="space-y-2 mb-3">
-                      {revisionNotes.map((item) => (
-                        <div key={item.id} className="p-2.5 rounded-lg bg-white/95 border border-amber-100 text-xs shadow-2xs">
-                          <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400 font-semibold mb-1">
-                            <span className="font-bold text-amber-900">
-                              {item.author} {item.role ? `(${item.role})` : ""}
-                            </span>
-                            <span className="font-mono">{item.date}</span>
-                          </div>
-                          <p className="text-slate-800 font-medium leading-relaxed whitespace-pre-wrap">{item.note}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {revisionDetails.length > 0 && (
-                    <div className="pt-2 border-t border-amber-200/60">
-                      <span className="text-[11px] font-bold text-amber-900 block mb-2">
-                        Rincian Bagian yang Ditandai Wajib Diperbaiki ({revisionDetails.length}):
-                      </span>
-                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                        {revisionDetails.map((d, idx) => (
-                          <div key={d.id || idx} className="p-2 rounded-lg bg-white/90 border border-amber-100 text-[11px] flex flex-col gap-0.5">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-bold text-slate-800">{d.label}</span>
-                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 uppercase">
-                                {d.category === "PARAMETER"
-                                  ? "Parameter"
-                                  : d.category === "GAMBAR"
-                                  ? "Gambar Kerja"
-                                  : d.category === "FOTO"
-                                  ? "Foto Lingkungan"
-                                  : "Item RAB"}
-                              </span>
-                            </div>
-                            {d.catatan && (
-                              <p className="text-slate-600 text-[10px] italic bg-amber-50/50 p-1 rounded border border-amber-100/60 font-medium">
-                                Catatan: &ldquo;{d.catatan}&rdquo;
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Riwayat Persetujuan & Catatan Reviewer (Komponen Terpadu) */}
+              <ApprovalNotesHistory
+                data={renovasi}
+                revisionDetails={renovasi.status === "REVISI" ? revisionDetails : undefined}
+              />
 
               {/* Financial Summary Card: Refined, trustworthy enterprise balance */}
               <div className="p-4 sm:p-5 bg-slate-50/70 border border-slate-200/90 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -470,6 +411,18 @@ export default function DetailRenovasiModal({
                   </div>
                 </div>
               </div>
+
+              {/* Tindakan Persetujuan Reviewer (Komponen Reusable: ApprovalActionCard) */}
+              {showApprovalActions && canApprove && onApprovalAction && (
+                <ApprovalActionCard
+                  roleName={user?.role}
+                  nextStepLabel={getNextApprovalStatus(renovasi.status)?.label}
+                  approveLabel="Setujui Pengajuan"
+                  revisiLabel="Minta Revisi"
+                  onApprove={() => onApprovalAction("APPROVE", renovasi)}
+                  onRevisi={() => onApprovalAction("REVISI", renovasi)}
+                />
+              )}
             </div>
           )}
 
@@ -515,8 +468,8 @@ export default function DetailRenovasiModal({
                                 </span>
                                 <span
                                   className={`text-[9px] font-extrabold uppercase px-1 py-0.2 rounded border shrink-0 ${isPdf
-                                      ? "bg-rose-100 text-rose-700 border-rose-200"
-                                      : "bg-indigo-100 text-indigo-700 border-indigo-200"
+                                    ? "bg-rose-100 text-rose-700 border-rose-200"
+                                    : "bg-indigo-100 text-indigo-700 border-indigo-200"
                                     }`}
                                 >
                                   {isPdf ? "PDF" : "DWG"}
@@ -581,8 +534,8 @@ export default function DetailRenovasiModal({
                                 </span>
                                 <span
                                   className={`text-[9px] font-extrabold uppercase px-1 py-0.2 rounded border shrink-0 ${isPdf
-                                      ? "bg-rose-100 text-rose-700 border-rose-200"
-                                      : "bg-indigo-100 text-indigo-700 border-indigo-200"
+                                    ? "bg-rose-100 text-rose-700 border-rose-200"
+                                    : "bg-indigo-100 text-indigo-700 border-indigo-200"
                                     }`}
                                 >
                                   {isPdf ? "PDF" : "DWG"}
