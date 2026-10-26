@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 
+// Trigger server reload for updated Prisma Client schema
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
@@ -10,3 +11,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+

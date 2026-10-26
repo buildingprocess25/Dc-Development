@@ -182,13 +182,16 @@ export default function FungsiRuangTable({
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-1.5 font-bold text-slate-800">
                     <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>{item.nama_pemohon}</span>
+                    <span>{item.pemohon?.nama_pemohon || item.nama_pemohon}</span>
                   </div>
                   <div className="text-[11px] text-slate-500 mt-0.5">
-                    {item.jabatan} &bull; <span className="text-slate-400">{item.departemen || item.divisi}</span>
+                    {item.pemohon?.jabatan || item.jabatan} &bull;{" "}
+                    <span className="text-slate-400">
+                      {item.pemohon?.departemen || item.departemen || item.pemohon?.divisi || item.divisi}
+                    </span>
                   </div>
                   <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                    {item.email_pemohon}
+                    {item.pemohon?.email_pemohon || item.email_pemohon}
                   </div>
                 </td>
 

@@ -466,11 +466,11 @@ export default function ApprovalRabOePage() {
           onSuccess={(updatedItem) => {
             // Refresh table data
             loadData();
-            // If the detail modal is currently showing the same item, update or close it
-            if (selectedItem && selectedItem.id === actionTarget.id) {
-              setDetailModalOpen(false);
-              setSelectedItem(null);
-            }
+            // Langsung tutup modal detail & dialog aksi agar tidak menumpuk saat feedback muncul
+            setDetailModalOpen(false);
+            setSelectedItem(null);
+            setActionDialogOpen(false);
+            setActionTarget(null);
 
             const currentAction = actionType;
             const noPengajuan = actionTarget.nomor_pengajuan || "";
@@ -503,7 +503,12 @@ export default function ApprovalRabOePage() {
         type={feedbackModal.type}
         title={feedbackModal.title}
         message={feedbackModal.message}
-        onClose={() => setFeedbackModal((prev) => ({ ...prev, open: false }))}
+        onClose={() => {
+          setFeedbackModal((prev) => ({ ...prev, open: false }));
+          setDetailModalOpen(false);
+          setSelectedItem(null);
+        }}
+        className="z-[70]"
       />
     </Dashboard>
   );

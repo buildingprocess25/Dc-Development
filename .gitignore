@@ -47,3 +47,10 @@ token_doc.json
 .agents
 .claude
 skills-lock.json
+
+# temporary scratch & generated pdfs
+scratch/
+public/pdf/
+
+data/
+docs/

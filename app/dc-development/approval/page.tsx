@@ -7,12 +7,16 @@ import { useSession } from "@/context/SessionContext";
 import {
   canAccessRabOeApproval,
   canAccessFungsiRuangApproval,
-  canAccessApprovalNavigation
+  canAccessTenderApproval,
+  canAccessApprovalNavigation,
+  isApprovalAdmin,
 } from "@/lib/permissions";
 import {
   FileSpreadsheet,
   LayoutGrid,
-  ShieldCheck
+  FileSignature,
+  ShieldCheck,
+  ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HubHeaderBanner, HubCategoryCard, HubCategoryCardProps } from "@/components/hub";
@@ -27,15 +31,25 @@ interface FungsiRuangApprovalSummary {
   total_all: number;
 }
 
+interface TenderApprovalSummary {
+  my_pending_count: number;
+  total_all: number;
+}
+
 export default function ApprovalHubPage() {
   const { user } = useSession();
   const [summary, setSummary] = useState<ApprovalSummary | null>(null);
   const [pfrSummary, setPfrSummary] = useState<FungsiRuangApprovalSummary | null>(null);
+  const [tenderSummary, setTenderSummary] = useState<TenderApprovalSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const canAccessRabOe = canAccessRabOeApproval(user?.role);
   const canAccessFungsiRuang = canAccessFungsiRuangApproval(user?.role);
-  const canAccessNav = canAccessApprovalNavigation(user?.role, (user as any)?.akses_menu);
+  const canAccessTender = canAccessTenderApproval(user?.role);
+  const canAccessAanwijzing = isApprovalAdmin(user?.role) || (user?.role?.toUpperCase().includes("MANAGER") && user?.role?.toUpperCase().includes("DEVELOPMENT"));
+  const canAccessNav = canAccessApprovalNavigation(user?.role, (user as any)?.akses_menu) || canAccessAanwijzing;
+
+  const [aanwijzingPending, setAanwijzingPending] = useState(0);
 
   const loadSummary = async () => {
     try {
@@ -57,6 +71,28 @@ export default function ApprovalHubPage() {
             .then((r) => r.json())
             .then((j) => {
               if (j.status === "success") setPfrSummary(j.summary || null);
+            })
+            .catch(() => {})
+        );
+      }
+      if (canAccessTender) {
+        promises.push(
+          fetch("/api/dc-development/tender/approval?limit=1")
+            .then((r) => r.json())
+            .then((j) => {
+              if (j.status === "success") setTenderSummary(j.summary || null);
+            })
+            .catch(() => {})
+        );
+      }
+      if (canAccessAanwijzing) {
+        promises.push(
+          fetch("/api/dc-development/aanwijzing?status=MENUNGGU_APPROVAL_DC_MANAGER")
+            .then((r) => r.json())
+            .then((j) => {
+              if (j.status === "success" && Array.isArray(j.data)) {
+                setAanwijzingPending(j.data.length);
+              }
             })
             .catch(() => {})
         );
@@ -96,6 +132,7 @@ export default function ApprovalHubPage() {
 
   const rabOePending = summary?.my_pending_count ?? 0;
   const pfrPending = pfrSummary?.my_pending_count ?? 0;
+  const tenderPending = tenderSummary?.my_pending_count ?? 0;
 
   const approvalCards: (HubCategoryCardProps & { id: string })[] = [];
 
@@ -125,6 +162,36 @@ export default function ApprovalHubPage() {
       badge: pfrPending > 0 ? `${pfrPending} Perlu Tindakan` : "Semua Diproses",
       badgeVariant: pfrPending > 0 ? "orange" : "success",
       stats: "SOP SAT/FRM/DCB/010",
+      actionLabel: "Buka Antrean",
+    });
+  }
+
+  if (canAccessTender) {
+    approvalCards.push({
+      id: "tender",
+      title: "Pengajuan Rekanan Tender",
+      description: "Verifikasi calon rekanan kontraktor & konsultan pengawas, pra-kualifikasi peserta, jadwal pelaksanaan, dan otorisasi tender.",
+      href: "/dc-development/approval/tender",
+      icon: FileSignature,
+      active: true,
+      badge: tenderPending > 0 ? `${tenderPending} Perlu Tindakan` : "Semua Diproses",
+      badgeVariant: tenderPending > 0 ? "orange" : "success",
+      stats: "Threshold > Rp 1M & <= Rp 1M",
+      actionLabel: "Buka Antrean",
+    });
+  }
+
+  if (canAccessAanwijzing) {
+    approvalCards.push({
+      id: "aanwijzing",
+      title: "Undangan Aanwijzing (< 1M)",
+      description: "Persetujuan kelanjutan rapat Aanwijzing proyek < 1M dengan kehadiran rekanan kontraktor kurang dari 3 peserta.",
+      href: "/dc-development/approval/aanwijzing",
+      icon: ClipboardCheck,
+      active: true,
+      badge: aanwijzingPending > 0 ? `${aanwijzingPending} Perlu Tindakan` : "Semua Diproses",
+      badgeVariant: aanwijzingPending > 0 ? "orange" : "success",
+      stats: "Otorisasi DC Manager (< 3 Rekanan)",
       actionLabel: "Buka Antrean",
     });
   }

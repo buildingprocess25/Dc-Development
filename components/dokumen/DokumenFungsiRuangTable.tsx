@@ -26,6 +26,7 @@ export interface DokumenFungsiRuangItem {
   renovasi?: {
     nomor_pengajuan?: string | null;
     cabang?: string | null;
+    grand_total?: number | null;
   } | null;
   [key: string]: any;
 }
@@ -134,10 +135,10 @@ export default function DokumenFungsiRuangTable({
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-1.5 font-bold text-slate-800">
                         <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{item.nama_pemohon}</span>
+                        <span>{item.pemohon?.nama_pemohon || item.nama_pemohon}</span>
                       </div>
                       <div className="text-[11px] text-slate-500 mt-0.5">
-                        {item.jabatan}
+                        {item.pemohon?.jabatan || item.jabatan}
                       </div>
                     </td>
 

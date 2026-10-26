@@ -80,9 +80,16 @@ export async function GET(request: Request) {
       andConditions.push({
         OR: [
           { nomor_pengajuan: { contains: q, mode: 'insensitive' } },
-          { nama_pemohon: { contains: q, mode: 'insensitive' } },
-          { email_pemohon: { contains: q, mode: 'insensitive' } },
-          { jabatan: { contains: q, mode: 'insensitive' } },
+          {
+            pemohon: {
+              OR: [
+                { nama_pemohon: { contains: q, mode: 'insensitive' } },
+                { email_pemohon: { contains: q, mode: 'insensitive' } },
+                { jabatan: { contains: q, mode: 'insensitive' } },
+                { departemen: { contains: q, mode: 'insensitive' } },
+              ],
+            },
+          },
           { project: { nama_proyek: { contains: q, mode: 'insensitive' } } },
           { project: { kode: { contains: q, mode: 'insensitive' } } },
           { project: { cabang: { contains: q, mode: 'insensitive' } } },
@@ -96,6 +103,7 @@ export async function GET(request: Request) {
     const data = await prisma.dc_fungsi_ruang.findMany({
       where,
       include: {
+        pemohon: true,
         project: true,
         renovasi: true,
       },

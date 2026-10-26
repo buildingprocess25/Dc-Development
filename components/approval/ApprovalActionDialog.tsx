@@ -33,7 +33,7 @@ export interface ApprovalActionDialogProps {
   onOpenChange: (open: boolean) => void;
   action: ApprovalActionType | null;
   target: any | null;
-  moduleType?: "rab-oe" | "fungsi-ruang";
+  moduleType?: "rab-oe" | "fungsi-ruang" | "tender";
   roleName?: string;
   nextStepLabel?: string;
   onSuccess: (updatedItem?: any) => void;
@@ -116,6 +116,22 @@ export default function ApprovalActionDialog({
           })
           .catch((err) => console.error("Gagal memuat detail renovasi untuk modal revisi:", err));
       }
+
+      // Fetch full target if module is tender and renovasi or nilai_proyek is not fully present
+      if (
+        moduleType === "tender" &&
+        target?.id &&
+        (!target.renovasi?.grand_total || target.nilai_proyek === undefined || !target.nomor_tender)
+      ) {
+        fetch(`/api/dc-development/tender/${target.id}`)
+          .then((res) => res.json())
+          .then((json) => {
+            if (json.status === "success" && json.data) {
+              setFullTarget(json.data);
+            }
+          })
+          .catch((err) => console.error("Gagal memuat detail tender untuk modal persetujuan:", err));
+      }
     }
   }, [open, action, target, moduleType]);
 
@@ -166,6 +182,44 @@ export default function ApprovalActionDialog({
   };
 
   const getActionConfig = () => {
+    if (moduleType === "tender") {
+      switch (action) {
+        case "APPROVE":
+          return {
+            title: "Konfirmasi Persetujuan Tender",
+            description: "Pengajuan usulan rekanan tender ini akan disetujui dan diteruskan ke tahap proses selanjutnya.",
+            icon: CheckCircle2,
+            iconBg: "bg-emerald-50 text-emerald-600 border border-emerald-200/80",
+            submitText: nextStepLabel ? `Setujui (ke ${nextStepLabel})` : "Setujui (Final Approved)",
+            submitBtnClass: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20",
+            notePlaceholder: "Tuliskan catatan persetujuan jika diperlukan (opsional)...",
+            noteLabel: "Catatan Persetujuan (Opsional)"
+          };
+        case "REVISI":
+          return {
+            title: "Instruksi Perbaikan Revisi Tender",
+            description: "Tuliskan catatan instruksi perbaikan yang wajib dipenuhi oleh pembuat Pengajuan Proposal Tender.",
+            icon: RotateCcw,
+            iconBg: "bg-amber-50 text-amber-600 border border-amber-200/80",
+            submitText: "Kembalikan Revisi",
+            submitBtnClass: "bg-[#E65F2B] hover:bg-[#d45524] text-white shadow-[#E65F2B]/20",
+            notePlaceholder: "Tuliskan poin atau catatan instruksi perbaikan yang harus diperbaiki oleh maker (Wajib diisi)...",
+            noteLabel: "Catatan Instruksi Perbaikan"
+          };
+        case "TOLAK":
+          return {
+            title: "Penolakan Pengajuan Proposal Tender",
+            description: "Pengajuan usulan rekanan tender ini akan ditolak dan statusnya akan ditutup.",
+            icon: XCircle,
+            iconBg: "bg-rose-50 text-rose-600 border border-rose-200/80",
+            submitText: "Tolak Pengajuan",
+            submitBtnClass: "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20",
+            notePlaceholder: "Jelaskan alasan penolakan Pengajuan Proposal Tender ini (Wajib diisi)...",
+            noteLabel: "Alasan Penolakan"
+          };
+      }
+    }
+
     if (moduleType === "fungsi-ruang") {
       switch (action) {
         case "APPROVE":
@@ -357,7 +411,24 @@ export default function ApprovalActionDialog({
 
       const finalCatatan = trimmedNote;
 
-      if (moduleType === "fungsi-ruang") {
+      if (moduleType === "tender") {
+        const res = await fetch(`/api/dc-development/tender/${currentData.id}/approve`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            notes: finalCatatan || undefined,
+          }),
+        });
+
+        const json = await res.json();
+        if (!res.ok || json.status !== "success") {
+          throw new Error(json.message || "Gagal memproses persetujuan tender");
+        }
+
+        onOpenChange(false);
+        onSuccess(json.data);
+      } else if (moduleType === "fungsi-ruang") {
         const res = await fetch("/api/dc-development/fungsi-ruang/approval", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -409,7 +480,7 @@ export default function ApprovalActionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          "p-0 overflow-hidden rounded-2xl border-slate-200/80 shadow-2xl flex flex-col max-h-[92vh]",
+          "p-0 overflow-hidden rounded-2xl border-slate-200/80 shadow-2xl flex flex-col max-h-[92vh] z-[60]",
           isWideModal ? "max-w-3xl" : "max-w-lg"
         )}
       >
@@ -489,6 +560,63 @@ export default function ApprovalActionDialog({
                   </span>
                   <span className="px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800 text-[10px]">
                     {nextStepFungsiRuang.nextStatus}
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : moduleType === "tender" ? (
+            <div className="bg-slate-50/90 rounded-xl p-4 border border-slate-200/70 space-y-2 text-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                <span className="text-slate-500 font-medium">Nomor Pengajuan:</span>
+                <span className="font-mono font-bold text-slate-900">
+                  {currentData.nomor_tender || currentData.nomor_pengajuan || "-"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Proyek DC:</span>
+                <span className="font-bold text-slate-800 text-right">
+                  {currentData.project?.kode ? `${currentData.project.kode} - ` : ""}
+                  {currentData.project?.nama_proyek || "-"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Cabang / Wilayah:</span>
+                <span className="font-semibold text-slate-700">
+                  {currentData.cabang || currentData.project?.cabang || currentData.renovasi?.cabang || "-"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Total Nilai RAB / OE:</span>
+                <span className="font-mono font-extrabold text-[#E65F2B]">
+                  {formatRupiah(
+                    Number(
+                      currentData.renovasi?.grand_total ??
+                      currentData.nilai_proyek ??
+                      currentData.grand_total ??
+                      0
+                    )
+                  )}
+                </span>
+              </div>
+
+              {/* Status Transition Preview */}
+              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500 font-medium">Status Saat Ini:</span>
+                <span className="px-2 py-0.5 rounded-md font-bold bg-slate-200/80 text-slate-700 text-[10px]">
+                  {currentData.status}
+                </span>
+              </div>
+
+              {action === "APPROVE" && nextStepLabel && (
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                    Status Setelah Disetujui:
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800 text-[10px]">
+                    {nextStepLabel}
                   </span>
                 </div>
               )}
@@ -1075,6 +1203,7 @@ export default function ApprovalActionDialog({
             <Textarea
               value={catatan}
               onChange={(e) => setCatatan(e.target.value)}
+              onBlur={(e) => setCatatan(toTitleCase(e.target.value))}
               placeholder={config.notePlaceholder}
               rows={action === "REVISI" ? 3 : 4}
               className="rounded-xl border-slate-200 text-xs focus-visible:ring-[#E65F2B]/30"

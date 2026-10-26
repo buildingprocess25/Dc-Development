@@ -10,6 +10,7 @@ import {
   canUserApproveFungsiRuang,
   canUserViewFungsiRuangSubmission,
   isApprovalAdmin,
+  getNextFungsiRuangApprovalStatus,
 } from "@/lib/permissions";
 import {
   getBranchesUnderInduk,
@@ -32,9 +33,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { FilterOption } from "@/components/ui/filter-select";
 import { ApprovalFilterToolbar, ApprovalPageTitle } from "@/components/approval";
-import { ApprovalActionType } from "@/components/approval/ApprovalActionDialog";
+import ApprovalActionDialog, { ApprovalActionType } from "@/components/approval/ApprovalActionDialog";
 import { FeedbackModal } from "@/components/ui/feedback-modal";
-import ReviewFungsiRuangModal from "@/components/fungsi-ruang/ReviewFungsiRuangModal";
+import DetailFungsiRuangModal from "@/components/fungsi-ruang/DetailFungsiRuangModal";
 
 export default function ApprovalFungsiRuangPage() {
   const { user } = useSession();
@@ -53,10 +54,19 @@ export default function ApprovalFungsiRuangPage() {
   const [activeTab, setActiveTab] = useState<"MY_QUEUE" | "ALL">("MY_QUEUE");
   const [adminStatusFilter, setAdminStatusFilter] = useState("all");
 
-  // Review Modal State
+  // Detail Modal & Action Dialog State
   const [selectedSubmission, setSelectedSubmission] = useState<any | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [actionType, setActionType] = useState<ApprovalActionType | null>(null);
+  const [actionTarget, setActionTarget] = useState<any | null>(null);
+
+  const handleOpenAction = (action: ApprovalActionType, item: any) => {
+    setActionType(action);
+    setActionTarget(item);
+    setActionDialogOpen(true);
+  };
 
   // Feedback Modal
   const [feedbackModal, setFeedbackModal] = useState<{
@@ -428,39 +438,61 @@ export default function ApprovalFungsiRuangPage() {
           )}
         </div>
 
-        {/* Modal Review & Persetujuan */}
-        <ReviewFungsiRuangModal
-          open={modalOpen}
-          onOpenChange={setModalOpen}
-          submission={selectedSubmission}
-          onSuccess={(action, updatedItem) => {
-            loadData();
-            setModalOpen(false);
+        {/* Modal Detail & Persetujuan (Sama persis dengan Detail Menu Transaksi) */}
+        {selectedSubmission && (
+          <DetailFungsiRuangModal
+            open={modalOpen}
+            onOpenChange={setModalOpen}
+            submission={selectedSubmission}
+            showApprovalActions={canUserApproveFungsiRuang(user, selectedSubmission)}
+            onApprovalAction={(action, item) => handleOpenAction(action, item)}
+            userRole={user?.role}
+          />
+        )}
 
-            const currentAction = action;
-            const target = updatedItem || selectedSubmission;
-            const noPengajuan = target?.nomor_pengajuan || "";
-            const creator = target?.created_by || "Branch Building Koordinator";
-            const namaProyek = target?.project?.nama_proyek || target?.nama_proyek || "";
+        {/* Action Dialog for Approve, Revisi, Tolak */}
+        {actionTarget && actionType && (
+          <ApprovalActionDialog
+            open={actionDialogOpen}
+            onOpenChange={setActionDialogOpen}
+            action={actionType}
+            target={actionTarget}
+            moduleType="fungsi-ruang"
+            roleName={user?.role}
+            nextStepLabel={getNextFungsiRuangApprovalStatus(actionTarget.status)?.label}
+            onSuccess={(updatedItem) => {
+              loadData();
+              // Langsung tutup modal detail & dialog aksi agar tidak menumpuk saat feedback muncul
+              setModalOpen(false);
+              setSelectedSubmission(null);
+              setActionDialogOpen(false);
+              setActionTarget(null);
 
-            setFeedbackModal({
-              open: true,
-              type: "success",
-              title:
-                currentAction === "APPROVE"
-                  ? "Pengajuan Berhasil Disetujui"
-                  : currentAction === "REVISI"
-                  ? "Permintaan Revisi Berhasil Dikirim"
-                  : "Pengajuan Ditolak",
-              message:
-                currentAction === "APPROVE"
-                  ? `Pengajuan ${noPengajuan} (${namaProyek}) berhasil disetujui dan dialihkan ke tahap proses selanjutnya.`
-                  : currentAction === "REVISI"
-                  ? `Pengajuan ${noPengajuan} (${namaProyek}) berhasil dikembalikan kepada pemohon (${creator}) untuk dilakukan revisi.`
-                  : `Pengajuan ${noPengajuan} (${namaProyek}) telah ditolak.`
-            });
-          }}
-        />
+              const currentAction = actionType;
+              const target = updatedItem || actionTarget;
+              const noPengajuan = target?.nomor_pengajuan || "";
+              const creator = target?.created_by || "Pemohon";
+              const namaProyek = target?.project?.nama_proyek || target?.nama_proyek || "";
+
+              setFeedbackModal({
+                open: true,
+                type: "success",
+                title:
+                  currentAction === "APPROVE"
+                    ? "Pengajuan Berhasil Disetujui"
+                    : currentAction === "REVISI"
+                    ? "Permintaan Revisi Berhasil Dikirim"
+                    : "Pengajuan Ditolak",
+                message:
+                  currentAction === "APPROVE"
+                    ? `Pengajuan ${noPengajuan} (${namaProyek}) berhasil disetujui dan dialihkan ke tahap proses selanjutnya.`
+                    : currentAction === "REVISI"
+                    ? `Pengajuan ${noPengajuan} (${namaProyek}) berhasil dikembalikan kepada pemohon (${creator}) untuk dilakukan revisi.`
+                    : `Pengajuan ${noPengajuan} (${namaProyek}) telah ditolak.`
+              });
+            }}
+          />
+        )}
 
         {/* Pop-up Pemberitahuan Konfirmasi Aksi Selesai */}
         <FeedbackModal
@@ -468,7 +500,12 @@ export default function ApprovalFungsiRuangPage() {
           type={feedbackModal.type}
           title={feedbackModal.title}
           message={feedbackModal.message}
-          onClose={() => setFeedbackModal((prev) => ({ ...prev, open: false }))}
+          onClose={() => {
+            setFeedbackModal((prev) => ({ ...prev, open: false }));
+            setModalOpen(false);
+            setSelectedSubmission(null);
+          }}
+          className="z-[70]"
         />
       </div>
     </Dashboard>

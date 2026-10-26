@@ -151,6 +151,20 @@ export const toTitleCase = (str: string | null | undefined): string => {
         pvc: "PVC",
         led: "LED",
         apron: "Apron",
+        mk: "MK",
+        spk: "SPK",
+        boq: "BoQ",
+        pfr: "PFR",
+        bm: "BM",
+        dbm: "DBM",
+        gm: "GM",
+        pho: "PHO",
+        fho: "FHO",
+        bast: "BAST",
+        sbu: "SBU",
+        ska: "SKA",
+        iso: "ISO",
+        k3: "K3",
     };
 
     return String(str)

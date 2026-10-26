@@ -9,6 +9,7 @@ export interface DcProfile {
   dc_induk: string | null;
   tipe: string;
   cabang: string;
+  alamat?: string | null;
   luas_lahan?: number | null;
   total_luas_bangunan?: number | null;
 }

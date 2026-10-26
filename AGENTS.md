@@ -8,14 +8,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# SPARTA DC-Development — Mandatory Component Reuse Rules
+# SPARTA DC-Development — Mandatory Component Reuse & Architecture Rules
 
-## MANDATORY: Always Reuse Existing Components First
-1. **Never Duplicate Components**: Before creating any new UI, page, or feature, you MUST check `components/` for existing reusable components.
-2. **Reuse Existing Catalog**:
-   - **Hub / Landing Pages**: Use `HubHeaderBanner` and `HubCategoryCard` from `components/hub/`.
-   - **Approval Modules**: Use `ApprovalPageTitle` and `ApprovalFilterToolbar` from `components/approval/`.
-   - **Document Catalog Modules**: Use `DokumenHeaderCard` and `DokumenFilterToolbar` from `components/dokumen/`.
-   - **Branch & Filter Dropdowns**: Always use `BranchFilterSelect` (`components/ui/branch-filter-select.tsx`) and `FilterSelect` (`components/ui/filter-select.tsx`).
-3. **Only Create New Components When None Exist**: If a feature requires UI that does not exist anywhere in the codebase, build it as a reusable, modular component under `components/<module>/` with configurable props so other features can consume it in the future.
-4. **Follow SPARTA Design Tokens**: Radius `rounded-2xl`, border `border-slate-200/80`, brand orange accent `#E65F2B`, clean typography.
+## MANDATORY: Always Follow Architecture Guidelines
+1. **Read Full Guidelines**: Always consult [GEMINI.md](file:///c:/alfamart/KERJA/DC-Development/GEMINI.md) for detailed workflows on creating new features, navigation registration, document catalogs, approval flows, and complete component catalogs.
+2. **Component Reuse First & No Duplication**: Before writing any new UI, check `components/` for existing components. Never duplicate existing UI components.
+3. **Reusable Component Extraction**: If an element has potential to be reused across modules, extract it into `components/<module>/` or `components/ui/` with typed configurable props.
+4. **Navigation Registration**: Every new main feature menu MUST be registered in `dcMenus` in `components/dashboard/menu-navigasi.tsx` (which automatically integrates into `manajemen-user`).
+5. **Daftar Dokumen Integration**: If a feature has official PDF documents/archives, register a card in `app/dc-development/daftar-dokumen/page.tsx` and build the catalog page using `DokumenHeaderCard`, `DokumenFilterToolbar`, and a catalog table.
+6. **Approval Workflow Integration**: If a feature involves approvals, register a card in `app/dc-development/approval/page.tsx`, use `ApprovalPageTitle`, `ApprovalFilterToolbar`, `ApprovalStepper`, `ApprovalNotesHistory` (collapsible, default closed), `ApprovalActionCard`, `ApprovalActionDialog` (mandatory note on revision), and always trigger `FeedbackModal` (`components/ui/feedback-modal.tsx`).
+7. **Revision & Tiered Visibility Rules**: Status `REVISI` is strictly private to creator (`created_by === user.email`) and Admin (hidden from approver queues; detail/PDF buttons hidden on revision rows; edit form requires modifying >= 1 field). Approver queues strictly enforce tiered hierarchy and user `coverage_cabang`.
+8. **SPARTA Design Tokens**: Radius `rounded-2xl`, border `border-slate-200/80`, brand orange accent `#E65F2B`, clean typography, background `#FAFAFA`.

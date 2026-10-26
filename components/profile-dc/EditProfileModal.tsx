@@ -214,6 +214,18 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
                 {renderInput("Nama Proyek", "nama_proyek")}
                 {renderInput("Inisial", "inisial")}
                 {renderInput("Cabang", "cabang")}
+                <div className="col-span-1 md:col-span-2 lg:col-span-4 space-y-1.5 mb-2 w-full">
+                  <label className="text-[12px] font-bold text-[#878787] uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#E65F2B]" /> Alamat Lengkap Proyek / DC
+                  </label>
+                  <textarea
+                    value={formData.alamat || ""}
+                    onChange={(e) => handleChange("alamat", e.target.value)}
+                    placeholder="Masukkan alamat lengkap lokasi proyek / Distribution Center..."
+                    rows={2}
+                    className="w-full bg-[#F9F9F9] border border-[#EAEAEA] hover:border-[#D0D0D0] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#111111] rounded-xl p-3 text-[14px] font-medium text-[#111111] shadow-none transition-colors"
+                  />
+                </div>
                 {renderInput("Tanggal GO", "tanggal_go", "date")}
                 {renderInput("Masa Sewa Start", "masa_sewa_start", "date")}
                 {renderInput("Masa Sewa Finish", "masa_sewa_finish", "date")}

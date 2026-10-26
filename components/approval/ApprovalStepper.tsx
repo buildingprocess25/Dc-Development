@@ -44,7 +44,10 @@ export const RAB_OE_APPROVAL_STEPS: ApprovalStepConfig[] = [
   }
 ];
 
-// 7-Tahap Alur Persetujuan Perubahan Fungsi Ruang (SOP SAT/FRM/DCB/010)
+import { getDepartmentGmLabel, getDepartmentDirectorLabel } from "@/lib/department-roles";
+
+// 8-Tahap Alur Persetujuan Perubahan Fungsi Ruang (SOP SAT/FRM/DCB/010)
+// Urutan dari kiri ke kanan: Maker -> BM/DBM -> GM Dept Pemohon -> Reg B&M Mgr -> DC Specialist -> B&M GM -> Director Dept Pemohon -> Property & Dev Director
 export const FUNGSI_RUANG_APPROVAL_STEPS: ApprovalStepConfig[] = [
   {
     id: "maker",
@@ -61,41 +64,90 @@ export const FUNGSI_RUANG_APPROVAL_STEPS: ApprovalStepConfig[] = [
     activeStatuses: ["MENUNGGU APPROVAL BM/DBM"]
   },
   {
-    id: "reg_bm_mgr",
+    id: "gm_dept",
     stepNumber: 3,
+    label: "GM Dept",
+    subLabel: "GM Dept Pemohon",
+    activeStatuses: ["MENUNGGU APPROVAL GM DEPT PEMOHON"]
+  },
+  {
+    id: "reg_bm_mgr",
+    stepNumber: 4,
     label: "Reg. B&M Mgr",
     subLabel: "Regional B&M Manager",
     activeStatuses: ["MENUNGGU APPROVAL REGIONAL B&M MANAGER"]
   },
   {
     id: "dc_specialist",
-    stepNumber: 4,
+    stepNumber: 5,
+    label: "DC Specialist",
+    subLabel: "DC Specialist",
+    activeStatuses: ["MENUNGGU APPROVAL DC SPECIALIST"]
+  },
+  {
+    id: "bm_gm",
+    stepNumber: 6,
+    label: "B&M GM",
+    subLabel: "Building & Maintenance GM",
+    activeStatuses: ["MENUNGGU APPROVAL B&M GM"]
+  },
+  {
+    id: "dir_dept",
+    stepNumber: 7,
+    label: "Dir. Dept",
+    subLabel: "Director Dept Pemohon",
+    activeStatuses: ["MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON"]
+  },
+  {
+    id: "prop_dev_dir",
+    stepNumber: 8,
+    label: "Prop & Dev Dir",
+    subLabel: "Property & Dev Director",
+    activeStatuses: [
+      "MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR",
+      "MENUNGGU APPROVAL PROPERTY DEV MANAGER",
+      "MENUNGGU APPROVAL OPERATION DIRECTOR"
+    ]
+  }
+];
+
+// 4-Tahap Alur Persetujuan Tender Proyek > Rp 1 Miliar (Standar SOP SPARTA)
+export const TENDER_APPROVAL_STEPS_ABOVE_1M: ApprovalStepConfig[] = [
+  {
+    id: "maker",
+    stepNumber: 1,
+    label: "Maker",
+    subLabel: "DC B&D Specialist",
+    activeStatuses: ["PRAKUALIFIKASI", "DRAFT"]
+  },
+  {
+    id: "dc_specialist",
+    stepNumber: 2,
     label: "DC Specialist",
     subLabel: "DC B&D Specialist",
     activeStatuses: ["MENUNGGU APPROVAL DC SPECIALIST"]
   },
   {
     id: "bm_gm",
-    stepNumber: 5,
+    stepNumber: 3,
     label: "B&M GM",
-    subLabel: "Building & Maintenance GM",
+    subLabel: "B&M General Manager",
     activeStatuses: ["MENUNGGU APPROVAL B&M GM"]
   },
   {
-    id: "op_dir",
-    stepNumber: 6,
-    label: "Op. Director",
-    subLabel: "Operation Director",
-    activeStatuses: ["MENUNGGU APPROVAL OPERATION DIRECTOR"]
-  },
-  {
-    id: "prop_dev_mgr",
-    stepNumber: 7,
-    label: "Property Dev Mgr",
-    subLabel: "Property Development Manager",
-    activeStatuses: ["MENUNGGU APPROVAL PROPERTY DEV MANAGER"]
+    id: "prop_dev_dir",
+    stepNumber: 4,
+    label: "Prop & Dev Dir",
+    subLabel: "Property & Dev Director",
+    activeStatuses: ["MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR"]
   }
 ];
+
+// Alias default untuk seluruh pengajuan tender
+export const TENDER_APPROVAL_STEPS = TENDER_APPROVAL_STEPS_ABOVE_1M;
+
+// Kompatibilitas alur terdahulu
+export const TENDER_APPROVAL_STEPS_BELOW_1M = TENDER_APPROVAL_STEPS_ABOVE_1M;
 
 export interface ApprovalStepperProps {
   currentStatus: string;
@@ -104,6 +156,8 @@ export interface ApprovalStepperProps {
   title?: string;
   catatanRevisi?: string | null;
   className?: string;
+  departemen?: string | null;
+  divisi?: string | null;
 }
 
 export default function ApprovalStepper({
@@ -112,9 +166,24 @@ export default function ApprovalStepper({
   steps: customSteps,
   title,
   catatanRevisi,
-  className
+  className,
+  departemen,
+  divisi
 }: ApprovalStepperProps) {
-  const steps = customSteps || (type === "fungsi-ruang" ? FUNGSI_RUANG_APPROVAL_STEPS : RAB_OE_APPROVAL_STEPS);
+  const baseSteps = customSteps || (type === "fungsi-ruang" ? FUNGSI_RUANG_APPROVAL_STEPS : RAB_OE_APPROVAL_STEPS);
+  const steps = type === "fungsi-ruang" && (departemen || divisi)
+    ? baseSteps.map((s) => {
+        if (s.id === "gm_dept") {
+          const gmLabel = getDepartmentGmLabel(departemen, divisi);
+          return { ...s, label: gmLabel, subLabel: gmLabel };
+        }
+        if (s.id === "dir_dept") {
+          const dirLabel = getDepartmentDirectorLabel(departemen, divisi);
+          return { ...s, label: dirLabel, subLabel: dirLabel };
+        }
+        return s;
+      })
+    : baseSteps;
   const normalizedStatus = (currentStatus || "").trim().toUpperCase();
 
   const isApproved = normalizedStatus === "APPROVED";

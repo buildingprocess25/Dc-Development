@@ -415,6 +415,7 @@ export async function POST(request: Request) {
     const totalPlusPpn = totalSebelumPpn + nilaiPpn;
     const grandTotal = Math.ceil(totalPlusPpn / 1000) * 1000;
     const nilaiPembulatan = grandTotal - totalPlusPpn;
+    const kategoriNilai = grandTotal > 1_000_000_000 ? "DI_ATAS_1M" : "DI_BAWAH_1M";
 
     const creatorEmail = session?.email || body.created_by || 'system@alfamart.co.id';
     const submissionCabang = project.cabang || session?.cabang || 'HEAD OFFICE';
@@ -443,6 +444,7 @@ export async function POST(request: Request) {
             durasi_hari: Number(durasi_hari) || 0,
             satuan_durasi,
             status: updateStatus,
+            kategori_nilai: kategoriNilai,
             total_biaya_sipil: totalBiayaSipil,
             total_biaya_me: totalBiayaMe,
             total_sebelum_ppn: totalSebelumPpn,
@@ -494,6 +496,7 @@ export async function POST(request: Request) {
           durasi_hari: Number(durasi_hari) || 0,
           satuan_durasi,
           status,
+          kategori_nilai: kategoriNilai,
           total_biaya_sipil: totalBiayaSipil,
           total_biaya_me: totalBiayaMe,
           total_sebelum_ppn: totalSebelumPpn,

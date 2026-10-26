@@ -13,6 +13,7 @@ import {
 } from '@/lib/permissions';
 import { toTitleCase } from '@/lib/utils';
 import { syncFungsiRuangPdfToDrive } from '@/lib/fungsi-ruang-sync';
+import { isUserGmForDepartment, isUserDirectorForDepartment } from '@/lib/department-roles';
 
 export async function GET(request: Request) {
   try {
@@ -76,6 +77,7 @@ export async function GET(request: Request) {
     const allSubmissions = await prisma.dc_fungsi_ruang.findMany({
       where: summaryWhere,
       include: {
+        pemohon: true,
         project: {
           select: {
             id: true,
@@ -89,6 +91,7 @@ export async function GET(request: Request) {
           select: {
             id: true,
             nomor_pengajuan: true,
+            grand_total: true,
             cabang: true,
             status: true,
           },
@@ -106,16 +109,25 @@ export async function GET(request: Request) {
 
     const allPendingStages = [
       'MENUNGGU APPROVAL BM/DBM',
+      'MENUNGGU APPROVAL GM DEPT PEMOHON',
       'MENUNGGU APPROVAL REGIONAL B&M MANAGER',
       'MENUNGGU APPROVAL DC SPECIALIST',
       'MENUNGGU APPROVAL B&M GM',
-      'MENUNGGU APPROVAL OPERATION DIRECTOR',
-      'MENUNGGU APPROVAL PROPERTY DEV MANAGER',
+      'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
     ];
+
+    const userEmail = (currentUser.email || '').trim().toLowerCase();
 
     const myPendingItems = accessibleAll.filter((r) => {
       if (isAdmin) {
         return allPendingStages.includes(r.status);
+      }
+      if (r.status === 'MENUNGGU APPROVAL GM DEPT PEMOHON') {
+        return isUserGmForDepartment(currentUser.role, r.pemohon?.departemen, r.pemohon?.divisi);
+      }
+      if (r.status === 'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON') {
+        return isUserDirectorForDepartment(currentUser.role, r.pemohon?.departemen, r.pemohon?.divisi);
       }
       return Array.isArray(rolePendingStatuses) && rolePendingStatuses.includes(r.status);
     });
@@ -156,9 +168,10 @@ export async function GET(request: Request) {
       resultItems = resultItems.filter(
         (r) =>
           r.nomor_pengajuan.toLowerCase().includes(q) ||
-          r.nama_pemohon.toLowerCase().includes(q) ||
-          r.email_pemohon.toLowerCase().includes(q) ||
-          r.jabatan.toLowerCase().includes(q) ||
+          (r.pemohon?.nama_pemohon || '').toLowerCase().includes(q) ||
+          (r.pemohon?.email_pemohon || '').toLowerCase().includes(q) ||
+          (r.pemohon?.jabatan || '').toLowerCase().includes(q) ||
+          (r.pemohon?.departemen || '').toLowerCase().includes(q) ||
           r.jenis_pengajuan.toLowerCase().includes(q) ||
           r.project?.nama_proyek?.toLowerCase().includes(q) ||
           r.project?.kode?.toLowerCase().includes(q) ||
@@ -212,6 +225,7 @@ export async function POST(request: Request) {
     const existing = await prisma.dc_fungsi_ruang.findUnique({
       where: { id: submissionId },
       include: {
+        pemohon: true,
         project: true,
         renovasi: true,
       },

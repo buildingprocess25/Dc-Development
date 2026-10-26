@@ -1,0 +1,1395 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Proposal Peserta Tender - {{ tender.nomor_tender }}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm 12mm 10mm 12mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 9px;
+      color: #1f2937;
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+      position: relative;
+      line-height: 1.35;
+    }
+
+    /* Header Banner Orange Standar SPARTA */
+    .header-main {
+      background-color: #E65F2B;
+      color: #ffffff;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      border-radius: 4px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .header-alfamart-logo {
+      height: 32px;
+      margin-right: 12px;
+      padding-right: 12px;
+      border-right: 2px solid rgba(255, 255, 255, 0.35);
+      object-fit: contain;
+    }
+
+    .header-sparta-logo {
+      height: 26px;
+      margin-right: 8px;
+      object-fit: contain;
+    }
+
+    .header-title-box {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin: 0;
+      letter-spacing: 1px;
+      line-height: 1.1;
+    }
+
+    .header-subtitle {
+      font-size: 9px;
+      margin: 0;
+      opacity: 0.9;
+      letter-spacing: 0.5px;
+    }
+
+    .header-doc-code {
+      text-align: right;
+      font-size: 8.5px;
+      opacity: 0.95;
+    }
+
+    .header-doc-code strong {
+      font-size: 9.5px;
+      display: block;
+    }
+
+    /* Watermark Logo SPARTA */
+    .watermark-img {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 360px;
+      transform: translate(-50%, -50%);
+      opacity: 0.04;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Judul Dokumen */
+    .doc-title-container {
+      text-align: center;
+      margin-bottom: 10px;
+      padding: 0 10px;
+    }
+
+    .doc-title-main {
+      font-size: 11.5px;
+      font-weight: 900;
+      color: #111827;
+      letter-spacing: 0.4px;
+      line-height: 1.35;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+    }
+
+    .doc-title-sub {
+      font-size: 10px;
+      font-weight: bold;
+      color: #E65F2B;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* Kotak Ringkasan Metadata */
+    .summary-box {
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      background-color: #fafafa;
+      padding: 7px 10px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 16px;
+      row-gap: 3px;
+    }
+
+    .summary-row {
+      display: flex;
+      font-size: 8.5px;
+      line-height: 1.35;
+    }
+
+    .summary-label {
+      width: 130px;
+      color: #4b5563;
+      font-weight: normal;
+      flex-shrink: 0;
+    }
+
+    .summary-colon {
+      margin-right: 5px;
+      color: #4b5563;
+    }
+
+    .summary-val {
+      color: #111827;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    /* Badges */
+    .badge-status {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 2px;
+      font-size: 7.5px;
+      font-weight: bold;
+      letter-spacing: 0.3px;
+    }
+    .badge-status-approved {
+      background-color: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+    }
+    .badge-status-revision {
+      background-color: #fffbeb;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+    .badge-status-pending {
+      background-color: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+
+    .badge-pagu-above {
+      background-color: #faf5ff;
+      color: #6b21a8;
+      border: 1px solid #e9d5ff;
+      padding: 1px 5px;
+      border-radius: 2px;
+      font-size: 7.5px;
+      font-weight: bold;
+    }
+    .badge-pagu-below {
+      background-color: #f0fdf4;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+      padding: 1px 5px;
+      border-radius: 2px;
+      font-size: 7.5px;
+      font-weight: bold;
+    }
+
+    /* Revision alert box */
+    .revision-box {
+      border: 1.5px dashed #f59e0b;
+      background-color: #fffbeb;
+      border-radius: 4px;
+      padding: 6px 10px;
+      margin-bottom: 8px;
+      color: #92400e;
+      font-size: 8.5px;
+    }
+    .revision-box strong {
+      display: block;
+      font-size: 9px;
+      margin-bottom: 2px;
+    }
+
+    /* Kotak Catatan Pra-Kualifikasi & Kualifikasi */
+    .note-box {
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 6px 10px;
+      margin-bottom: 8px;
+      font-size: 8.5px;
+      line-height: 1.4;
+    }
+    .note-box-title {
+      font-size: 8px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+      display: block;
+    }
+    .note-box-maker {
+      border-left: 3px solid #2563eb;
+      background-color: #eff6ff;
+    }
+    .note-box-maker .note-box-title {
+      color: #1d4ed8;
+    }
+    .note-box-kualifikasi {
+      border-left: 3px solid #E65F2B;
+      background-color: #fff7ed;
+    }
+    .note-box-kualifikasi .note-box-title {
+      color: #c2410c;
+    }
+
+    /* Section Titles */
+    .pdf-section-title {
+      font-size: 10px;
+      font-weight: bold;
+      color: #111827;
+      border-bottom: 1.5px solid #E65F2B;
+      padding-bottom: 3px;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      page-break-after: avoid;
+    }
+
+    .sub-category-title {
+      font-size: 9px;
+      font-weight: bold;
+      color: #c2410c;
+      background-color: #fff7ed;
+      border-left: 3px solid #E65F2B;
+      padding: 3px 6px;
+      margin-top: 6px;
+      margin-bottom: 4px;
+      page-break-after: avoid;
+    }
+
+    /* Paragraphs */
+    .intro-paragraph {
+      font-size: 9px;
+      line-height: 1.45;
+      color: #1f2937;
+      text-align: justify;
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+
+    .closing-paragraph {
+      font-size: 9px;
+      line-height: 1.45;
+      color: #1f2937;
+      text-align: justify;
+      margin-top: 12px;
+      margin-bottom: 8px;
+      page-break-after: avoid;
+    }
+
+    /* Criteria List */
+    .criteria-list {
+      margin: 3px 0 8px 18px;
+      padding: 0;
+      font-size: 8.5px;
+      line-height: 1.45;
+      color: #374151;
+    }
+    .criteria-list li {
+      margin-bottom: 2px;
+    }
+
+    /* Tables */
+    .table-peserta {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 8px;
+      font-size: 8px;
+      page-break-inside: auto;
+    }
+    .table-peserta tr {
+      page-break-inside: avoid;
+    }
+    .table-peserta th, .table-peserta td {
+      border: 1px solid #d1d5db;
+      padding: 4px 5px;
+      vertical-align: top;
+    }
+    .table-peserta th {
+      background-color: #fff7ed;
+      color: #c2410c;
+      font-weight: bold;
+      text-align: left;
+    }
+    .table-peserta th.center, .table-peserta td.center {
+      text-align: center;
+    }
+
+    .badge-golongan {
+      background-color: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      border-radius: 2px;
+      font-size: 7.5px;
+      font-weight: bold;
+      padding: 1px 4px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* Gugur / Tidak Masuk Kualifikasi */
+    .gugur-wrapper {
+      margin-bottom: 8px;
+    }
+    .gugur-item {
+      margin-bottom: 6px;
+      page-break-inside: avoid;
+      background-color: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left: 3px solid #dc2626;
+      border-radius: 3px;
+      padding: 4px 8px;
+    }
+    .gugur-company-name {
+      font-weight: bold;
+      font-size: 8.5px;
+      color: #991b1b;
+    }
+    .gugur-company-reason {
+      font-size: 8px;
+      color: #4b5563;
+      margin: 2px 0 0 10px;
+      line-height: 1.35;
+      font-style: italic;
+    }
+
+    .empty-note {
+      font-size: 8px;
+      color: #64748b;
+      font-style: italic;
+      margin: 4px 0 8px 0;
+      padding: 4px 8px;
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 3px;
+    }
+
+    /* Resume Rekanan */
+    .resume-company {
+      margin-bottom: 8px;
+      page-break-inside: avoid;
+      background-color: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 6px 10px;
+    }
+    .resume-company-title {
+      font-size: 9px;
+      font-weight: bold;
+      color: #111827;
+      margin-bottom: 3px;
+    }
+    .resume-bullets {
+      margin: 0;
+      padding-left: 12px;
+      font-size: 8px;
+      line-height: 1.4;
+      color: #374151;
+    }
+    .resume-bullets > li {
+      margin-bottom: 3px;
+    }
+    .resume-subbullets {
+      margin: 2px 0 3px 12px;
+      padding: 0;
+      list-style-type: disc;
+    }
+    .resume-subbullets li {
+      margin-bottom: 1.5px;
+      color: #4b5563;
+    }
+    .sub-empty {
+      color: #9ca3af;
+      font-style: italic;
+      margin-left: 12px;
+      font-size: 7.5px;
+    }
+
+    /* Matriks Tanda Tangan Standar SPARTA (Header Oranye Terkelompok & Box Tersekat) */
+    .signatures-section {
+      margin-top: 14px;
+      page-break-inside: avoid;
+    }
+
+    .signatures-title {
+      font-size: 9.5px;
+      font-weight: bold;
+      text-align: right;
+      margin-bottom: 6px;
+      color: #111827;
+    }
+
+    .approval-table {
+      width: 100%;
+      margin-top: 14px;
+      border-collapse: separate;
+      border-spacing: 0;
+      text-align: center;
+      page-break-inside: avoid;
+    }
+
+    .approval-title {
+      font-size: 11px;
+      font-weight: bold;
+      color: #ffffff;
+      background: #E65F2B;
+      padding: 6px;
+      margin: 0 4px;
+      border-radius: 4px 4px 0 0;
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    .approval-box {
+      border: 1px solid #e2e8f0;
+      background: #fafafa;
+      padding: 10px 8px 8px 8px;
+      margin: 0 4px;
+      border-radius: 0 0 4px 4px;
+      text-align: center;
+      height: 125px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .approval-date {
+      font-size: 8.5px;
+      color: #555555;
+      font-style: italic;
+      text-align: center;
+      line-height: 1.35;
+      padding: 0 4px;
+    }
+
+    .approval-name {
+      font-weight: bold;
+      font-size: 10.5px;
+      color: #111111;
+      text-align: center;
+      letter-spacing: 0.3px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .approval-role {
+      font-size: 8.5px;
+      color: #555555;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 6px;
+      text-align: center;
+      line-height: 1.25;
+    }
+
+    /* ========================================= */
+    /* LAMPIRAN SCHEDULE PEKERJAAN (GANTT CHART) */
+    /* ========================================= */
+    .page-break {
+      page-break-before: always;
+      break-before: page;
+      margin-top: 10px;
+    }
+
+    .lampiran-container {
+      width: 100%;
+      margin-top: 0;
+    }
+
+    .lampiran-header {
+      margin-top: 2px;
+      margin-bottom: 10px;
+    }
+
+    .lampiran-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: #111827;
+      margin: 0;
+      letter-spacing: 0.5px;
+      line-height: 1.15;
+      text-transform: uppercase;
+    }
+
+    .lampiran-subtitle {
+      font-size: 10px;
+      font-weight: bold;
+      color: #E65F2B;
+      margin: 2px 0 0 0;
+      line-height: 1.25;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .gantt-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 7px;
+      font-family: Arial, Helvetica, sans-serif;
+      page-break-inside: auto;
+      border: 1px solid #cbd5e1;
+    }
+
+    .gantt-table tr {
+      page-break-inside: avoid;
+    }
+
+    .gantt-table th, .gantt-table td {
+      border: 1px solid #cbd5e1;
+      padding: 2.5px 3px;
+      box-sizing: border-box;
+      line-height: 1.15;
+    }
+
+    /* Warna Header Gantt Chart SPARTA Orange Konsisten */
+    .gantt-th-orange {
+      background-color: #E65F2B;
+      color: #ffffff;
+      font-weight: bold;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 7.5px;
+      border: 1px solid #d9531e;
+      letter-spacing: 0.3px;
+    }
+
+    .gantt-th-month {
+      background-color: #d04f1f;
+      color: #ffffff;
+      font-weight: bold;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 7px;
+      border: 1px solid #bd4316;
+      letter-spacing: 0.3px;
+    }
+
+    .gantt-th-week {
+      background-color: #c2410c;
+      color: #ffffff;
+      font-weight: bold;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 6.5px;
+      border: 1px solid #9a3412;
+      padding: 1px 0;
+    }
+
+    /* Baris Kategori Pekerjaan (Slate Modern) */
+    .gantt-cat-row {
+      background-color: #f1f5f9;
+      font-weight: bold;
+      color: #0f172a;
+      border-top: 1.5px solid #cbd5e1;
+      border-bottom: 1.5px solid #cbd5e1;
+    }
+
+    .gantt-col-no {
+      width: 24px;
+      text-align: center;
+    }
+
+    .gantt-col-desc {
+      width: 145px;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .gantt-col-date {
+      width: 48px;
+      text-align: center;
+      font-size: 6.5px;
+      white-space: nowrap;
+    }
+
+    .gantt-col-week {
+      text-align: center;
+      padding: 0;
+      font-size: 6px;
+      height: 13px;
+    }
+
+    /* Bar Progress Modern */
+    .bar-green {
+      background-color: #10b981 !important;
+      border-top: 1px solid #059669;
+      border-bottom: 1px solid #059669;
+    }
+
+    .bar-yellow {
+      background-color: #f59e0b !important;
+      border-top: 1px solid #d97706;
+      border-bottom: 1px solid #d97706;
+    }
+
+    .bar-orange {
+      background-color: #f97316 !important;
+      border-top: 1px solid #ea580c;
+      border-bottom: 1px solid #ea580c;
+    }
+
+    .bar-red {
+      background-color: #ef4444 !important;
+      border-top: 1px solid #dc2626;
+      border-bottom: 1px solid #dc2626;
+    }
+  </style>
+</head>
+<body>
+  <!-- Watermark SPARTA Logo -->
+  {% if sparta_logo_path %}
+    <img src="{{ sparta_logo_path }}" class="watermark-img" alt="Watermark" />
+  {% endif %}
+
+  <!-- Header Banner Orange -->
+  <div class="header-main">
+    <div class="header-left">
+      {% if alfamart_logo_path %}
+        <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
+      {% endif %}
+      {% if sparta_logo_path %}
+        <img src="{{ sparta_logo_path }}" class="header-sparta-logo" alt="SPARTA" />
+      {% endif %}
+      <div class="header-title-box">
+        <h1 class="header-title">SPARTA — DC DEVELOPMENT</h1>
+        <p class="header-subtitle">Standard Procurement &amp; Archival System — PT Sumber Alfaria Trijaya Tbk</p>
+      </div>
+    </div>
+    <div class="header-doc-code">
+      <strong>FORM PENGADAAN TENDER</strong>
+      <span>SOP SAT/SOP/DCB/009</span>
+    </div>
+  </div>
+
+  <!-- Judul Dokumen Resmi -->
+  <div class="doc-title-container">
+    <div class="doc-title-main">
+      {{ dynamic_title }}
+    </div>
+    <div class="doc-title-sub">
+      DC CABANG {{ project_cabang }}
+    </div>
+  </div>
+
+  <!-- Kotak Ringkasan Metadata -->
+  <div class="summary-box">
+    <div class="summary-grid">
+      <div>
+        <div class="summary-row">
+          <span class="summary-label">Nomor Dokumen</span>
+          <span class="summary-colon">:</span>
+          <span class="summary-val">{{ tender.nomor_tender }}</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Nama Proyek</span>
+          <span class="summary-colon">:</span>
+          <span class="summary-val">{{ project_nama }}</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Kode &amp; Cabang Proyek</span>
+          <span class="summary-colon">:</span>
+          <span class="summary-val">{{ project_kode }} — Cabang {{ project_cabang }}</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Tanggal Pengajuan</span>
+          <span class="summary-colon">:</span>
+          <span class="summary-val">{{ tgl_pengajuan_indo }}</span>
+        </div>
+      </div>
+      <div>
+        <div class="summary-row">
+          <span class="summary-label">Estimasi Nilai Proyek</span>
+          <span class="summary-colon">:</span>
+          <span class="summary-val">{{ nilai_proyek_formatted }}</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Kategori Pagu</span>
+          <span class="summary-colon">:</span>
+          <span class="summary-val">
+            {% if is_above_1m %}
+              <span class="badge-pagu-above">&gt; Rp 1.000.000.000 (Persetujuan HO 3 Tingkat)</span>
+            {% else %}
+              <span class="badge-pagu-below">&le; Rp 1.000.000.000 (Alur Ringkas Cabang)</span>
+            {% endif %}
+          </span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Kebutuhan Konsultan</span>
+          <span class="summary-colon">:</span>
+          <span class="summary-val">
+            {% if tender.butuh_konsultan %}
+              YA ({{ tender.tipe_konsultan | default('PENGAWAS') }})
+            {% else %}
+              TIDAK (Hanya Main Kontraktor)
+            {% endif %}
+          </span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Status Terkini</span>
+          <span class="summary-colon">:</span>
+          <span class="summary-val">
+            {% if is_approved %}
+              <span class="badge-status badge-status-approved">APPROVED (SIAP TENDER)</span>
+            {% elif is_revision %}
+              <span class="badge-status badge-status-revision">PERLU REVISI</span>
+            {% else %}
+              <span class="badge-status badge-status-pending">{{ tender.status }}</span>
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Catatan Revisi jika ada -->
+  {% if is_revision and catatan_revisi %}
+    <div class="revision-box">
+      <strong>INSTRUKSI &amp; CATATAN REVISI REVIEWER:</strong>
+      <span>{{ catatan_revisi }}</span>
+    </div>
+  {% endif %}
+
+  <!-- Catatan Pengantar Pra-Kualifikasi (Maker) jika ada -->
+  {% if catatan_maker_formatted %}
+    <div class="note-box note-box-maker">
+      <span class="note-box-title">Catatan Pengantar Pra-Kualifikasi (Maker):</span>
+      <div style="color: #334155; font-style: italic;">"{{ catatan_maker_formatted }}"</div>
+    </div>
+  {% endif %}
+
+  <!-- Catatan Evaluasi Kualifikasi jika ada -->
+  {% if catatan_kualifikasi_formatted %}
+    <div class="note-box note-box-kualifikasi">
+      <span class="note-box-title">Catatan Evaluasi / Ringkasan Kualifikasi:</span>
+      <div style="color: #334155; white-space: pre-wrap;">{{ catatan_kualifikasi_formatted }}</div>
+    </div>
+  {% endif %}
+
+  <!-- Paragraf Pembuka -->
+  <p class="intro-paragraph">
+    {{ dynamic_opening_paragraph }}
+  </p>
+
+  <!-- A. Dasar Kriteria -->
+  <div class="pdf-section-title">A. Dasar Kriteria</div>
+  <ol class="criteria-list">
+    <li>Perusahaan berbadan hukum</li>
+    <li>Pernah menangani pekerjaan {{ kriteria_pekerjaan_text }} Gudang dan Gedung lainnya</li>
+    <li>Memiliki Sertifikat Badan Usaha dan Sertifikat Keahlian yang masih berlaku</li>
+  </ol>
+
+  <!-- B. PESERTA YANG IKUT PRAKUALIFIKASI -->
+  <div class="pdf-section-title">B. PESERTA YANG IKUT PRAKUALIFIKASI</div>
+  
+  <div class="sub-category-title">B.1. Kontraktor ({{ prakualifikasi_kontraktor.length }} Perusahaan)</div>
+  <table class="table-peserta">
+    <thead>
+      <tr>
+        <th style="width: 25px;" class="center">No</th>
+        <th style="width: 140px;">Perusahaan</th>
+        <th>Alamat</th>
+        <th style="width: 95px;">PIC</th>
+        <th style="width: 85px;">Telepon</th>
+        <th style="width: 105px;">Email</th>
+        <th style="width: 65px;" class="center">Golongan</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in prakualifikasi_kontraktor %}
+        <tr>
+          <td class="center">{{ loop.index }}</td>
+          <td><strong>{{ row.nama_perusahaan }}</strong></td>
+          <td>{{ row.alamat }}</td>
+          <td>{{ row.pic }}</td>
+          <td>{{ row.telepon }}</td>
+          <td>{{ row.email }}</td>
+          <td class="center"><span class="badge-golongan">{{ row.golongan }}</span></td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="7" class="center" style="color: #9ca3af; font-style: italic;">Belum ada rekanan kontraktor yang didaftarkan.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if has_pengawas %}
+    <div class="sub-category-title">B.2. Konsultan Pengawas ({{ prakualifikasi_pengawas.length }} Perusahaan)</div>
+    <table class="table-peserta">
+      <thead>
+        <tr>
+          <th style="width: 25px;" class="center">No</th>
+          <th style="width: 140px;">Perusahaan</th>
+          <th>Alamat</th>
+          <th style="width: 95px;">PIC</th>
+          <th style="width: 85px;">Telepon</th>
+          <th style="width: 105px;">Email</th>
+          <th style="width: 65px;" class="center">Golongan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in prakualifikasi_pengawas %}
+          <tr>
+            <td class="center">{{ loop.index }}</td>
+            <td><strong>{{ row.nama_perusahaan }}</strong></td>
+            <td>{{ row.alamat }}</td>
+            <td>{{ row.pic }}</td>
+            <td>{{ row.telepon }}</td>
+            <td>{{ row.email }}</td>
+            <td class="center"><span class="badge-golongan">{{ row.golongan }}</span></td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7" class="center" style="color: #9ca3af; font-style: italic;">Belum ada rekanan konsultan pengawas yang didaftarkan.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if has_perencana %}
+    <div class="sub-category-title">{% if has_pengawas %}B.3.{% else %}B.2.{% endif %} Konsultan Perencana ({{ prakualifikasi_perencana.length }} Perusahaan)</div>
+    <table class="table-peserta">
+      <thead>
+        <tr>
+          <th style="width: 25px;" class="center">No</th>
+          <th style="width: 140px;">Perusahaan</th>
+          <th>Alamat</th>
+          <th style="width: 95px;">PIC</th>
+          <th style="width: 85px;">Telepon</th>
+          <th style="width: 105px;">Email</th>
+          <th style="width: 65px;" class="center">Golongan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in prakualifikasi_perencana %}
+          <tr>
+            <td class="center">{{ loop.index }}</td>
+            <td><strong>{{ row.nama_perusahaan }}</strong></td>
+            <td>{{ row.alamat }}</td>
+            <td>{{ row.pic }}</td>
+            <td>{{ row.telepon }}</td>
+            <td>{{ row.email }}</td>
+            <td class="center"><span class="badge-golongan">{{ row.golongan }}</span></td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7" class="center" style="color: #9ca3af; font-style: italic;">Belum ada rekanan konsultan perencana yang didaftarkan.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <!-- C. PESERTA YANG MASUK KUALIFIKASI -->
+  <div class="pdf-section-title">C. PESERTA YANG MASUK KUALIFIKASI</div>
+  
+  <div class="sub-category-title">C.1. Kontraktor ({{ kualifikasi_kontraktor.length }} Perusahaan)</div>
+  <table class="table-peserta">
+    <thead>
+      <tr>
+        <th style="width: 25px;" class="center">No</th>
+        <th style="width: 140px;">Perusahaan</th>
+        <th>Alamat</th>
+        <th style="width: 95px;">PIC</th>
+        <th style="width: 85px;">Telepon</th>
+        <th style="width: 105px;">Email</th>
+        <th style="width: 65px;" class="center">Golongan</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in kualifikasi_kontraktor %}
+        <tr>
+          <td class="center">{{ loop.index }}</td>
+          <td><strong>{{ row.nama_perusahaan }}</strong></td>
+          <td>{{ row.alamat }}</td>
+          <td>{{ row.pic }}</td>
+          <td>{{ row.telepon }}</td>
+          <td>{{ row.email }}</td>
+          <td class="center"><span class="badge-golongan">{{ row.golongan }}</span></td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="7" class="center" style="color: #9ca3af; font-style: italic;">Belum ada rekanan kontraktor yang masuk kualifikasi.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if has_pengawas %}
+    <div class="sub-category-title">C.2. Konsultan Pengawas ({{ kualifikasi_pengawas.length }} Perusahaan)</div>
+    <table class="table-peserta">
+      <thead>
+        <tr>
+          <th style="width: 25px;" class="center">No</th>
+          <th style="width: 140px;">Perusahaan</th>
+          <th>Alamat</th>
+          <th style="width: 95px;">PIC</th>
+          <th style="width: 85px;">Telepon</th>
+          <th style="width: 105px;">Email</th>
+          <th style="width: 65px;" class="center">Golongan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in kualifikasi_pengawas %}
+          <tr>
+            <td class="center">{{ loop.index }}</td>
+            <td><strong>{{ row.nama_perusahaan }}</strong></td>
+            <td>{{ row.alamat }}</td>
+            <td>{{ row.pic }}</td>
+            <td>{{ row.telepon }}</td>
+            <td>{{ row.email }}</td>
+            <td class="center"><span class="badge-golongan">{{ row.golongan }}</span></td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7" class="center" style="color: #9ca3af; font-style: italic;">Belum ada konsultan pengawas yang masuk kualifikasi.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if has_perencana %}
+    <div class="sub-category-title">{% if has_pengawas %}C.3.{% else %}C.2.{% endif %} Konsultan Perencana ({{ kualifikasi_perencana.length }} Perusahaan)</div>
+    <table class="table-peserta">
+      <thead>
+        <tr>
+          <th style="width: 25px;" class="center">No</th>
+          <th style="width: 140px;">Perusahaan</th>
+          <th>Alamat</th>
+          <th style="width: 95px;">PIC</th>
+          <th style="width: 85px;">Telepon</th>
+          <th style="width: 105px;">Email</th>
+          <th style="width: 65px;" class="center">Golongan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in kualifikasi_perencana %}
+          <tr>
+            <td class="center">{{ loop.index }}</td>
+            <td><strong>{{ row.nama_perusahaan }}</strong></td>
+            <td>{{ row.alamat }}</td>
+            <td>{{ row.pic }}</td>
+            <td>{{ row.telepon }}</td>
+            <td>{{ row.email }}</td>
+            <td class="center"><span class="badge-golongan">{{ row.golongan }}</span></td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7" class="center" style="color: #9ca3af; font-style: italic;">Belum ada konsultan perencana yang masuk kualifikasi.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <!-- D. PESERTA YANG TIDAK MASUK KUALIFIKASI -->
+  <div class="pdf-section-title">D. PESERTA YANG TIDAK MASUK KUALIFIKASI</div>
+  {% if peserta_tidak_lolos and peserta_tidak_lolos.length > 0 %}
+    <div class="gugur-wrapper">
+      {% for row in peserta_tidak_lolos %}
+        <div class="gugur-item">
+          <div class="gugur-company-name">{{ loop.index }}. {{ row.nama_perusahaan }} ({{ row.peran_label }})</div>
+          <p class="gugur-company-reason">{{ row.alasan_tidak_lolos or 'Tidak memenuhi kelengkapan kriteria evaluasi kualifikasi.' }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty-note">Seluruh calon rekanan memenuhi persyaratan evaluasi kualifikasi (tidak ada rekanan yang gugur).</p>
+  {% endif %}
+
+  <!-- E. RESUME KONTRAKTOR -->
+  <div class="pdf-section-title">E. RESUME KONTRAKTOR</div>
+  {% if kualifikasi_kontraktor and kualifikasi_kontraktor.length > 0 %}
+    {% for item in kualifikasi_kontraktor %}
+      <div class="resume-company">
+        <div class="resume-company-title">{{ loop.index }}. {{ item.nama_perusahaan }}</div>
+        <ul class="resume-bullets">
+          <li>Berdasarkan pengalaman kerja yang disampaikan dalam portofolio, <strong>{{ item.nama_perusahaan }}</strong> merupakan rekanan yang cukup berpengalaman dalam Jasa Kontraktor.</li>
+          <li>
+            <strong>Pengalaman:</strong>
+            {% if item.vendor_pengalaman and item.vendor_pengalaman.length > 0 %}
+              <ul class="resume-subbullets">
+                {% for p in item.vendor_pengalaman %}
+                  <li>{{ p }}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="sub-empty">- Portofolio terverifikasi pada master vendor SPARTA</div>
+            {% endif %}
+          </li>
+          <li>
+            <strong>Memiliki Sertifikat Badan Usaha yang cukup lengkap antara lain:</strong>
+            {% if item.vendor_sertifikat and item.vendor_sertifikat.length > 0 %}
+              <ul class="resume-subbullets">
+                {% for s in item.vendor_sertifikat %}
+                  <li>{{ s }}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="sub-empty">- Sertifikat Badan Usaha (SBU) &amp; SKA aktif terverifikasi</div>
+            {% endif %}
+          </li>
+          {% if item.vendor_iso and item.vendor_iso.length > 0 %}
+            <li>
+              <strong>Memiliki Sertifikasi ISO antara lain:</strong>
+              <ul class="resume-subbullets">
+                {% for iso in item.vendor_iso %}
+                  <li>{{ iso }}</li>
+                {% endfor %}
+              </ul>
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty-note">Belum ada rekanan kontraktor yang masuk tahap kualifikasi.</p>
+  {% endif %}
+
+  <!-- F. RESUME KONSULTAN PENGAWAS (KALAU ADA) -->
+  {% if has_pengawas %}
+    <div class="pdf-section-title">{{ letter_pengawas }}. RESUME KONSULTAN PENGAWAS</div>
+    {% if kualifikasi_pengawas and kualifikasi_pengawas.length > 0 %}
+      {% for item in kualifikasi_pengawas %}
+        <div class="resume-company">
+          <div class="resume-company-title">{{ loop.index }}. {{ item.nama_perusahaan }}</div>
+          <ul class="resume-bullets">
+            <li>Berdasarkan pengalaman kerja yang disampaikan dalam portofolio, <strong>{{ item.nama_perusahaan }}</strong> merupakan konsultan yang cukup berpengalaman dalam Jasa Konsultan Pengawas.</li>
+            <li>
+              <strong>Pengalaman:</strong>
+              {% if item.vendor_pengalaman and item.vendor_pengalaman.length > 0 %}
+                <ul class="resume-subbullets">
+                  {% for p in item.vendor_pengalaman %}
+                    <li>{{ p }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <div class="sub-empty">- Portofolio terverifikasi pada master vendor SPARTA</div>
+              {% endif %}
+            </li>
+            <li>
+              <strong>Memiliki Sertifikat Badan Usaha yang cukup lengkap antara lain:</strong>
+              {% if item.vendor_sertifikat and item.vendor_sertifikat.length > 0 %}
+                <ul class="resume-subbullets">
+                  {% for s in item.vendor_sertifikat %}
+                    <li>{{ s }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <div class="sub-empty">- Sertifikat Badan Usaha (SBU) &amp; SKA aktif terverifikasi</div>
+              {% endif %}
+            </li>
+            {% if item.vendor_iso and item.vendor_iso.length > 0 %}
+              <li>
+                <strong>Memiliki Sertifikasi ISO antara lain:</strong>
+                <ul class="resume-subbullets">
+                  {% for iso in item.vendor_iso %}
+                    <li>{{ iso }}</li>
+                  {% endfor %}
+                </ul>
+              </li>
+            {% endif %}
+          </ul>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty-note">Belum ada konsultan pengawas yang masuk tahap kualifikasi.</p>
+    {% endif %}
+  {% endif %}
+
+  <!-- G. RESUME KONSULTAN PERENCANA (KALAU ADA) -->
+  {% if has_perencana %}
+    <div class="pdf-section-title">{{ letter_perencana }}. RESUME KONSULTAN PERENCANA</div>
+    {% if kualifikasi_perencana and kualifikasi_perencana.length > 0 %}
+      {% for item in kualifikasi_perencana %}
+        <div class="resume-company">
+          <div class="resume-company-title">{{ loop.index }}. {{ item.nama_perusahaan }}</div>
+          <ul class="resume-bullets">
+            <li>Berdasarkan pengalaman kerja yang disampaikan dalam portofolio, <strong>{{ item.nama_perusahaan }}</strong> merupakan konsultan yang cukup berpengalaman dalam Jasa Konsultan Perencana.</li>
+            <li>
+              <strong>Pengalaman:</strong>
+              {% if item.vendor_pengalaman and item.vendor_pengalaman.length > 0 %}
+                <ul class="resume-subbullets">
+                  {% for p in item.vendor_pengalaman %}
+                    <li>{{ p }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <div class="sub-empty">- Portofolio terverifikasi pada master vendor SPARTA</div>
+              {% endif %}
+            </li>
+            <li>
+              <strong>Memiliki Sertifikat Badan Usaha yang cukup lengkap antara lain:</strong>
+              {% if item.vendor_sertifikat and item.vendor_sertifikat.length > 0 %}
+                <ul class="resume-subbullets">
+                  {% for s in item.vendor_sertifikat %}
+                    <li>{{ s }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <div class="sub-empty">- Sertifikat Badan Usaha (SBU) &amp; SKA aktif terverifikasi</div>
+              {% endif %}
+            </li>
+            {% if item.vendor_iso and item.vendor_iso.length > 0 %}
+              <li>
+                <strong>Memiliki Sertifikasi ISO antara lain:</strong>
+                <ul class="resume-subbullets">
+                  {% for iso in item.vendor_iso %}
+                    <li>{{ iso }}</li>
+                  {% endfor %}
+                </ul>
+              </li>
+            {% endif %}
+          </ul>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty-note">Belum ada konsultan perencana yang masuk tahap kualifikasi.</p>
+    {% endif %}
+  {% endif %}
+
+  <!-- Paragraf Penutup -->
+  <p class="closing-paragraph">
+    {{ dynamic_closing_paragraph }}
+  </p>
+
+  <!-- Tanggal & Matriks Tanda Tangan Standar SPARTA (Format Kartu RAB/OE) -->
+  <div class="signatures-section">
+    <div class="signatures-title">
+      {{ sign_location }}, {{ sign_date }}
+    </div>
+
+    {% if is_above_1m %}
+      <!-- Matriks 4 Kolom untuk Nilai > 1 Miliar -->
+      <table class="approval-table">
+        <tr>
+          <!-- Kolom 1: DIBUAT -->
+          <td style="width: 25%; vertical-align: top; text-align: center;">
+            <div class="approval-title">DIBUAT</div>
+            <div class="approval-box">
+              <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 4px 0;">
+                <div class="approval-date">{{ signatures.maker.date }}</div>
+                <div class="approval-name">{{ signatures.maker.name | upper }}</div>
+              </div>
+              <div class="approval-role">{{ signatures.maker.role or 'DC Specialist / Branch B&amp;M Mgr' }}</div>
+            </div>
+          </td>
+
+          <!-- Kolom 2: MENGETAHUI (DC Specialist) -->
+          <td style="width: 25%; vertical-align: top; text-align: center;">
+            <div class="approval-title">MENGETAHUI</div>
+            <div class="approval-box">
+              {% if signatures.approver_1.approved %}
+                <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 4px 0;">
+                  <div class="approval-date">{{ signatures.approver_1.date or '-' }}</div>
+                  <div class="approval-name">{{ signatures.approver_1.name | upper }}</div>
+                </div>
+              {% else %}
+                <div style="flex: 1;"></div>
+              {% endif %}
+              <div class="approval-role">DC Building &amp; Dev. Specialist</div>
+            </div>
+          </td>
+
+          <!-- Kolom 3: MENGETAHUI (Building & Maintenance GM) -->
+          <td style="width: 25%; vertical-align: top; text-align: center;">
+            <div class="approval-title">MENGETAHUI</div>
+            <div class="approval-box">
+              {% if signatures.approver_2.approved %}
+                <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 4px 0;">
+                  <div class="approval-date">{{ signatures.approver_2.date or '-' }}</div>
+                  <div class="approval-name">{{ signatures.approver_2.name | upper }}</div>
+                </div>
+              {% else %}
+                <div style="flex: 1;"></div>
+              {% endif %}
+              <div class="approval-role">Building &amp; Maintenance GM</div>
+            </div>
+          </td>
+
+          <!-- Kolom 4: DISETUJUI (Property & Dev Director) -->
+          <td style="width: 25%; vertical-align: top; text-align: center;">
+            <div class="approval-title">DISETUJUI</div>
+            <div class="approval-box">
+              {% if signatures.approver_3.approved %}
+                <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 4px 0;">
+                  <div class="approval-date">{{ signatures.approver_3.date or '-' }}</div>
+                  <div class="approval-name">{{ signatures.approver_3.name | upper }}</div>
+                </div>
+              {% else %}
+                <div style="flex: 1;"></div>
+              {% endif %}
+              <div class="approval-role">Property &amp; Dev. Director</div>
+            </div>
+          </td>
+        </tr>
+      </table>
+    {% else %}
+      <!-- Matriks 2 Kolom untuk Nilai <= 1 Miliar -->
+      <table class="approval-table">
+        <tr>
+          <!-- Kolom 1: DIBUAT (Branch B&M Manager) -->
+          <td style="width: 50%; vertical-align: top; text-align: center;">
+            <div class="approval-title">DIBUAT</div>
+            <div class="approval-box">
+              <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 4px 0;">
+                <div class="approval-date">{{ signatures.maker.date }}</div>
+                <div class="approval-name">{{ signatures.maker.name | upper }}</div>
+              </div>
+              <div class="approval-role">{{ signatures.maker.role or 'Branch Building &amp; Maint. Manager' }}</div>
+            </div>
+          </td>
+
+          <!-- Kolom 2: DISETUJUI (DC Building & Development Specialist) -->
+          <td style="width: 50%; vertical-align: top; text-align: center;">
+            <div class="approval-title">DISETUJUI</div>
+            <div class="approval-box">
+              {% if signatures.approver_1.approved %}
+                <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 4px 0;">
+                  <div class="approval-date">{{ signatures.approver_1.date or '-' }}</div>
+                  <div class="approval-name">{{ signatures.approver_1.name | upper }}</div>
+                </div>
+              {% else %}
+                <div style="flex: 1;"></div>
+              {% endif %}
+              <div class="approval-role">DC Building &amp; Dev. Specialist</div>
+            </div>
+          </td>
+        </tr>
+      </table>
+    {% endif %}
+  </div>
+
+  <!-- Footer Dokumen Utama -->
+  <div class="doc-footer">
+    <div>SPARTA Electronic Document — Dokumen ini sah dan diterbitkan secara digital oleh sistem SPARTA DC Development.</div>
+    <div>Dicetak pada: {{ generated_at }}</div>
+  </div>
+
+  <!-- ========================================================== -->
+  <!-- LAMPIRAN SCHEDULE PEKERJAAN (JADWAL TIMELINE TENDER)       -->
+  <!-- ========================================================== -->
+  {% if schedule_groups and schedule_groups.length > 0 %}
+    <div class="page-break"></div>
+
+    <!-- Header Banner Orange Standar SPARTA untuk Lampiran -->
+    <div class="header-main">
+      <div class="header-left">
+        {% if alfamart_logo_path %}
+          <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
+        {% endif %}
+        {% if sparta_logo_path %}
+          <img src="{{ sparta_logo_path }}" class="header-sparta-logo" alt="SPARTA" />
+        {% endif %}
+        <div class="header-title-box">
+          <h1 class="header-title">SPARTA</h1>
+          <p class="header-subtitle">DC Development</p>
+        </div>
+      </div>
+      <div class="header-doc-code">
+        <strong>LAMPIRAN SCHEDULE PEKERJAAN</strong>
+        No. {{ tender.nomor_tender }}
+      </div>
+    </div>
+
+    <div class="lampiran-container">
+      <div class="lampiran-header">
+        <h1 class="lampiran-title">LAMPIRAN</h1>
+        <h2 class="lampiran-subtitle">Schedule Pekerjaan &mdash; Proyek {{ project_nama }}</h2>
+      </div>
+
+      <table class="gantt-table">
+        <thead>
+          <!-- Baris 1: Kolom Utama + Tahun -->
+          <tr>
+            <th rowspan="3" class="gantt-th-orange gantt-col-no">NO</th>
+            <th rowspan="3" class="gantt-th-orange gantt-col-desc">DESCRIPTION</th>
+            <th rowspan="3" class="gantt-th-orange gantt-col-date">START</th>
+            <th rowspan="3" class="gantt-th-orange gantt-col-date">FINISH</th>
+            {% for y in gantt_years %}
+              <th colspan="{{ y.weeksCount }}" class="gantt-th-orange">{{ y.year }}</th>
+            {% endfor %}
+          </tr>
+          <!-- Baris 2: Nama Bulan -->
+          <tr>
+            {% for m in gantt_months %}
+              <th colspan="{{ m.weeksCount }}" class="gantt-th-month">{{ m.monthName }}</th>
+            {% endfor %}
+          </tr>
+          <!-- Baris 3: Minggu I, II, III, IV -->
+          <tr>
+            {% for w in gantt_all_weeks %}
+              <th class="gantt-th-week gantt-col-week">{{ w.weekRoman }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for grp in schedule_groups %}
+            <!-- Baris Header Kategori (Abu-abu Modern) -->
+            <tr class="gantt-cat-row">
+              <td class="gantt-col-no" style="text-align: center;">{{ grp.roman }}</td>
+              <td class="gantt-col-desc" style="font-weight: bold;">{{ grp.title }}</td>
+              <td class="gantt-col-date">{{ grp.startFormatted }}</td>
+              <td class="gantt-col-date">{{ grp.finishFormatted }}</td>
+              {% for active in grp.weekCells %}
+                <td class="gantt-col-week {% if active %}bar-green{% endif %}"></td>
+              {% endfor %}
+            </tr>
+
+            <!-- Sub Aktivitas / Item Kegiatan -->
+            {% for it in grp.items %}
+              <tr>
+                <td class="gantt-col-no" style="text-align: center; color: #4b5563;">{{ it.subNo }}</td>
+                <td class="gantt-col-desc" style="padding-left: 6px;">{{ it.description }}</td>
+                <td class="gantt-col-date">{{ it.startFormatted }}</td>
+                <td class="gantt-col-date">{{ it.finishFormatted }}</td>
+                {% for active in it.weekCells %}
+                  <td class="gantt-col-week {% if active %}{{ it.barClass }}{% endif %}"></td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- Footer Lampiran -->
+      <div class="doc-footer" style="margin-top: 15px;">
+        <div>Lampiran Schedule Pekerjaan Proyek {{ project_nama }} &bull; SPARTA DC Development</div>
+        <div>Halaman Lampiran Jadwal &bull; Dicetak: {{ generated_at }}</div>
+      </div>
+    </div>
+  {% endif %}
+</body>
+</html>

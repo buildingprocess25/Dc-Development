@@ -3,7 +3,13 @@ import fs from 'fs';
 import path from 'path';
 import { Readable } from 'stream';
 
-const MASTER_DRIVE_FOLDER_ID = "1SY5gg3Yw6BQZ4UQrAuxUk_adCW00gYwM";
+export function getMasterDriveFolderId(): string {
+  const folderId = process.env.MASTER_DRIVE_FOLDER_ID;
+  if (!folderId) {
+    throw new Error('Variabel lingkungan MASTER_DRIVE_FOLDER_ID belum diset di .env');
+  }
+  return folderId;
+}
 
 // In-memory cache to prevent race conditions when creating folders concurrently
 const folderCache = new Map<string, Promise<string>>();
@@ -11,26 +17,20 @@ const folderCache = new Map<string, Promise<string>>();
 const escapeDriveQueryString = (value: string): string => value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
 export async function getDriveClient(): Promise<drive_v3.Drive> {
-  const paths = [
-    path.resolve(process.cwd(), 'token_doc.json'),
-    path.resolve(process.cwd(), 'token.json'),
-    'c:/alfamart/KERJA/dc-development/token_doc.json',
-    'c:/alfamart/KERJA/dc-development/token.json'
-  ];
-
-  let validPath = null;
-  for (const p of paths) {
-    if (fs.existsSync(p)) {
-      validPath = p;
-      break;
-    }
+  const tokenPath = process.env.GOOGLE_DOC_TOKEN_PATH || process.env.GOOGLE_TOKEN_PATH;
+  if (!tokenPath) {
+    throw new Error('Variabel lingkungan GOOGLE_DOC_TOKEN_PATH atau GOOGLE_TOKEN_PATH belum diset di .env');
   }
 
-  if (!validPath) {
-    throw new Error(`File token tidak ditemukan. CWD: ${process.cwd()}`);
+  const resolvedPath = path.isAbsolute(tokenPath)
+    ? tokenPath
+    : path.resolve(process.cwd(), tokenPath);
+
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`File token Google tidak ditemukan di path: ${resolvedPath}. Periksa GOOGLE_DOC_TOKEN_PATH di .env`);
   }
 
-  const raw = fs.readFileSync(validPath, 'utf-8');
+  const raw = fs.readFileSync(resolvedPath, 'utf-8');
   const data = JSON.parse(raw);
   
   const client = new google.auth.OAuth2(data.client_id, data.client_secret);
@@ -86,7 +86,7 @@ export async function getDcDevFolderHierarchyId(
   nama_item: string   // e.g., "Gambar Kerja Arsitektur"
 ): Promise<string> {
   // 1. Master Folder -> Cabang
-  const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", MASTER_DRIVE_FOLDER_ID);
+  const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", getMasterDriveFolderId());
   
   // 2. Cabang -> DC Development
   const dcDevFolderId = await getOrCreateFolder(drive, "DC Development", cabangFolderId);
@@ -124,7 +124,7 @@ export async function getDcRenovasiFolderHierarchyId(
   subFolder: "Gambar Sipil" | "Gambar ME" | "Foto Lingkungan" | "Dokumen PDF"
 ): Promise<string> {
   // 1. Master Folder -> Cabang
-  const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", MASTER_DRIVE_FOLDER_ID);
+  const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", getMasterDriveFolderId());
   
   // 2. Cabang -> DC Development
   const dcDevFolderId = await getOrCreateFolder(drive, "DC Development", cabangFolderId);
@@ -159,7 +159,7 @@ export async function getDcFungsiRuangFolderHierarchyId(
   nomorPengajuan: string
 ): Promise<string> {
   // 1. Master Folder -> Cabang
-  const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", MASTER_DRIVE_FOLDER_ID);
+  const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", getMasterDriveFolderId());
   
   // 2. Cabang -> DC Development
   const dcDevFolderId = await getOrCreateFolder(drive, "DC Development", cabangFolderId);
@@ -180,6 +180,70 @@ export async function getDcFungsiRuangFolderHierarchyId(
   const pengajuanFolderId = await getOrCreateFolder(drive, safePengajuan, pfrFolderId);
 
   return pengajuanFolderId;
+}
+
+export async function getDcTenderFolderHierarchyId(
+  drive: drive_v3.Drive,
+  cabang: string,
+  kode: string,
+  nama_proyek: string,
+  inisial: string | null,
+  nomorTender: string
+): Promise<string> {
+  // 1. Master Folder -> Cabang
+  const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", getMasterDriveFolderId());
+  
+  // 2. Cabang -> DC Development
+  const dcDevFolderId = await getOrCreateFolder(drive, "DC Development", cabangFolderId);
+  
+  // 3. DC Development -> Project Folder (KODE - NAMA_PROYEK - INISIAL)
+  const inisialText = inisial ? ` - ${inisial}` : '';
+  const projectName = `${kode || "XXX"} - ${nama_proyek || "TANPA NAMA"}${inisialText}`;
+  const projectFolderId = await getOrCreateFolder(drive, projectName, dcDevFolderId);
+  
+  // 4. Project Folder -> Building
+  const buildingFolderId = await getOrCreateFolder(drive, "Building", projectFolderId);
+  
+  // 5. Building -> Tender Kontraktor
+  const tenderFolderId = await getOrCreateFolder(drive, "Tender Kontraktor", buildingFolderId);
+
+  // 6. Tender Kontraktor -> [Nomor Tender]
+  const safeTender = (nomorTender || "DRAFT").replace(/[\/\\]/g, "-");
+  const specificTenderFolderId = await getOrCreateFolder(drive, safeTender, tenderFolderId);
+
+  return specificTenderFolderId;
+}
+
+export async function getDcAanwijzingFolderHierarchyId(
+  drive: drive_v3.Drive,
+  cabang: string,
+  kode: string,
+  nama_proyek: string,
+  inisial: string | null,
+  nomorUndangan: string
+): Promise<string> {
+  // 1. Master Folder -> Cabang
+  const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", getMasterDriveFolderId());
+  
+  // 2. Cabang -> DC Development
+  const dcDevFolderId = await getOrCreateFolder(drive, "DC Development", cabangFolderId);
+  
+  // 3. DC Development -> Project Folder (KODE - NAMA_PROYEK - INISIAL)
+  const inisialText = inisial ? ` - ${inisial}` : '';
+  const projectName = `${kode || "XXX"} - ${nama_proyek || "TANPA NAMA"}${inisialText}`;
+  const projectFolderId = await getOrCreateFolder(drive, projectName, dcDevFolderId);
+  
+  // 4. Project Folder -> Building
+  const buildingFolderId = await getOrCreateFolder(drive, "Building", projectFolderId);
+  
+  // 5. Building -> Aanwijzing
+  const aanwijzingFolderId = await getOrCreateFolder(drive, "Aanwijzing", buildingFolderId);
+
+  // 6. Aanwijzing -> [Nomor Undangan]
+  const safeUndangan = (nomorUndangan || "DRAFT").replace(/[\/\\]/g, "-");
+  const specificFolderId = await getOrCreateFolder(drive, safeUndangan, aanwijzingFolderId);
+
+  return specificFolderId;
 }
 
 function bufferToStream(buffer: Buffer) {

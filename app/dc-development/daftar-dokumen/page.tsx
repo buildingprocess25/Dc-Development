@@ -2,7 +2,7 @@
 
 import React from "react";
 import Dashboard from "@/components/dashboard/dashboard";
-import { FileSpreadsheet, LayoutGrid } from "lucide-react";
+import { FileSpreadsheet, LayoutGrid, FileSignature } from "lucide-react";
 import { HubHeaderBanner, HubCategoryCard, HubCategoryCardProps } from "@/components/hub";
 
 export default function DaftarDokumenHubPage() {
@@ -29,6 +29,30 @@ export default function DaftarDokumenHubPage() {
       badge: "Tersedia & Aktif",
       badgeVariant: "success",
       stats: "SOP SAT/FRM/DCB/010",
+      actionLabel: "Buka Dokumen",
+    },
+    {
+      id: "tender",
+      title: "Usulan Peserta Tender (Kontraktor & Konsultan)",
+      description: "Proposal kualifikasi rekanan pelaksana proyek renovasi DC, evaluasi kelayakan vendor, jadwal tender & konstruksi, serta arsip digital.",
+      href: "/dc-development/daftar-dokumen/tender",
+      icon: FileSignature,
+      active: true,
+      badge: "Tersedia & Aktif",
+      badgeVariant: "success",
+      stats: "Pagu > 1M & <= 1M",
+      actionLabel: "Buka Dokumen",
+    },
+    {
+      id: "undangan-aanwijzing",
+      title: "Surat Undangan Aanwijzing",
+      description: "Arsip surat undangan resmi rapat penjelasan pekerjaan (Aanwijzing), peninjauan fisik lokasi proyek, dan rekapitulasi respon kontraktor.",
+      href: "/dc-development/daftar-dokumen/undangan-aanwijzing",
+      icon: FileSpreadsheet,
+      active: true,
+      badge: "Tersedia & Aktif",
+      badgeVariant: "success",
+      stats: "Dual-Tier & Timeout 48H",
       actionLabel: "Buka Dokumen",
     },
   ];

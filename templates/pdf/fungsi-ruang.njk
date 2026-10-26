@@ -248,7 +248,7 @@
     }
 
     .approval-cell {
-      width: 12.5%;
+      width: 11.11%;
       vertical-align: top;
       padding: 0;
       border: 1px solid #d1d5db;
@@ -372,22 +372,22 @@
     <tr>
       <td class="form-label">Nama Pemohon</td>
       <td class="form-colon">:</td>
-      <td class="form-value"><strong>{{ submission.nama_pemohon }}</strong></td>
+      <td class="form-value"><strong>{{ submission.pemohon.nama_pemohon if submission.pemohon else submission.nama_pemohon }}</strong></td>
     </tr>
     <tr>
       <td class="form-label">Jabatan</td>
       <td class="form-colon">:</td>
-      <td class="form-value">{{ submission.jabatan }}</td>
+      <td class="form-value">{{ submission.pemohon.jabatan if submission.pemohon else submission.jabatan }}</td>
     </tr>
     <tr>
       <td class="form-label">Divisi</td>
       <td class="form-colon">:</td>
-      <td class="form-value">{{ submission.divisi }}</td>
+      <td class="form-value">{{ submission.pemohon.divisi if submission.pemohon else submission.divisi }}</td>
     </tr>
     <tr>
       <td class="form-label">Departemen</td>
       <td class="form-colon">:</td>
-      <td class="form-value">{{ submission.departemen }}</td>
+      <td class="form-value">{{ submission.pemohon.departemen if submission.pemohon else submission.departemen }}</td>
     </tr>
     <tr>
       <td class="form-label">Lokasi</td>
@@ -445,26 +445,27 @@
     Branch {{ project_cabang }}, {{ tgl_pengajuan_indo }}
   </div>
 
-  <!-- Matriks Tanda Tangan 8 Kolom (Header Terkelompok: Dibuat, Mengetahui rata tengah, Menyetujui rata tengah) -->
+  <!-- Matriks Tanda Tangan 9 Kolom (Sesuai Referensi Resmi: DIBUAT, MENGETAHUI, MENYETUJUI) -->
   <table class="approval-table">
     <thead>
       <tr>
-        <th class="approval-group-header dibuat" style="width: 12.5%;">DIBUAT</th>
-        <th class="approval-group-header mengetahui" colspan="5" style="width: 62.5%;">MENGETAHUI</th>
-        <th class="approval-group-header menyetujui" colspan="2" style="width: 25%;">MENYETUJUI</th>
+        <th class="approval-group-header dibuat" style="width: 11.11%;">DIBUAT</th>
+        <th class="approval-group-header mengetahui" colspan="6" style="width: 66.67%;">MENGETAHUI</th>
+        <th class="approval-group-header menyetujui" colspan="2" style="width: 22.22%;">MENYETUJUI</th>
       </tr>
     </thead>
     <tbody>
       <tr>
         {% set cols = [
-          { sig: signatures.pemohon, default_role: 'Pemohon' },
+          { sig: signatures.pemohon, default_role: 'Koordinator' },
           { sig: signatures.bm_mgr, default_role: 'Branch B&M Manager' },
           { sig: signatures.bm_dbm, default_role: 'Branch Manager / DBM' },
+          { sig: signatures.gm_dept, default_role: gm_dept_label or 'GM Finance' },
           { sig: signatures.reg_bm_mgr, default_role: 'Regional B&M Manager' },
-          { sig: signatures.dc_specialist, default_role: 'DC Specialist' },
+          { sig: signatures.dc_mgr, default_role: 'DC Specialist' },
           { sig: signatures.bm_gm, default_role: 'B&M General Manager' },
-          { sig: signatures.op_director, default_role: 'Operation Director' },
-          { sig: signatures.prop_dev_mgr, default_role: 'Property Dev Manager' }
+          { sig: signatures.dir_dept, default_role: dir_dept_label or 'Direktur Finance' },
+          { sig: signatures.prop_dev_dir, default_role: 'Property Dev Manager' }
         ] %}
 
         {% for col in cols %}

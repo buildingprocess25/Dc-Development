@@ -10,6 +10,7 @@ interface SearchableSelectInputProps {
   options: SelectOption[];
   placeholder?: string;
   disabledIds?: string[];
+  className?: string;
 }
 
 export function SearchableSelectInput({
@@ -18,6 +19,7 @@ export function SearchableSelectInput({
   options,
   placeholder = "Pilih...",
   disabledIds = [],
+  className,
 }: SearchableSelectInputProps) {
   const selectedOption = options.find((opt) => opt.value === value) || null;
 
@@ -35,9 +37,13 @@ export function SearchableSelectInput({
       onChange={handleChange}
       options={options}
       placeholder={placeholder}
-      className="text-sm"
+      className={className || "text-sm"}
       isOptionDisabled={(option) => disabledIds.includes(option.value) && option.value !== value}
       styles={{
+        menu: (base) => ({
+          ...base,
+          zIndex: 60,
+        }),
         control: (base, state) => ({
           ...base,
           minHeight: "44px",
@@ -60,7 +66,7 @@ export function SearchableSelectInput({
             ? "rgb(241 245 249)"
             : "white",
           color: state.isDisabled
-            ? "#cbd5e1"
+            ? "#94a3b8"
             : state.isSelected
             ? "black"
             : "#334155",

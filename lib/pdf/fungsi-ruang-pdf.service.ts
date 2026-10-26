@@ -3,6 +3,11 @@ import path from 'path';
 import nunjucks from 'nunjucks';
 import puppeteer, { LaunchOptions } from 'puppeteer';
 import { prisma } from '@/lib/db';
+import {
+  findDepartmentApprovers,
+  getDepartmentGmLabel,
+  getDepartmentDirectorLabel,
+} from '@/lib/department-roles';
 
 function getBrowserExecutablePath(): string | undefined {
   if (process.env.PUPPETEER_EXECUTABLE_PATH) {
@@ -61,10 +66,11 @@ interface SignatureItem {
 }
 
 export async function generateFungsiRuangPdfBuffer(submissionId: number): Promise<Buffer> {
-  // 1. Ambil data pengajuan fungsi ruang beserta relasi project dan renovasi
+  // 1. Ambil data pengajuan fungsi ruang beserta relasi pemohon, project dan renovasi
   const submission = await prisma.dc_fungsi_ruang.findUnique({
     where: { id: submissionId },
     include: {
+      pemohon: true,
       project: true,
       renovasi: true,
     },
@@ -101,13 +107,34 @@ export async function generateFungsiRuangPdfBuffer(submissionId: number): Promis
     orderBy: { created_at: 'asc' },
   });
 
-  // 4. Inisialisasi struktur tanda tangan 8 kolom
+  const namaPemohon = submission.pemohon?.nama_pemohon || (submission as any).nama_pemohon || '';
+  const jabatanPemohon = submission.pemohon?.jabatan || (submission as any).jabatan || 'Koordinator';
+
+  const gmDeptLabel = getDepartmentGmLabel(
+    submission.pemohon?.departemen,
+    submission.pemohon?.divisi
+  );
+  const dirDeptLabel = getDepartmentDirectorLabel(
+    submission.pemohon?.departemen,
+    submission.pemohon?.divisi
+  );
+
+  // 4. Inisialisasi struktur tanda tangan 9 kolom (Urutan dari kiri ke kanan):
+  // 1. Pemohon (DIBUAT)
+  // 2. Branch B&M Manager (MENGETAHUI)
+  // 3. Branch Manager / DBM (MENGETAHUI)
+  // 4. GM Dept Pemohon (MENGETAHUI - sebelum Regional B&M Manager)
+  // 5. Regional B&M Manager (MENGETAHUI)
+  // 6. DC Specialist (MENGETAHUI)
+  // 7. B&M General Manager (MENGETAHUI)
+  // 8. Direktur Dept Pemohon (MENYETUJUI - menggantikan Operation Director)
+  // 9. Property Dev Manager (MENYETUJUI)
   const signatures: Record<string, SignatureItem> = {
     pemohon: {
-      name: submission.nama_pemohon,
+      name: namaPemohon,
       date: formatDateTimeIndo(submission.created_at),
       approved: true,
-      role: submission.jabatan,
+      role: jabatanPemohon,
     },
     bm_mgr: {
       name: creatorName,
@@ -121,13 +148,19 @@ export async function generateFungsiRuangPdfBuffer(submissionId: number): Promis
       approved: false,
       role: 'Branch Manager / DBM',
     },
+    gm_dept: {
+      name: '',
+      date: '',
+      approved: false,
+      role: gmDeptLabel,
+    },
     reg_bm_mgr: {
       name: '',
       date: '',
       approved: false,
       role: 'Regional B&M Manager',
     },
-    dc_specialist: {
+    dc_mgr: {
       name: '',
       date: '',
       approved: false,
@@ -139,13 +172,13 @@ export async function generateFungsiRuangPdfBuffer(submissionId: number): Promis
       approved: false,
       role: 'B&M General Manager',
     },
-    op_director: {
+    dir_dept: {
       name: '',
       date: '',
       approved: false,
-      role: 'Operation Director',
+      role: dirDeptLabel,
     },
-    prop_dev_mgr: {
+    prop_dev_dir: {
       name: '',
       date: '',
       approved: false,
@@ -188,19 +221,33 @@ export async function generateFungsiRuangPdfBuffer(submissionId: number): Promis
             : realName || rawApproverName || log.user_email;
         const approveDate = formatDateTimeIndo(log.created_at);
 
-        // Tier 2: BM/DBM
+        // 1. BM/DBM
         if (
           dataLama === 'MENUNGGU APPROVAL BM/DBM' ||
-          dataBaru === 'MENUNGGU APPROVAL REGIONAL B&M MANAGER'
+          dataBaru === 'MENUNGGU APPROVAL GM DEPT PEMOHON'
         ) {
           signatures.bm_dbm = {
             name: approverName,
             date: approveDate,
             approved: true,
+            role: 'Branch Manager / DBM',
           };
         }
 
-        // Tier 3: Regional B&M Manager
+        // 2. GM Dept Pemohon (sebelum Regional B&M Manager)
+        if (
+          dataLama === 'MENUNGGU APPROVAL GM DEPT PEMOHON' ||
+          (dataBaru === 'MENUNGGU APPROVAL REGIONAL B&M MANAGER' && dataLama !== 'MENUNGGU APPROVAL BM/DBM')
+        ) {
+          signatures.gm_dept = {
+            name: approverName,
+            date: approveDate,
+            approved: true,
+            role: gmDeptLabel,
+          };
+        }
+
+        // 3. Regional B&M Manager
         if (
           dataLama === 'MENUNGGU APPROVAL REGIONAL B&M MANAGER' ||
           dataBaru === 'MENUNGGU APPROVAL DC SPECIALIST'
@@ -209,56 +256,109 @@ export async function generateFungsiRuangPdfBuffer(submissionId: number): Promis
             name: approverName,
             date: approveDate,
             approved: true,
+            role: 'Regional B&M Manager',
           };
         }
 
-        // Tier 4: DC Specialist
+        // 4. DC Specialist
         if (
           dataLama === 'MENUNGGU APPROVAL DC SPECIALIST' ||
           dataBaru === 'MENUNGGU APPROVAL B&M GM'
         ) {
-          signatures.dc_specialist = {
+          signatures.dc_mgr = {
             name: approverName,
             date: approveDate,
             approved: true,
+            role: 'DC Specialist',
           };
         }
 
-        // Tier 5: B&M GM
+        // 5. Building & Maintenance GM
         if (
           dataLama === 'MENUNGGU APPROVAL B&M GM' ||
+          dataBaru === 'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON' ||
           dataBaru === 'MENUNGGU APPROVAL OPERATION DIRECTOR'
         ) {
           signatures.bm_gm = {
             name: approverName,
             date: approveDate,
             approved: true,
+            role: 'B&M General Manager',
           };
         }
 
-        // Tier 6: Operation Director
+        // 6. Director Dept Pemohon (menggantikan Operation Director)
         if (
+          dataLama === 'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON' ||
           dataLama === 'MENUNGGU APPROVAL OPERATION DIRECTOR' ||
+          dataBaru === 'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR' ||
           dataBaru === 'MENUNGGU APPROVAL PROPERTY DEV MANAGER'
         ) {
-          signatures.op_director = {
+          signatures.dir_dept = {
             name: approverName,
             date: approveDate,
             approved: true,
+            role: dirDeptLabel,
           };
         }
 
-        // Tier 7: Property Development Manager (Final)
+        // 7. Property & Development Director (Final)
         if (
+          dataLama === 'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR' ||
           dataLama === 'MENUNGGU APPROVAL PROPERTY DEV MANAGER' ||
           dataBaru === 'APPROVED'
         ) {
-          signatures.prop_dev_mgr = {
+          signatures.prop_dev_dir = {
             name: approverName,
             date: approveDate,
             approved: true,
+            role: 'Property Dev Manager',
           };
         }
+      }
+    }
+
+    // Jika status sudah final APPROVED dan tanda tangan GM Dept / Director Dept belum terisi dari log,
+    // gunakan data penanggung jawab dari master pemohon atau approver log terakhir
+    if (submission.status === 'APPROVED') {
+      const lastApproveLog = validApprovalLogs.filter((l) => l.aksi === 'APPROVAL_APPROVE').pop();
+      const lastApproveDate = lastApproveLog ? formatDateTimeIndo(lastApproveLog.created_at) : formatDateTimeIndo(submission.updated_at);
+      const { gm: deptGm, director: deptDirector } = findDepartmentApprovers(
+        allUsers,
+        submission.pemohon?.departemen,
+        submission.pemohon?.divisi
+      );
+
+      if (!signatures.bm_dbm.approved) {
+        signatures.bm_dbm = { name: 'Branch Manager', date: lastApproveDate, approved: true, role: 'Branch Manager / DBM' };
+      }
+      if (!signatures.gm_dept.approved) {
+        signatures.gm_dept = {
+          name: deptGm?.nama || gmDeptLabel,
+          date: lastApproveDate,
+          approved: true,
+          role: gmDeptLabel,
+        };
+      }
+      if (!signatures.reg_bm_mgr.approved) {
+        signatures.reg_bm_mgr = { name: 'Regional B&M Manager', date: lastApproveDate, approved: true, role: 'Regional B&M Manager' };
+      }
+      if (!signatures.dc_mgr.approved) {
+        signatures.dc_mgr = { name: 'DC Specialist', date: lastApproveDate, approved: true, role: 'DC Specialist' };
+      }
+      if (!signatures.bm_gm.approved) {
+        signatures.bm_gm = { name: 'B&M General Manager', date: lastApproveDate, approved: true, role: 'B&M General Manager' };
+      }
+      if (!signatures.dir_dept.approved) {
+        signatures.dir_dept = {
+          name: deptDirector?.nama || dirDeptLabel,
+          date: lastApproveDate,
+          approved: true,
+          role: dirDeptLabel,
+        };
+      }
+      if (!signatures.prop_dev_dir.approved) {
+        signatures.prop_dev_dir = { name: 'Property Dev Manager', date: lastApproveDate, approved: true, role: 'Property Dev Manager' };
       }
     }
   }
@@ -319,6 +419,8 @@ export async function generateFungsiRuangPdfBuffer(submissionId: number): Promis
     sign_location,
     sign_date,
     signatures,
+    gm_dept_label: gmDeptLabel,
+    dir_dept_label: dirDeptLabel,
     is_approved,
     is_revision: isRevision,
     catatan_revisi: catatanRevisi,

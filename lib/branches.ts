@@ -105,12 +105,19 @@ export function getUserCoverageBranches(user?: { cabang?: string | null; coverag
   // Wajib mengikuti kolom coverage_cabang!
   if (user.coverage_cabang) {
     const list = user.coverage_cabang.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+    // Jika coverage_cabang bernilai "ALL", "NASIONAL", atau "SEMUA CABANG", akun memiliki wewenang nasional (seluruh cabang)
+    if (list.some(item => item === "ALL" || item === "NASIONAL" || item === "SEMUA CABANG" || item === "SEMUA")) {
+      return null;
+    }
     rawList.push(...list);
   }
 
   // Jika coverage_cabang tidak diisi dan cabangnya bukan HEAD OFFICE, gunakan user.cabang
   if (rawList.length === 0 && user.cabang) {
     const c = user.cabang.trim().toUpperCase();
+    if (c === "ALL" || c === "NASIONAL" || c === "SEMUA CABANG" || c === "SEMUA") {
+      return null;
+    }
     if (c && c !== "HEAD OFFICE") {
       rawList.push(c);
     }
@@ -138,11 +145,82 @@ export function getUserCoverageBranches(user?: { cabang?: string | null; coverag
  * Mengecek apakah suatu cabang proyek/data boleh diakses oleh user berdasarkan daftar coverage.
  */
 export function isBranchAccessible(itemCabang: string, allowedBranches: string[] | null): boolean {
-  if (allowedBranches === null) return true; // Bebas akses (HEAD OFFICE)
+  if (allowedBranches === null) return true; // Bebas akses (HEAD OFFICE / DC ADMIN / ALL)
   if (!itemCabang) return false;
+  if (allowedBranches.some(b => b === "ALL" || b === "NASIONAL" || b === "SEMUA CABANG" || b === "SEMUA")) {
+    return true;
+  }
   const upper = itemCabang.trim().toUpperCase();
   const induk = getIndukFromCabang(upper);
   return allowedBranches.includes(upper) || (Boolean(induk) && allowedBranches.includes(induk));
+}
+
+/**
+ * Mengecek apakah vendor (kontraktor / konsultan) memiliki cakupan wilayah (coverage_cabang / cabang)
+ * yang mencakup cabang lokasi proyek tertentu.
+ * 
+ * @param vendorCabang Cabang domisili vendor (misal: "BALI", "CIKOKOL")
+ * @param vendorCoverage Daftar coverage cabang vendor (misal: "BALI, LOMBOK", "NASIONAL", "ALL")
+ * @param targetBranch Cabang proyek yang ditenderkan (misal: "BALI", "BALARAJA")
+ */
+export function isVendorCoveringBranch(
+  vendorCabang?: string | null,
+  vendorCoverage?: string | null,
+  targetBranch?: string | null
+): boolean {
+  if (!targetBranch || targetBranch === "ALL" || targetBranch === "all") return true;
+
+  const target = targetBranch.trim().toUpperCase();
+  const targetInduk = getIndukFromCabang(target).toUpperCase();
+  const targetFamily = new Set<string>([
+    target,
+    targetInduk,
+    ...getBranchesUnderInduk(targetInduk).map((c) => c.toUpperCase()),
+  ]);
+
+  // 1. Evaluasi coverage_cabang jika tersedia
+  if (vendorCoverage && vendorCoverage.trim()) {
+    const rawCov = vendorCoverage.trim().toUpperCase();
+
+    // Kata kunci cakupan nasional / global
+    if (
+      rawCov === "ALL" ||
+      rawCov === "NASIONAL" ||
+      rawCov === "SEMUA" ||
+      rawCov === "SEMUA CABANG"
+    ) {
+      return true;
+    }
+
+    const branches = rawCov
+      .split(/[,;\/]+/)
+      .map((b) => b.trim().toUpperCase())
+      .filter(Boolean);
+
+    for (const b of branches) {
+      if (b === "ALL" || b === "NASIONAL" || b === "SEMUA" || b === "SEMUA CABANG") {
+        return true;
+      }
+      if (targetFamily.has(b)) return true;
+      const bInduk = getIndukFromCabang(b).toUpperCase();
+      if (targetFamily.has(bInduk)) return true;
+      const childrenOfB = getBranchesUnderInduk(b).map((c) => c.toUpperCase());
+      if (childrenOfB.some((c) => targetFamily.has(c))) return true;
+    }
+  }
+
+  // 2. Evaluasi cabang domisili vendor (fallback jika coverage_cabang kosong atau belum mencakup)
+  if (vendorCabang && vendorCabang.trim()) {
+    const vCab = vendorCabang.trim().toUpperCase();
+    if (vCab === "ALL" || vCab === "NASIONAL") return true;
+    if (targetFamily.has(vCab)) return true;
+    const vInduk = getIndukFromCabang(vCab).toUpperCase();
+    if (targetFamily.has(vInduk)) return true;
+    const childrenOfV = getBranchesUnderInduk(vCab).map((c) => c.toUpperCase());
+    if (childrenOfV.some((c) => targetFamily.has(c))) return true;
+  }
+
+  return false;
 }
 
 // Re-export creator filtering helpers for convenience

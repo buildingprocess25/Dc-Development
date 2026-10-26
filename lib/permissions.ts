@@ -1,4 +1,10 @@
 import { getUserCoverageBranches, isBranchAccessible } from './branches';
+import {
+  isUserGmForDepartment,
+  isUserDirectorForDepartment,
+  isAnyDepartmentGmRole,
+  isAnyDepartmentDirectorRole,
+} from './department-roles';
 
 export const ROLES = {
   SUPER_ADMIN: 'SUPER_ADMIN',
@@ -14,8 +20,31 @@ export const ROLES = {
   DEPUTI_BRANCH_MANAGER: 'DEPUTI BRANCH MANAGER',
   BRANCH_BUILDING_REGIONAL_MANAGER: 'BRANCH BUILDING & MAINTENANCE REGIONAL MANAGER',
   BUILDING_MAINTENANCE_GM: 'BUILDING & MAINTENANCE GENERAL MANAGER',
+  GM_DEPT_PEMOHON: 'GM DEPT PEMOHON',
+  DIRECTOR_DEPT_PEMOHON: 'DIRECTOR DEPT PEMOHON',
+  PROPERTY_DEV_DIRECTOR: 'PROPERTY & DEVELOPMENT DIRECTOR',
   OPERATION_DIRECTOR: 'OPERATION DIRECTOR',
   PROPERTY_DEV_MANAGER: 'PROPERTY DEVELOPMENT MANAGER',
+  KONTRAKTOR: 'KONTRAKTOR',
+  KONSULTAN: 'KONSULTAN',
+  KONSULTAN_PENGAWAS: 'KONSULTAN PENGAWAS',
+  KONSULTAN_PERENCANA: 'KONSULTAN PERENCANA',
+};
+
+/**
+ * Memeriksa apakah role user merupakan rekanan eksternal (Kontraktor, Konsultan Pengawas, Konsultan Perencana, Vendor, atau Rekanan lain).
+ * Rekanan eksternal tidak memiliki akun SAT Alfamart (@alfamart.co.id) sehingga seluruh akses unduh dokumen
+ * (seperti PDF Undangan Aanwijzing) harus dilayani melalui proxy streaming SPARTA, bukan tautan mentah Google Drive.
+ */
+export const isExternalPartnerRole = (userRole: string | undefined | null): boolean => {
+  if (!userRole) return false;
+  const norm = userRole.trim().toUpperCase();
+  return (
+    norm.includes('KONTRAKTOR') ||
+    norm.includes('KONSULTAN') ||
+    norm.includes('VENDOR') ||
+    norm.includes('REKANAN')
+  );
 };
 
 export const PERMISSIONS = {
@@ -395,8 +424,11 @@ export const canAccessApprovalNavigation = (
 ): boolean => {
   if (!userRole) return false;
 
-  // Syarat Utama 1: Role harus salah satu dari approver RAB/OE, approver Fungsi Ruang, atau Administrator
-  const isAllowedRole = canAccessRabOeApproval(userRole) || canAccessFungsiRuangApproval(userRole);
+  // Syarat Utama 1: Role harus salah satu dari approver RAB/OE, approver Fungsi Ruang, approver Tender, atau Administrator
+  const isAllowedRole =
+    canAccessRabOeApproval(userRole) ||
+    canAccessFungsiRuangApproval(userRole) ||
+    canAccessTenderApproval(userRole);
   if (!isAllowedRole) return false;
 
   // Syarat Utama 2: Jika user memiliki konfigurasi akses_menu spesifik dari Manajemen User
@@ -614,9 +646,11 @@ export const canUserApproveSubmission = (
 };
 
 // =============================================================================
-// FUNGSI RUANG APPROVAL ENGINE (TAHAP 2)
-// SOP: SAT/FRM/DCB/010_Rev_000_200323 & Reff NRA: SAT/SOP/DCB/008
-// Alur: Maker (BM Manager Auto-approve) -> BM/DBM -> Reg B&M Mgr -> DC Specialist -> B&M GM -> Op Dir -> Prop Dev Mgr -> APPROVED
+// FUNGSI RUANG APPROVAL ENGINE (SOP SAT/FRM/DCB/010)
+// Urutan Matriks Tanda Tangan Resmi (dari kiri ke kanan):
+// Dibuat: Pemohon
+// Mengetahui: B&M Mgr -> BM/DBM** -> GM Dept Pemohon -> Reg Building & Maintenance Mgr -> DC Building & Dev Mgr -> Building & Maintenance GM
+// Menyetujui: Director Dept Pemohon -> Property & Development Director
 // =============================================================================
 
 /**
@@ -626,7 +660,7 @@ export const isFungsiRuangApproverRole = (userRole: string | undefined | null): 
   if (!userRole) return false;
   const norm = userRole.trim().toUpperCase();
 
-  // Tier 2: Branch Manager / Deputi Branch Manager
+  // Tier 1: Branch Manager / Deputi Branch Manager
   if (
     norm === 'BRANCH MANAGER' ||
     norm === 'DEPUTI BRANCH MANAGER' ||
@@ -634,6 +668,11 @@ export const isFungsiRuangApproverRole = (userRole: string | undefined | null): 
     norm === 'DBM' ||
     norm === 'BM'
   ) {
+    return true;
+  }
+
+  // Tier 2: GM Dept Pemohon (GENERAL MANAGER FINANCE, GENERAL MANAGER IT, dll.)
+  if (isAnyDepartmentGmRole(norm)) {
     return true;
   }
 
@@ -647,16 +686,18 @@ export const isFungsiRuangApproverRole = (userRole: string | undefined | null): 
     return true;
   }
 
-  // Tier 4: DC Building & Development Specialist
+  // Tier 4: DC Building & Development Specialist / Manager
   if (
     norm === 'DC BUILDING & DEVELOPMENT SPECIALIST' ||
     norm === 'DC BUILDING & DEVELOPMENT SPECIALIS' ||
     norm === 'DC BUILDING AND DEVELOPMENT SPECIALIST' ||
     norm === 'DC BUILDING AND DEVELOPMENT SPECIALIS' ||
+    norm === 'DC BUILDING & DEVELOPMENT MANAGER' ||
     norm.includes('DEVELOPMENT SPECIALIST') ||
     norm.includes('DEVELOPMENT SPECIALIS') ||
     norm.includes('DC SPECIALIST') ||
-    norm.includes('DC SPECIALIS')
+    norm.includes('DC SPECIALIS') ||
+    norm.includes('DEVELOPMENT MANAGER')
   ) {
     return true;
   }
@@ -672,22 +713,20 @@ export const isFungsiRuangApproverRole = (userRole: string | undefined | null): 
     return true;
   }
 
-  // Tier 6: Operation Director
-  if (
-    norm === 'OPERATION DIRECTOR' ||
-    norm === 'OPERATIONAL DIRECTOR' ||
-    norm === 'DIREKTUR OPERASIONAL' ||
-    norm === 'DIR OPERASIONAL' ||
-    norm.includes('OPERATION DIRECTOR')
-  ) {
+  // Tier 6: Director Dept Pemohon (DIREKTUR FINANCE, DIREKTUR IT, dll.)
+  if (isAnyDepartmentDirectorRole(norm)) {
     return true;
   }
 
-  // Tier 7: Property Development Manager
+  // Tier 7: Property & Development Director
   if (
+    norm === 'PROPERTY & DEVELOPMENT DIRECTOR' ||
+    norm === 'PROPERTY AND DEVELOPMENT DIRECTOR' ||
+    norm === 'PROPERTY DEVELOPMENT DIRECTOR' ||
+    norm === 'PROPERTY DEV DIRECTOR' ||
     norm === 'PROPERTY DEVELOPMENT MANAGER' ||
     norm === 'PROPERTY DEV MANAGER' ||
-    norm === 'PROPERTY DIRECTOR' ||
+    norm === 'OPERATION DIRECTOR' ||
     norm.includes('PROPERTY')
   ) {
     return true;
@@ -718,7 +757,7 @@ export const getFungsiRuangApprovalQueueForRole = (
     return 'ALL';
   }
 
-  // Tier 2: Branch Manager / Deputi Branch Manager
+  // Tier 1: Branch Manager / Deputi Branch Manager
   if (
     norm === 'BRANCH MANAGER' ||
     norm === 'DEPUTI BRANCH MANAGER' ||
@@ -727,6 +766,11 @@ export const getFungsiRuangApprovalQueueForRole = (
     norm === 'BM'
   ) {
     return ['MENUNGGU APPROVAL BM/DBM'];
+  }
+
+  // Tier 2: GM Dept Pemohon (GENERAL MANAGER FINANCE, GENERAL MANAGER IT, dll.)
+  if (isAnyDepartmentGmRole(norm)) {
+    return ['MENUNGGU APPROVAL GM DEPT PEMOHON'];
   }
 
   // Tier 3: Branch Building & Maintenance Regional Manager
@@ -739,16 +783,18 @@ export const getFungsiRuangApprovalQueueForRole = (
     return ['MENUNGGU APPROVAL REGIONAL B&M MANAGER'];
   }
 
-  // Tier 4: DC Building & Development Specialist
+  // Tier 4: DC Building & Development Specialist / Manager
   if (
     norm === 'DC BUILDING & DEVELOPMENT SPECIALIST' ||
     norm === 'DC BUILDING & DEVELOPMENT SPECIALIS' ||
     norm === 'DC BUILDING AND DEVELOPMENT SPECIALIST' ||
     norm === 'DC BUILDING AND DEVELOPMENT SPECIALIS' ||
+    norm === 'DC BUILDING & DEVELOPMENT MANAGER' ||
     norm.includes('DEVELOPMENT SPECIALIST') ||
     norm.includes('DEVELOPMENT SPECIALIS') ||
     norm.includes('DC SPECIALIST') ||
-    norm.includes('DC SPECIALIS')
+    norm.includes('DC SPECIALIS') ||
+    norm.includes('DEVELOPMENT MANAGER')
   ) {
     return ['MENUNGGU APPROVAL DC SPECIALIST'];
   }
@@ -764,25 +810,23 @@ export const getFungsiRuangApprovalQueueForRole = (
     return ['MENUNGGU APPROVAL B&M GM'];
   }
 
-  // Tier 6: Operation Director
-  if (
-    norm === 'OPERATION DIRECTOR' ||
-    norm === 'OPERATIONAL DIRECTOR' ||
-    norm === 'DIREKTUR OPERASIONAL' ||
-    norm === 'DIR OPERASIONAL' ||
-    norm.includes('OPERATION DIRECTOR')
-  ) {
-    return ['MENUNGGU APPROVAL OPERATION DIRECTOR'];
+  // Tier 6: Director Dept Pemohon (DIREKTUR FINANCE, DIREKTUR IT, dll.)
+  if (isAnyDepartmentDirectorRole(norm)) {
+    return ['MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON'];
   }
 
-  // Tier 7: Property Development Manager
+  // Tier 7: Property & Development Director
   if (
+    norm === 'PROPERTY & DEVELOPMENT DIRECTOR' ||
+    norm === 'PROPERTY AND DEVELOPMENT DIRECTOR' ||
+    norm === 'PROPERTY DEVELOPMENT DIRECTOR' ||
+    norm === 'PROPERTY DEV DIRECTOR' ||
     norm === 'PROPERTY DEVELOPMENT MANAGER' ||
     norm === 'PROPERTY DEV MANAGER' ||
-    norm === 'PROPERTY DIRECTOR' ||
+    norm === 'OPERATION DIRECTOR' ||
     norm.includes('PROPERTY')
   ) {
-    return ['MENUNGGU APPROVAL PROPERTY DEV MANAGER'];
+    return ['MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR'];
   }
 
   return [];
@@ -790,8 +834,8 @@ export const getFungsiRuangApprovalQueueForRole = (
 
 /**
  * Mendapatkan status transisi berikutnya untuk Perubahan Fungsi Ruang ketika disetujui (APPROVE).
- * 7-Tier Berjenjang:
- * Maker (BM Manager Auto-approve) -> BM/DBM -> Reg B&M Mgr -> DC Specialist -> B&M GM -> Op Dir -> Prop Dev Mgr -> APPROVED
+ * Urutan 7-Tahap Berjenjang:
+ * Maker (BM Manager) -> BM/DBM -> GM Dept Pemohon -> Reg B&M Mgr -> DC Specialist -> B&M GM -> Director Dept Pemohon -> Property & Dev Director -> APPROVED
  */
 export const getNextFungsiRuangApprovalStatus = (
   currentStatus: string
@@ -799,13 +843,18 @@ export const getNextFungsiRuangApprovalStatus = (
   switch (currentStatus) {
     case 'MENUNGGU APPROVAL BM/DBM':
       return {
+        nextStatus: 'MENUNGGU APPROVAL GM DEPT PEMOHON',
+        label: 'GM Dept Pemohon'
+      };
+    case 'MENUNGGU APPROVAL GM DEPT PEMOHON':
+      return {
         nextStatus: 'MENUNGGU APPROVAL REGIONAL B&M MANAGER',
         label: 'Regional B&M Manager'
       };
     case 'MENUNGGU APPROVAL REGIONAL B&M MANAGER':
       return {
         nextStatus: 'MENUNGGU APPROVAL DC SPECIALIST',
-        label: 'DC Specialist'
+        label: 'DC Building & Dev Mgr'
       };
     case 'MENUNGGU APPROVAL DC SPECIALIST':
       return {
@@ -814,15 +863,17 @@ export const getNextFungsiRuangApprovalStatus = (
       };
     case 'MENUNGGU APPROVAL B&M GM':
       return {
-        nextStatus: 'MENUNGGU APPROVAL OPERATION DIRECTOR',
-        label: 'Operation Director'
+        nextStatus: 'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON',
+        label: 'Director Dept Pemohon'
       };
-    case 'MENUNGGU APPROVAL OPERATION DIRECTOR':
+    case 'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON':
       return {
-        nextStatus: 'MENUNGGU APPROVAL PROPERTY DEV MANAGER',
-        label: 'Property Development Manager'
+        nextStatus: 'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
+        label: 'Property & Development Director'
       };
+    case 'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR':
     case 'MENUNGGU APPROVAL PROPERTY DEV MANAGER':
+    case 'MENUNGGU APPROVAL OPERATION DIRECTOR':
       return {
         nextStatus: 'APPROVED',
         label: 'Approved (Selesai Disetujui)'
@@ -839,8 +890,8 @@ export const getNextFungsiRuangApprovalStatus = (
  * 3. Approver spesifik memiliki hak jika status pengajuan saat ini cocok dengan antreannya.
  */
 export const canUserApproveFungsiRuang = (
-  user?: { role?: string | null; cabang?: string | null; coverage_cabang?: string | null } | null,
-  submission?: { status?: string | null; project?: { cabang?: string | null } | null; renovasi?: { cabang?: string | null } | null } | null
+  user?: { role?: string | null; cabang?: string | null; coverage_cabang?: string | null; email?: string | null } | null,
+  submission?: { status?: string | null; project?: { cabang?: string | null } | null; renovasi?: { cabang?: string | null } | null; pemohon?: { departemen?: string | null; divisi?: string | null } | null } | null
 ): boolean => {
   if (!user || !user.role || !submission || !submission.status) return false;
 
@@ -856,15 +907,27 @@ export const canUserApproveFungsiRuang = (
   if (isApprovalAdmin(user.role)) {
     return (
       submission.status === 'MENUNGGU APPROVAL BM/DBM' ||
+      submission.status === 'MENUNGGU APPROVAL GM DEPT PEMOHON' ||
       submission.status === 'MENUNGGU APPROVAL REGIONAL B&M MANAGER' ||
       submission.status === 'MENUNGGU APPROVAL DC SPECIALIST' ||
       submission.status === 'MENUNGGU APPROVAL B&M GM' ||
-      submission.status === 'MENUNGGU APPROVAL OPERATION DIRECTOR' ||
-      submission.status === 'MENUNGGU APPROVAL PROPERTY DEV MANAGER'
+      submission.status === 'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON' ||
+      submission.status === 'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR' ||
+      submission.status === 'MENUNGGU APPROVAL PROPERTY DEV MANAGER' ||
+      submission.status === 'MENUNGGU APPROVAL OPERATION DIRECTOR'
     );
   }
 
-  // 3. Approver spesifik berdasarkan status antrean perannya
+  // 3. Validasi spesifik kecocokan role departemen jika approver adalah GM Dept Pemohon atau Director Dept Pemohon
+  if (submission.status === 'MENUNGGU APPROVAL GM DEPT PEMOHON') {
+    return isUserGmForDepartment(user.role, submission.pemohon?.departemen, submission.pemohon?.divisi);
+  }
+
+  if (submission.status === 'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON') {
+    return isUserDirectorForDepartment(user.role, submission.pemohon?.departemen, submission.pemohon?.divisi);
+  }
+
+  // 4. Approver spesifik berdasarkan status antrean perannya
   const queueStatus = getFungsiRuangApprovalQueueForRole(user.role);
   if (Array.isArray(queueStatus)) {
     return queueStatus.includes(submission.status);
@@ -878,11 +941,12 @@ export const canUserApproveFungsiRuang = (
  */
 export const FUNGSI_RUANG_APPROVAL_STAGES = [
   'MENUNGGU APPROVAL BM/DBM',
+  'MENUNGGU APPROVAL GM DEPT PEMOHON',
   'MENUNGGU APPROVAL REGIONAL B&M MANAGER',
   'MENUNGGU APPROVAL DC SPECIALIST',
   'MENUNGGU APPROVAL B&M GM',
-  'MENUNGGU APPROVAL OPERATION DIRECTOR',
-  'MENUNGGU APPROVAL PROPERTY DEV MANAGER',
+  'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON',
+  'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
   'APPROVED',
 ] as const;
 
@@ -890,15 +954,16 @@ export const FUNGSI_RUANG_APPROVAL_STAGES = [
  * Menghasilkan daftar status pengajuan Perubahan Fungsi Ruang yang berhak dilihat
  * oleh suatu role tertentu (Tiered Visibility / Visibilitas Bertingkat).
  *
- * Aturan:
+ * Aturan Urutan Berjenjang:
  * - Admin: 'ALL' (melihat semua status).
- * - Approver Tier 1 (BM/DBM): Mulai melihat sejak tahap BM/DBM s/d APPROVED (TIDAK bisa melihat REVISI).
- * - Approver Tier 2 (Regional BM): Baru melihat setelah lolos BM/DBM s/d APPROVED.
- * - Approver Tier 3 (DC Specialist): Baru melihat setelah lolos Regional BM s/d APPROVED.
- * - Approver Tier 4 (B&M GM): Baru melihat setelah lolos DC Specialist s/d APPROVED.
- * - Approver Tier 5 (Operation Director): Baru melihat setelah lolos GM s/d APPROVED.
- * - Approver Tier 6 (Property Dev Manager): Baru melihat saat tahap Property Dev s/d APPROVED.
  * - Maker (Branch B&M Manager): Melihat seluruh siklus pengajuan miliknya (REVISI s/d APPROVED).
+ * - Approver Tier 1 (BM/DBM): Mulai melihat sejak tahap BM/DBM s/d APPROVED (TIDAK bisa melihat REVISI).
+ * - Approver Tier 2 (GM Dept Pemohon): Mulai melihat saat tahap GM Dept Pemohon s/d APPROVED.
+ * - Approver Tier 3 (Regional BM): Baru melihat setelah lolos GM Dept Pemohon s/d APPROVED.
+ * - Approver Tier 4 (DC Specialist): Baru melihat setelah lolos Regional BM s/d APPROVED.
+ * - Approver Tier 5 (B&M GM): Baru melihat setelah lolos DC Specialist s/d APPROVED.
+ * - Approver Tier 6 (Director Dept Pemohon): Baru melihat saat tahap Director Dept s/d APPROVED.
+ * - Approver Tier 7 (Property & Dev Director): Baru melihat saat tahap Property & Dev Director s/d APPROVED.
  * - Role umum lainnya: Hanya pengajuan final ('APPROVED').
  */
 export const getFungsiRuangVisibleStatuses = (
@@ -921,16 +986,30 @@ export const getFungsiRuangVisibleStatuses = (
   ) {
     return [
       'MENUNGGU APPROVAL BM/DBM',
+      'MENUNGGU APPROVAL GM DEPT PEMOHON',
       'MENUNGGU APPROVAL REGIONAL B&M MANAGER',
       'MENUNGGU APPROVAL DC SPECIALIST',
       'MENUNGGU APPROVAL B&M GM',
-      'MENUNGGU APPROVAL OPERATION DIRECTOR',
-      'MENUNGGU APPROVAL PROPERTY DEV MANAGER',
+      'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
       'APPROVED',
     ];
   }
 
-  // Tier 2: Regional B&M Manager
+  // Tier 2: GM Dept Pemohon (GENERAL MANAGER FINANCE, GENERAL MANAGER IT, dll.)
+  if (isAnyDepartmentGmRole(norm)) {
+    return [
+      'MENUNGGU APPROVAL GM DEPT PEMOHON',
+      'MENUNGGU APPROVAL REGIONAL B&M MANAGER',
+      'MENUNGGU APPROVAL DC SPECIALIST',
+      'MENUNGGU APPROVAL B&M GM',
+      'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
+      'APPROVED',
+    ];
+  }
+
+  // Tier 3: Regional B&M Manager
   if (
     norm === 'BRANCH BUILDING & MAINTENANCE REGIONAL MANAGER' ||
     norm === 'BRANCH BUILDING AND MAINTENANCE REGIONAL MANAGER' ||
@@ -941,33 +1020,35 @@ export const getFungsiRuangVisibleStatuses = (
       'MENUNGGU APPROVAL REGIONAL B&M MANAGER',
       'MENUNGGU APPROVAL DC SPECIALIST',
       'MENUNGGU APPROVAL B&M GM',
-      'MENUNGGU APPROVAL OPERATION DIRECTOR',
-      'MENUNGGU APPROVAL PROPERTY DEV MANAGER',
+      'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
       'APPROVED',
     ];
   }
 
-  // Tier 3: DC Specialist
+  // Tier 4: DC Specialist / DC Building & Dev Manager
   if (
     norm === 'DC BUILDING & DEVELOPMENT SPECIALIST' ||
     norm === 'DC BUILDING & DEVELOPMENT SPECIALIS' ||
     norm === 'DC BUILDING AND DEVELOPMENT SPECIALIST' ||
     norm === 'DC BUILDING AND DEVELOPMENT SPECIALIS' ||
+    norm === 'DC BUILDING & DEVELOPMENT MANAGER' ||
     norm.includes('DEVELOPMENT SPECIALIST') ||
     norm.includes('DEVELOPMENT SPECIALIS') ||
     norm.includes('DC SPECIALIST') ||
-    norm.includes('DC SPECIALIS')
+    norm.includes('DC SPECIALIS') ||
+    norm.includes('DEVELOPMENT MANAGER')
   ) {
     return [
       'MENUNGGU APPROVAL DC SPECIALIST',
       'MENUNGGU APPROVAL B&M GM',
-      'MENUNGGU APPROVAL OPERATION DIRECTOR',
-      'MENUNGGU APPROVAL PROPERTY DEV MANAGER',
+      'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
       'APPROVED',
     ];
   }
 
-  // Tier 4: B&M GM
+  // Tier 5: B&M GM
   if (
     norm === 'BUILDING & MAINTENANCE GENERAL MANAGER' ||
     norm === 'BUILDING AND MAINTENANCE GENERAL MANAGER' ||
@@ -977,36 +1058,34 @@ export const getFungsiRuangVisibleStatuses = (
   ) {
     return [
       'MENUNGGU APPROVAL B&M GM',
-      'MENUNGGU APPROVAL OPERATION DIRECTOR',
-      'MENUNGGU APPROVAL PROPERTY DEV MANAGER',
+      'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
       'APPROVED',
     ];
   }
 
-  // Tier 5: Operation Director
-  if (
-    norm === 'OPERATION DIRECTOR' ||
-    norm === 'OPERATIONAL DIRECTOR' ||
-    norm === 'DIREKTUR OPERASIONAL' ||
-    norm === 'DIR OPERASIONAL' ||
-    norm.includes('OPERATION DIRECTOR')
-  ) {
+  // Tier 6: Director Dept Pemohon (DIREKTUR FINANCE, DIREKTUR IT, dll.)
+  if (isAnyDepartmentDirectorRole(norm)) {
     return [
-      'MENUNGGU APPROVAL OPERATION DIRECTOR',
-      'MENUNGGU APPROVAL PROPERTY DEV MANAGER',
+      'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
       'APPROVED',
     ];
   }
 
-  // Tier 6: Property Development Manager
+  // Tier 7: Property & Development Director
   if (
+    norm === 'PROPERTY & DEVELOPMENT DIRECTOR' ||
+    norm === 'PROPERTY AND DEVELOPMENT DIRECTOR' ||
+    norm === 'PROPERTY DEVELOPMENT DIRECTOR' ||
+    norm === 'PROPERTY DEV DIRECTOR' ||
     norm === 'PROPERTY DEVELOPMENT MANAGER' ||
     norm === 'PROPERTY DEV MANAGER' ||
-    norm === 'PROPERTY DIRECTOR' ||
+    norm === 'OPERATION DIRECTOR' ||
     norm.includes('PROPERTY')
   ) {
     return [
-      'MENUNGGU APPROVAL PROPERTY DEV MANAGER',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
       'APPROVED',
     ];
   }
@@ -1021,11 +1100,12 @@ export const getFungsiRuangVisibleStatuses = (
     return [
       'REVISI',
       'MENUNGGU APPROVAL BM/DBM',
+      'MENUNGGU APPROVAL GM DEPT PEMOHON',
       'MENUNGGU APPROVAL REGIONAL B&M MANAGER',
       'MENUNGGU APPROVAL DC SPECIALIST',
       'MENUNGGU APPROVAL B&M GM',
-      'MENUNGGU APPROVAL OPERATION DIRECTOR',
-      'MENUNGGU APPROVAL PROPERTY DEV MANAGER',
+      'MENUNGGU APPROVAL DIRECTOR DEPT PEMOHON',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
       'APPROVED',
     ];
   }
@@ -1172,5 +1252,405 @@ export const getRabOePrismaFilter = (
   };
 };
 
+// ============================================================================
+// MODUL Pengajuan Proposal Tender REKANAN KONTRAKTOR & KONSULTAN APPROVAL RULES
+// ============================================================================
 
+/**
+ * Memeriksa apakah user berhak mengakses antrean modul Approval Pengajuan Proposal Tender.
+ */
+export const canAccessTenderApproval = (userRole: string | undefined | null): boolean => {
+  if (!userRole) return false;
+  if (isApprovalAdmin(userRole)) return true;
+  const norm = userRole.trim().toUpperCase();
+
+  return (
+    norm.includes('DC SPECIALIST') ||
+    norm.includes('DC BUILDING & DEVELOPMENT SPECIALIST') ||
+    norm.includes('DC MANAGER') ||
+    norm.includes('DC BUILDING & DEVELOPMENT MANAGER') ||
+    norm.includes('B&M GM') ||
+    norm.includes('BUILDING & MAINTENANCE GENERAL MANAGER') ||
+    norm.includes('PROPERTY & DEV DIRECTOR') ||
+    norm.includes('PROPERTY & DEVELOPMENT DIRECTOR') ||
+    norm.includes('PROPERTY DEV') ||
+    norm.includes('DIRECTOR')
+  );
+};
+
+/**
+ * Memeriksa apakah user saat ini berhak menyetujui (Approve/Revisi/Tolak) tender pada status saat ini.
+ * Catatan penting: Status REVISI, APPROVED, DITOLAK, dan DRAFT tidak pernah dapat diapprove oleh siapapun.
+ */
+export const canUserApproveTender = (
+  userRole: string | undefined | null,
+  currentStatus: string,
+  kategoriNilai?: string | null
+): boolean => {
+  if (!userRole || !currentStatus) return false;
+
+  // Status non-aktif / terminal / sedang revisi di Maker tidak dapat diapprove oleh siapapun
+  if (['REVISI', 'APPROVED', 'DITOLAK', 'DRAFT', 'SELESAI'].includes(currentStatus)) {
+    return false;
+  }
+
+  // Admin berhak menyetujui seluruh tahapan approval aktif
+  if (isApprovalAdmin(userRole)) {
+    return (
+      currentStatus === 'PRAKUALIFIKASI' ||
+      currentStatus === 'MENUNGGU APPROVAL DC SPECIALIST' ||
+      currentStatus === 'MENUNGGU APPROVAL B&M GM' ||
+      currentStatus === 'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR'
+    );
+  }
+
+  const norm = userRole.trim().toUpperCase();
+
+  switch (currentStatus) {
+    case 'PRAKUALIFIKASI':
+    case 'MENUNGGU APPROVAL DC SPECIALIST':
+      return (
+        norm.includes('DC SPECIALIST') ||
+        norm.includes('DC BUILDING & DEVELOPMENT SPECIALIST') ||
+        norm.includes('DC MANAGER') ||
+        norm.includes('DC BUILDING & DEVELOPMENT MANAGER')
+      );
+
+    case 'MENUNGGU APPROVAL B&M GM':
+      return (
+        norm.includes('B&M GM') ||
+        norm.includes('BUILDING & MAINTENANCE GENERAL MANAGER')
+      );
+
+    case 'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR':
+      return (
+        norm.includes('PROPERTY & DEV DIRECTOR') ||
+        norm.includes('PROPERTY & DEVELOPMENT DIRECTOR') ||
+        norm.includes('PROPERTY DEV') ||
+        norm.includes('DIRECTOR')
+      );
+
+    default:
+      return false;
+  }
+};
+
+/**
+ * Menentukan status berikutnya saat tindakan APPROVE dilakukan.
+ */
+export const getTenderApprovalNextStatus = (
+  currentStatus: string,
+  _kategoriNilai?: string
+): string => {
+  // Seluruh tender (> Rp 1 Miliar) menggunakan alur berjenjang 3 tingkat HO (SOP SPARTA)
+  switch (currentStatus) {
+    case 'PRAKUALIFIKASI':
+      return 'MENUNGGU APPROVAL DC SPECIALIST';
+    case 'MENUNGGU APPROVAL DC SPECIALIST':
+      return 'MENUNGGU APPROVAL B&M GM';
+    case 'MENUNGGU APPROVAL B&M GM':
+      return 'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR';
+    case 'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR':
+      return 'APPROVED';
+    default:
+      return 'APPROVED';
+  }
+};
+
+/**
+ * Label tahapan berikutnya untuk ditampilkan di ApprovalActionCard.
+ */
+export const getTenderNextStepLabel = (
+  currentStatus: string,
+  kategoriNilai?: string
+): string => {
+  const nextStatus = getTenderApprovalNextStatus(currentStatus, kategoriNilai);
+  switch (nextStatus) {
+    case 'MENUNGGU APPROVAL DC SPECIALIST':
+      return 'DC Building & Development Specialist';
+    case 'MENUNGGU APPROVAL B&M GM':
+      return 'Building & Maintenance General Manager';
+    case 'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR':
+      return 'Property & Development Director';
+    case 'APPROVED':
+      return 'Persetujuan Final (Disetujui)';
+    default:
+      return nextStatus;
+  }
+};
+
+/**
+ * Menentukan batas wewenang kategori pagu PFR siap tender yang berhak diajukan oleh pengguna:
+ * - DC Specialist / Manager -> HANYA proyek > Rp 1 Miliar ("DI_ATAS_1M")
+ * - Administrator -> Berhak mengajukan semua pagu ("ALL")
+ * - Role lainnya (termasuk Branch B&M) -> Tidak berhak membuat Pengajuan Proposal Tender ("NONE")
+ */
+export const getTenderMakerAllowedKategori = (
+  userRole?: string | null
+): "DI_ATAS_1M" | "ALL" | "NONE" => {
+  if (!userRole) return "NONE";
+  const norm = userRole.trim().toUpperCase();
+
+  if (isApprovalAdmin(norm)) {
+    return "ALL";
+  }
+
+  // DC Specialist / Manager (Eksklusif Maker HO untuk proyek > 1 Miliar)
+  if (
+    norm === 'DC BUILDING & DEVELOPMENT SPECIALIST' ||
+    norm === 'DC BUILDING AND DEVELOPMENT SPECIALIST' ||
+    norm.includes('DC SPECIALIST') ||
+    norm.includes('DEVELOPMENT SPECIALIST') ||
+    norm.includes('DEVELOPMENT SPECIALIS') ||
+    norm === 'DC BUILDING & DEVELOPMENT MANAGER' ||
+    norm === 'DC BUILDING AND DEVELOPMENT MANAGER' ||
+    norm.includes('DC MANAGER')
+  ) {
+    return "DI_ATAS_1M";
+  }
+
+  return "NONE";
+};
+
+/**
+ * Menghasilkan daftar status Pengajuan Proposal Tender yang berhak dilihat oleh user
+ * berdasarkan tingkatan perannya (Tiered Visibility) di modul arsip Dokumen.
+ */
+export const getTenderVisibleStatuses = (userRole?: string | null): string[] | 'ALL' => {
+  if (!userRole) return ['APPROVED'];
+
+  const norm = userRole.trim().toUpperCase();
+
+  if (isApprovalAdmin(norm)) {
+    return 'ALL';
+  }
+
+  // Maker / Branch B&M:
+  if (
+    norm === 'BRANCH BUILDING & MAINTENANCE MANAGER' ||
+    norm === 'BRANCH BUILDING AND MAINTENANCE MANAGER' ||
+    norm === 'B&M MANAGER' ||
+    norm.includes('MAINTENANCE MANAGER') ||
+    norm === 'BRANCH BUILDING KOORDINATOR' ||
+    norm.includes('BUILDING KOORDINATOR')
+  ) {
+    return [
+      'PRAKUALIFIKASI',
+      'MENUNGGU APPROVAL DC SPECIALIST',
+      'MENUNGGU APPROVAL B&M GM',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
+      'APPROVED',
+      'REVISI',
+      'DITOLAK',
+    ];
+  }
+
+  // Tier 1 Approver: DC Specialist
+  if (
+    norm.includes('DC SPECIALIST') ||
+    norm.includes('DC BUILDING & DEVELOPMENT SPECIALIST') ||
+    norm.includes('DC BUILDING AND DEVELOPMENT SPECIALIST') ||
+    norm.includes('DEVELOPMENT SPECIALIST') ||
+    norm.includes('DEVELOPMENT SPECIALIS')
+  ) {
+    return [
+      'PRAKUALIFIKASI',
+      'MENUNGGU APPROVAL DC SPECIALIST',
+      'MENUNGGU APPROVAL B&M GM',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
+      'APPROVED',
+    ];
+  }
+
+  // Tier 2 Approver: Building & Maintenance GM
+  if (
+    norm.includes('B&M GM') ||
+    norm.includes('BUILDING & MAINTENANCE GENERAL MANAGER') ||
+    norm.includes('BUILDING AND MAINTENANCE GENERAL MANAGER')
+  ) {
+    return [
+      'MENUNGGU APPROVAL B&M GM',
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
+      'APPROVED',
+    ];
+  }
+
+  // Tier 3 Approver: Property & Development Director
+  if (
+    norm.includes('PROPERTY & DEV DIRECTOR') ||
+    norm.includes('PROPERTY & DEVELOPMENT DIRECTOR') ||
+    norm.includes('PROPERTY DEV') ||
+    norm.includes('DIRECTOR')
+  ) {
+    return [
+      'MENUNGGU APPROVAL PROPERTY & DEV DIRECTOR',
+      'APPROVED',
+    ];
+  }
+
+  return ['APPROVED'];
+};
+
+/**
+ * Cek apakah seorang user berhak melihat dokumen Pengajuan Proposal Tender spesifik:
+ * 1. Coverage cabang wajib sesuai (kecuali Admin/HO).
+ * 2. Status REVISI: HANYA Maker pembuat pengajuan dan Admin yang berhak melihat.
+ * 3. Approver berjenjang: dokumen hanya boleh dilihat jika sudah mencapai tingkatan perannya atau dibuat oleh dirinya.
+ */
+export const canUserViewTenderSubmission = (
+  user?: { role?: string | null; email?: string | null; username?: string | null; namaLengkap?: string | null; coverage_cabang?: string | null; cabang?: string | null } | null,
+  tender?: { status?: string | null; created_by?: string | null; cabang?: string | null; project?: { cabang?: string | null } | null } | null
+): boolean => {
+  if (!user || !user.role || !tender || !tender.status) return false;
+
+  // 1. Validasi coverage cabang
+  const itemBranch = tender.cabang || tender.project?.cabang || "";
+  const userCoverage = getUserCoverageBranches(user);
+  if (itemBranch && !isBranchAccessible(itemBranch, userCoverage)) {
+    return false;
+  }
+
+  // 2. Admin melihat semua
+  if (isApprovalAdmin(user.role)) {
+    return true;
+  }
+
+  const isCreator = isSameCreator(user, tender.created_by);
+
+  // 3. Status REVISI: HANYA pembuat (maker yang mengajukan) atau Admin
+  if (tender.status === 'REVISI') {
+    return isCreator;
+  }
+
+  // 4. Jika user adalah Creator: dapat melihat semua status miliknya
+  if (isCreator) {
+    return true;
+  }
+
+  // 5. Approver berjenjang: cek status visibilitas perannya
+  const visibleStatuses = getTenderVisibleStatuses(user.role);
+  if (visibleStatuses === 'ALL') return true;
+  return visibleStatuses.includes(tender.status);
+};
+
+/**
+ * Menghasilkan klausa filter Prisma ORM untuk query dc_tender.findMany
+ * agar dokumen terfilter bertingkat sesuai tingkatan peran login.
+ */
+export const getTenderPrismaFilter = (
+  user?: { role?: string | null; email?: string | null; username?: string | null; namaLengkap?: string | null; nama?: string | null } | null
+): any => {
+  if (!user || !user.role) return { status: 'APPROVED' };
+
+  if (isApprovalAdmin(user.role)) {
+    return null;
+  }
+
+  const userEmail = (user.email || '').trim().toLowerCase();
+  const username = ((user as any).username || '').trim().toLowerCase();
+  const nama = ((user as any).nama || (user as any).namaLengkap || '').trim().toLowerCase();
+  const emailPrefix = userEmail.includes('@') ? userEmail.split('@')[0] : '';
+  const possibleIdentifiers = Array.from(new Set([userEmail, username, nama, emailPrefix].filter(Boolean)));
+
+  const visibleStatuses = getTenderVisibleStatuses(user.role);
+  if (visibleStatuses === 'ALL') return null;
+
+  return {
+    OR: [
+      {
+        created_by: {
+          in: possibleIdentifiers,
+          mode: 'insensitive',
+        },
+      },
+      {
+        status: {
+          in: visibleStatuses,
+        },
+      },
+    ],
+  };
+};
+
+/**
+ * Memeriksa apakah peran pengguna adalah DC Building & Development Manager
+ */
+export const isDcBuildingManager = (userRole?: string | null): boolean => {
+  if (!userRole) return false;
+  const norm = userRole.trim().toUpperCase();
+  return (
+    norm === 'DC BUILDING & DEVELOPMENT MANAGER' ||
+    norm === 'DC BUILDING AND DEVELOPMENT MANAGER' ||
+    norm === 'DC DEVELOPMENT MANAGER' ||
+    norm === 'BUILDING & DEVELOPMENT MANAGER' ||
+    norm === 'DC MANAGER' ||
+    norm.includes('DEVELOPMENT MANAGER')
+  );
+};
+
+/**
+ * Validasi apakah user berhak melihat dokumen Undangan Aanwijzing
+ */
+export const canUserViewAanwijzing = (user: any, aanwijzing: any): boolean => {
+  if (!user) return false;
+  const role = (user.role || '').trim().toUpperCase();
+
+  // Admin dan Direksi Nasional berhak melihat semua
+  if (isApprovalAdmin(role) || role.includes('DIRECTOR')) {
+    return true;
+  }
+
+  // Jika Kontraktor/Konsultan/Rekanan Eksternal: hanya berhak melihat jika perusahaannya termasuk dalam daftar peserta
+  if (isExternalPartnerRole(role)) {
+    const userEmail = (user.email || '').trim().toLowerCase();
+    const userPt = ((user.nama_pt || '') as string).trim().toLowerCase();
+    
+    const isParticipant = (aanwijzing.peserta || []).some((p: any) => {
+      const pEmail = (p.email || p.vendor?.email || '').trim().toLowerCase();
+      const pName = (p.vendor?.nama_perusahaan || '').trim().toLowerCase();
+      return (userEmail && pEmail === userEmail) || (userPt && pName.includes(userPt));
+    });
+    return isParticipant;
+  }
+
+  // Pemeriksaan coverage cabang
+  const userCoverage = getUserCoverageBranches(user);
+  const targetBranch = (aanwijzing.cabang || aanwijzing.project?.cabang || '').trim().toUpperCase();
+  if (!isBranchAccessible(targetBranch, userCoverage)) {
+    return false;
+  }
+
+  // DC Building Manager: berhak melihat semua berkas di cabangnya, terutama saat antrean MENUNGGU_APPROVAL_DC_MANAGER
+  if (isDcBuildingManager(role)) {
+    return true;
+  }
+
+  // Pembuat dokumen (Maker)
+  if (isSameCreator(user, aanwijzing.created_by)) {
+    return true;
+  }
+
+  // Status publik di internal (setelah selesai/lanjut atau on hold)
+  return true;
+};
+
+/**
+ * Validasi apakah user berhak melakukan tindakan approval pada Undangan Aanwijzing
+ * (Khusus proyek < 1M dengan peserta hadir < 3 orang berstatus MENUNGGU_APPROVAL_DC_MANAGER)
+ */
+export const canUserApproveAanwijzing = (user: any, aanwijzing: any): boolean => {
+  if (!user || !aanwijzing) return false;
+  if (aanwijzing.status !== 'MENUNGGU_APPROVAL_DC_MANAGER') return false;
+
+  const role = (user.role || '').trim().toUpperCase();
+  if (isApprovalAdmin(role)) return true;
+
+  if (isDcBuildingManager(role)) {
+    const userCoverage = getUserCoverageBranches(user);
+    const targetBranch = (aanwijzing.cabang || aanwijzing.project?.cabang || '').trim().toUpperCase();
+    return isBranchAccessible(targetBranch, userCoverage);
+  }
+
+  return false;
+};
 

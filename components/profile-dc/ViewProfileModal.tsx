@@ -68,13 +68,26 @@ export function ViewProfileModal({ open, onOpenChange, profile }: ViewProfileMod
               {profile.nama_proyek}
             </h1>
             
-            <div className="flex items-center gap-6 text-[#666666] text-[14px] font-medium">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[#666666] text-[14px] font-medium">
               <span className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-[#A1A1A1]" /> Cabang {profile.cabang}
               </span>
               <span className="flex items-center gap-2">
                 ID: {profile.kode} {profile.inisial ? `(${profile.inisial})` : ''}
               </span>
+            </div>
+
+            {/* Display Alamat Proyek */}
+            <div className="mt-4 p-4 rounded-2xl bg-[#F9F9F9] border border-[#EAEAEA] flex items-start gap-3">
+              <MapPin className="w-4 h-4 text-[#E65F2B] shrink-0 mt-0.5" />
+              <div>
+                <span className="text-[11px] font-bold text-[#878787] uppercase tracking-wider block mb-0.5">
+                  Alamat Proyek / Lokasi DC
+                </span>
+                <p className="text-[14px] font-semibold text-[#111111] leading-relaxed">
+                  {profile.alamat || <span className="text-[#A1A1A1] italic font-normal">Belum ada alamat yang ditentukan. Silakan lengkapi lewat tombol Edit.</span>}
+                </p>
+              </div>
             </div>
           </div>
 

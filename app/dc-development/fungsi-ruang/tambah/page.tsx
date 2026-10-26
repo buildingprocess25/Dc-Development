@@ -38,14 +38,12 @@ export default function TambahFungsiRuangPage() {
 
   const [approvedProjects, setApprovedProjects] = useState<any[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [masterPemohonList, setMasterPemohonList] = useState<any[]>([]);
+  const [loadingPemohon, setLoadingPemohon] = useState(true);
 
   // Form State
   const [selectedRenovasiId, setSelectedRenovasiId] = useState<string>("");
-  const [namaPemohon, setNamaPemohon] = useState("");
-  const [emailPemohon, setEmailPemohon] = useState("");
-  const [jabatan, setJabatan] = useState("");
-  const [divisi, setDivisi] = useState("");
-  const [departemen, setDepartemen] = useState("");
+  const [selectedPemohonId, setSelectedPemohonId] = useState<string>("");
   const [jenisPengajuan, setJenisPengajuan] = useState("");
   const [alasanPengajuan, setAlasanPengajuan] = useState("");
 
@@ -66,7 +64,7 @@ export default function TambahFungsiRuangPage() {
   // User Coverage Branch
   const userCoverageBranches = useMemo(() => getUserCoverageBranches(user), [user]);
 
-  // Load Approved Projects
+  // Load Approved Projects & Master Pemohon
   useEffect(() => {
     const fetchApprovedProjects = async () => {
       try {
@@ -83,7 +81,23 @@ export default function TambahFungsiRuangPage() {
       }
     };
 
+    const fetchMasterPemohon = async () => {
+      try {
+        setLoadingPemohon(true);
+        const res = await fetch("/api/dc-development/master-pemohon");
+        const json = await res.json();
+        if (res.ok && json.status === "success") {
+          setMasterPemohonList(json.data || []);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil master data pemohon:", err);
+      } finally {
+        setLoadingPemohon(false);
+      }
+    };
+
     fetchApprovedProjects();
+    fetchMasterPemohon();
   }, []);
 
   // Filter projects based on user's branch coverage
@@ -117,8 +131,11 @@ export default function TambahFungsiRuangPage() {
   const projectOptions = useMemo(() => {
     return accessibleProjects.map((p) => {
       const isLocked = Boolean(p.active_fungsi_ruang);
+      const isApproved = p.active_fungsi_ruang?.status === "APPROVED";
       const statusTag = isLocked
-        ? ` — [🔒 TERKUNCI: ${p.active_fungsi_ruang?.status}]`
+        ? isApproved
+          ? ` — [🔒 TERKUNCI: APPROVED]`
+          : ` — [🔒 TERKUNCI: ${p.active_fungsi_ruang?.status}]`
         : "";
 
       return {
@@ -127,6 +144,27 @@ export default function TambahFungsiRuangPage() {
       };
     });
   }, [accessibleProjects]);
+
+  // Options for ComboBox Master Pemohon (difilter per cabang coverage / cabang proyek)
+  const pemohonOptions = useMemo(() => {
+    const targetCabang = (selectedRenovasi?.cabang || "").toUpperCase();
+    const filtered = targetCabang
+      ? masterPemohonList.filter((p) => (p.cabang || "").toUpperCase() === targetCabang)
+      : masterPemohonList;
+
+    const displayList = filtered.length > 0 ? filtered : masterPemohonList;
+
+    return displayList.map((p) => ({
+      value: String(p.id),
+      label: `${p.nama_pemohon} — ${p.jabatan} (${p.departemen}${p.cabang ? ` - Cabang ${p.cabang}` : ""})`,
+    }));
+  }, [masterPemohonList, selectedRenovasi]);
+
+  // Selected Pemohon Detail
+  const selectedPemohon = useMemo(() => {
+    if (!selectedPemohonId) return null;
+    return masterPemohonList.find((p) => String(p.id) === String(selectedPemohonId)) || null;
+  }, [selectedPemohonId, masterPemohonList]);
 
   // Options for ComboBox Jenis Pengajuan
   const jenisPengajuanOptions = useMemo(
@@ -138,27 +176,6 @@ export default function TambahFungsiRuangPage() {
     ],
     []
   );
-
-  // Handler Auto-format Title Case & Email Lowercase on Blur
-  const handleNamaBlur = () => {
-    if (namaPemohon) setNamaPemohon(toTitleCase(namaPemohon));
-  };
-
-  const handleEmailBlur = () => {
-    if (emailPemohon) setEmailPemohon(emailPemohon.trim().toLowerCase());
-  };
-
-  const handleJabatanBlur = () => {
-    if (jabatan) setJabatan(toTitleCase(jabatan));
-  };
-
-  const handleDivisiBlur = () => {
-    if (divisi) setDivisi(toTitleCase(divisi));
-  };
-
-  const handleDepartemenBlur = () => {
-    if (departemen) setDepartemen(toTitleCase(departemen));
-  };
 
   const handleAlasanBlur = () => {
     if (alasanPengajuan) setAlasanPengajuan(toTitleCase(alasanPengajuan));
@@ -175,14 +192,17 @@ export default function TambahFungsiRuangPage() {
     }
 
     if (isProjectLocked && selectedRenovasi?.active_fungsi_ruang) {
+      const isApproved = selectedRenovasi.active_fungsi_ruang.status === "APPROVED";
       setErrorMsg(
-        `Proyek ini sedang terkunci karena memiliki pengajuan fungsi ruang aktif (${selectedRenovasi.active_fungsi_ruang.nomor_pengajuan}) dengan status "${selectedRenovasi.active_fungsi_ruang.status}". Pengajuan baru tidak dapat dibuat hingga proses sebelumnya selesai.`
+        isApproved
+          ? `Proyek ini sudah memiliki pengajuan fungsi ruang (${selectedRenovasi.active_fungsi_ruang.nomor_pengajuan}) yang telah disetujui (APPROVED). Pengajuan baru tidak dapat dibuat untuk proyek yang sama.`
+          : `Proyek ini sedang terkunci karena memiliki pengajuan fungsi ruang aktif (${selectedRenovasi.active_fungsi_ruang.nomor_pengajuan}) dengan status "${selectedRenovasi.active_fungsi_ruang.status}". Pengajuan baru tidak dapat dibuat hingga proses sebelumnya selesai.`
       );
       return;
     }
 
-    if (!namaPemohon.trim() || !emailPemohon.trim() || !jabatan.trim() || !divisi.trim() || !departemen.trim()) {
-      setErrorMsg("Seluruh data identitas pemohon wajib diisi.");
+    if (!selectedPemohonId) {
+      setErrorMsg("Silakan pilih identitas pemohon dari master data pemohon.");
       return;
     }
 
@@ -200,11 +220,7 @@ export default function TambahFungsiRuangPage() {
       setIsSubmitting(true);
       const payload = {
         renovasi_id: parseInt(selectedRenovasiId, 10),
-        nama_pemohon: toTitleCase(namaPemohon),
-        email_pemohon: emailPemohon.trim().toLowerCase(),
-        jabatan: toTitleCase(jabatan),
-        divisi: toTitleCase(divisi),
-        departemen: toTitleCase(departemen),
+        pemohon_id: parseInt(selectedPemohonId, 10),
         jenis_pengajuan: jenisPengajuan,
         alasan_pengajuan: toTitleCase(alasanPengajuan),
       };
@@ -357,7 +373,9 @@ export default function TambahFungsiRuangPage() {
                       </span>
                     </div>
                     <p className="text-xs text-amber-900/90 leading-relaxed">
-                      Proyek DC ini saat ini sedang memiliki pengajuan fungsi ruang aktif yang sedang dalam proses approval atau revisi. Pengajuan fungsi ruang baru tidak dapat dibuat untuk proyek ini hingga proses pengajuan sebelumnya selesai.
+                      {selectedRenovasi.active_fungsi_ruang.status === "APPROVED"
+                        ? `Proyek DC ini sudah memiliki pengajuan fungsi ruang (${selectedRenovasi.active_fungsi_ruang.nomor_pengajuan}) yang telah disetujui (APPROVED). Pengajuan baru tidak dapat dibuat untuk proyek yang sama.`
+                        : `Proyek DC ini saat ini sedang memiliki pengajuan fungsi ruang aktif yang sedang dalam proses approval atau revisi (${selectedRenovasi.active_fungsi_ruang.nomor_pengajuan}). Pengajuan fungsi ruang baru tidak dapat dibuat untuk proyek ini hingga proses pengajuan sebelumnya selesai.`}
                     </p>
                     <div className="flex items-center gap-2 mt-2 text-[11px] text-amber-800/80">
                       <span>Pemohon: <b>{selectedRenovasi.active_fungsi_ruang.nama_pemohon || selectedRenovasi.active_fungsi_ruang.created_by}</b></span>
@@ -466,106 +484,92 @@ export default function TambahFungsiRuangPage() {
             </div>
           </div>
 
-          {/* Section 2: Identitas Pemohon */}
+          {/* Section 2: Identitas Pemohon (Master Data) */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-[#E65F2B]" />
                 <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  2. Identitas Pemohon
+                  2. Identitas Pemohon (Master Data)
                 </h2>
               </div>
-              {user && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (user.namaLengkap) setNamaPemohon(toTitleCase(user.namaLengkap));
-                    if (user.email) setEmailPemohon(user.email.toLowerCase());
-                    if (user.role) setJabatan(toTitleCase(user.role));
-                  }}
-                  className="text-[11px] font-semibold text-[#E65F2B] hover:text-[#d04f1f] hover:underline cursor-pointer"
-                >
-                  Gunakan Data Profil Saya
-                </button>
-              )}
+              <span className="text-[11px] text-slate-400 font-medium">
+                Pilih dari Master Pemohon
+              </span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Nama Pemohon */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">
-                  Nama Pemohon <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  placeholder="Contoh: Budi Santoso"
-                  value={namaPemohon}
-                  onChange={(e) => setNamaPemohon(e.target.value)}
-                  onBlur={handleNamaBlur}
-                  disabled={isSubmitting}
-                  className="h-10 text-xs rounded-xl border-slate-200 focus-visible:ring-[#E65F2B]"
-                />
-              </div>
 
-              {/* Email Pemohon */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">
-                  Email Pemohon <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  type="email"
-                  placeholder="Contoh: budi.santoso@sat.co.id"
-                  value={emailPemohon}
-                  onChange={(e) => setEmailPemohon(e.target.value.toLowerCase())}
-                  onBlur={handleEmailBlur}
-                  disabled={isSubmitting}
-                  className="h-10 text-xs rounded-xl border-slate-200 focus-visible:ring-[#E65F2B] font-mono lowercase"
-                />
-              </div>
-
-              {/* Jabatan */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">
-                  Jabatan <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  placeholder="Contoh: Warehouse Coordinator"
-                  value={jabatan}
-                  onChange={(e) => setJabatan(e.target.value)}
-                  onBlur={handleJabatanBlur}
-                  disabled={isSubmitting}
-                  className="h-10 text-xs rounded-xl border-slate-200 focus-visible:ring-[#E65F2B]"
-                />
-              </div>
-
-              {/* Divisi */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">
-                  Divisi <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  placeholder="Contoh: Operation Division"
-                  value={divisi}
-                  onChange={(e) => setDivisi(e.target.value)}
-                  onBlur={handleDivisiBlur}
-                  disabled={isSubmitting}
-                  className="h-10 text-xs rounded-xl border-slate-200 focus-visible:ring-[#E65F2B]"
-                />
-              </div>
-
-              {/* Departemen */}
-              <div className="md:col-span-2">
-                <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">
-                  Departemen <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  placeholder="Contoh: Distribution Center Department"
-                  value={departemen}
-                  onChange={(e) => setDepartemen(e.target.value)}
-                  onBlur={handleDepartemenBlur}
-                  disabled={isSubmitting}
-                  className="h-10 text-xs rounded-xl border-slate-200 focus-visible:ring-[#E65F2B]"
-                />
-              </div>
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">
+                Pilih Pemohon <span className="text-rose-500">*</span>
+              </label>
+              <SearchableSelectInput
+                value={selectedPemohonId}
+                onChange={(val) => setSelectedPemohonId(val)}
+                options={pemohonOptions}
+                placeholder="Cari nama pemohon, jabatan, atau departemen..."
+              />
             </div>
+
+            {/* Detail Profil Pemohon Terpilih */}
+            {selectedPemohon && (
+              <div className="bg-slate-50/60 border border-slate-200/90 rounded-xl p-4.5 space-y-3.5 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
+                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+                    Rincian Identitas Pemohon
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    Terverifikasi Master
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 text-xs">
+                  <div>
+                    <span className="text-[11px] text-slate-400 block font-medium">Nama Pemohon</span>
+                    <span className="text-xs font-bold text-slate-900 mt-0.5 block">{selectedPemohon.nama_pemohon}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 block font-medium">Email Pemohon</span>
+                    <span className="text-xs font-semibold text-slate-800 mt-0.5 block font-mono">{selectedPemohon.email_pemohon}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 block font-medium">Jabatan & Cabang</span>
+                    <span className="text-xs font-semibold text-slate-800 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                      <span>{selectedPemohon.jabatan}</span>
+                      {selectedPemohon.cabang && (
+                        <span className="text-[10px] font-bold text-orange-800 bg-orange-100/90 border border-orange-200 px-1.5 py-0.2 rounded">
+                          Cabang {selectedPemohon.cabang}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 block font-medium">Divisi</span>
+                    <span className="text-xs font-semibold text-slate-800 mt-0.5 block">{selectedPemohon.divisi}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 block font-medium">Departemen</span>
+                    <span className="text-xs font-semibold text-slate-800 mt-0.5 block">{selectedPemohon.departemen}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 block font-medium">
+                      {selectedPemohon.gm_role || "Approval GM Dept"}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-800 mt-0.5 block">
+                      {selectedPemohon.gm_nama || "-"} <span className="text-[10px] text-slate-400 block font-mono font-normal">{selectedPemohon.gm_email}</span>
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2 md:col-span-3 pt-2 border-t border-slate-200/50">
+                    <span className="text-[11px] text-slate-400 block font-medium">
+                      {selectedPemohon.direktur_role || "Approval Director Dept"}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-800 mt-0.5 block">
+                      {selectedPemohon.direktur_nama || "-"} <span className="text-[10px] text-slate-400 inline font-mono font-normal">({selectedPemohon.direktur_email})</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Section 3: Jenis & Alasan Pengajuan */}

@@ -50,14 +50,18 @@ export async function GET() {
             fungsi_ruang: {
               where: {
                 status: {
-                  not: 'APPROVED',
+                  not: 'DITOLAK',
                 },
               },
               select: {
                 id: true,
                 nomor_pengajuan: true,
                 status: true,
-                nama_pemohon: true,
+                pemohon: {
+                  select: {
+                    nama_pemohon: true,
+                  },
+                },
                 created_by: true,
                 created_at: true,
               },
@@ -69,14 +73,18 @@ export async function GET() {
         fungsi_ruang: {
           where: {
             status: {
-              not: 'APPROVED',
+              not: 'DITOLAK',
             },
           },
           select: {
             id: true,
             nomor_pengajuan: true,
             status: true,
-            nama_pemohon: true,
+            pemohon: {
+              select: {
+                nama_pemohon: true,
+              },
+            },
             created_by: true,
             created_at: true,
           },
@@ -98,9 +106,16 @@ export async function GET() {
     return NextResponse.json({
       status: 'success',
       data: filtered.map((r) => {
-        const active =
+        const activeRaw =
           (r.fungsi_ruang && r.fungsi_ruang.length > 0 ? r.fungsi_ruang[0] : null) ||
           (r.project?.fungsi_ruang && r.project.fungsi_ruang.length > 0 ? r.project.fungsi_ruang[0] : null);
+
+        const active = activeRaw
+          ? {
+              ...activeRaw,
+              nama_pemohon: activeRaw.pemohon?.nama_pemohon || null,
+            }
+          : null;
 
         const projectData = r.project ? {
           id: r.project.id,

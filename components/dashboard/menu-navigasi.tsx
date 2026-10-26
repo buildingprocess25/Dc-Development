@@ -16,12 +16,14 @@ import {
   ClipboardCheck,
   FolderKanban,
   LayoutGrid,
+  Building2,
+  FileSignature,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/context/SessionContext";
 import { canAccessApprovalNavigation } from "@/lib/permissions";
 
-export type DcMenuId = "dc-profile" | "dc-documents" | "manajemen-user" | "master-harga" | "katalog-harga" | "renovasi-dc" | "fungsi-ruang" | "approval" | "daftar-dokumen";
+export type DcMenuId = "dc-profile" | "dc-documents" | "manajemen-user" | "master-harga" | "katalog-harga" | "renovasi-dc" | "fungsi-ruang" | "tender-kontraktor" | "undangan-aanwijzing" | "approval" | "daftar-dokumen" | "master-kontraktor";
 
 export type DcMenuItem = {
   id: DcMenuId;
@@ -34,10 +36,13 @@ export type DcMenuItem = {
 export const dcMenus: DcMenuItem[] = [
   { id: "renovasi-dc", title: "Penawaran RAB/OE", href: "/dc-development/renovasi", icon: HardHat, group: "Proyek & Transaksi" },
   { id: "fungsi-ruang", title: "Perubahan Fungsi Ruang", href: "/dc-development/fungsi-ruang", icon: LayoutGrid, group: "Proyek & Transaksi" },
+  { id: "tender-kontraktor", title: "Pengajuan Proposal Tender", href: "/dc-development/tender", icon: FileSignature, group: "Proyek & Transaksi" },
+  { id: "undangan-aanwijzing", title: "Undangan Aanwijzing", href: "/dc-development/undangan-aanwijzing", icon: ClipboardCheck, group: "Proyek & Transaksi" },
   { id: "approval", title: "Approval", href: "/dc-development/approval", icon: ClipboardCheck, group: "Proyek & Transaksi" },
   { id: "dc-profile", title: "Profile DC", href: "/dc-development/profile", icon: Database, group: "Master Data" },
   { id: "dc-documents", title: "Dokumen DC", href: "/dc-development/dokumen-dc", icon: FolderArchive, group: "Master Data" },
   { id: "master-harga", title: "Master Harga", href: "/dc-development/master-harga", icon: Calculator, group: "Master Data" },
+  { id: "master-kontraktor", title: "Master Kontraktor", href: "/dc-development/master-kontraktor", icon: Building2, group: "Master Data" },
   { id: "daftar-dokumen", title: "Daftar Dokumen", href: "/dc-development/daftar-dokumen", icon: FolderKanban, group: "Laporan & Katalog" },
   { id: "katalog-harga", title: "Katalog Harga", href: "/dc-development/master-harga/katalog", icon: BadgeCheck, group: "Laporan & Katalog" },
   { id: "manajemen-user", title: "Manajemen User", href: "/dc-development/manajemen-user", icon: Users, group: "Administrator" },
@@ -100,8 +105,17 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
       if (menu.id === "fungsi-ruang") {
         return isAll || userMenus.includes("fungsi-ruang") || userMenus.includes("renovasi-dc");
       }
+      if (menu.id === "tender-kontraktor") {
+        return isAll || userMenus.includes("tender-kontraktor") || userMenus.includes("fungsi-ruang") || userMenus.includes("renovasi-dc");
+      }
+      if (menu.id === "undangan-aanwijzing") {
+        return isAll || userMenus.includes("undangan-aanwijzing") || userMenus.includes("tender-kontraktor") || userMenus.includes("fungsi-ruang") || userMenus.includes("renovasi-dc") || role === 'KONTRAKTOR' || role === 'VENDOR';
+      }
       if (menu.id === "daftar-dokumen") {
         return isAll || userMenus.includes("daftar-dokumen") || userMenus.includes("renovasi-dc") || userMenus.includes("dc-documents") || userMenus.includes("fungsi-ruang");
+      }
+      if (menu.id === "master-kontraktor") {
+        return isAll || userMenus.includes("master-kontraktor") || userMenus.includes("master-harga") || userMenus.includes("renovasi-dc");
       }
       if (isAll) return true;
       if (userMenus.includes(menu.id)) return true;
@@ -181,8 +195,8 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
                       return (
                         <Link key={item.title} href={item.href} onClick={() => { if (window.innerWidth <= 768) setSidebarOpen(false); }}>
                           <div className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 ${isActive
-                              ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
-                              : "text-gray-400 hover:bg-white/5 hover:text-white"
+                            ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
+                            : "text-gray-400 hover:bg-white/5 hover:text-white"
                             }`}>
                             <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors ${isActive ? "text-[#E65F2B]" : "text-gray-500 group-hover:text-[#E65F2B]"}`}>
                               <Icon className="h-3.5 w-3.5" />

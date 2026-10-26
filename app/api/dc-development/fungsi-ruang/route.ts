@@ -47,9 +47,11 @@ export async function GET(request: Request) {
       andConditions.push({
         OR: [
           { nomor_pengajuan: { contains: search, mode: 'insensitive' } },
-          { nama_pemohon: { contains: search, mode: 'insensitive' } },
-          { email_pemohon: { contains: search, mode: 'insensitive' } },
-          { jabatan: { contains: search, mode: 'insensitive' } },
+          { pemohon: { nama_pemohon: { contains: search, mode: 'insensitive' } } },
+          { pemohon: { email_pemohon: { contains: search, mode: 'insensitive' } } },
+          { pemohon: { jabatan: { contains: search, mode: 'insensitive' } } },
+          { pemohon: { departemen: { contains: search, mode: 'insensitive' } } },
+          { pemohon: { divisi: { contains: search, mode: 'insensitive' } } },
           { jenis_pengajuan: { contains: search, mode: 'insensitive' } },
           { project: { cabang: { contains: search, mode: 'insensitive' } } },
           { project: { nama_proyek: { contains: search, mode: 'insensitive' } } },
@@ -63,6 +65,7 @@ export async function GET(request: Request) {
     const list = await prisma.dc_fungsi_ruang.findMany({
       where,
       include: {
+        pemohon: true,
         project: {
           select: {
             id: true,
@@ -76,6 +79,7 @@ export async function GET(request: Request) {
           select: {
             id: true,
             nomor_pengajuan: true,
+            grand_total: true,
             cabang: true,
             status: true,
           },
@@ -140,11 +144,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       renovasi_id,
-      nama_pemohon,
-      email_pemohon,
-      jabatan,
-      divisi,
-      departemen,
+      pemohon_id,
       jenis_pengajuan,
       alasan_pengajuan,
     } = body;
@@ -156,10 +156,21 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!nama_pemohon?.trim() || !email_pemohon?.trim() || !jabatan?.trim() || !divisi?.trim() || !departemen?.trim()) {
+    if (!pemohon_id) {
       return NextResponse.json(
-        { status: 'error', message: 'Seluruh identitas pemohon wajib diisi' },
+        { status: 'error', message: 'Identitas pemohon dari master data wajib dipilih' },
         { status: 400 }
+      );
+    }
+
+    const masterPemohon = await prisma.dc_master_pemohon.findUnique({
+      where: { id: parseInt(String(pemohon_id), 10) },
+    });
+
+    if (!masterPemohon) {
+      return NextResponse.json(
+        { status: 'error', message: 'Data master pemohon tidak ditemukan' },
+        { status: 404 }
       );
     }
 
@@ -200,7 +211,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Cek apakah proyek renovasi atau proyek DC ini sedang memiliki pengajuan fungsi ruang yang aktif (proses approval atau revisi)
+    // Cek apakah proyek renovasi atau proyek DC ini sedang memiliki pengajuan fungsi ruang yang aktif (proses approval atau sudah approved)
     const activeFungsiRuang = await prisma.dc_fungsi_ruang.findFirst({
       where: {
         OR: [
@@ -208,7 +219,7 @@ export async function POST(request: Request) {
           { project_id: renovasi.project_id },
         ],
         status: {
-          not: 'APPROVED',
+          not: 'DITOLAK',
         },
       },
       select: {
@@ -220,10 +231,13 @@ export async function POST(request: Request) {
     });
 
     if (activeFungsiRuang) {
+      const isApproved = activeFungsiRuang.status === 'APPROVED';
       return NextResponse.json(
         {
           status: 'error',
-          message: `Proyek renovasi ini sedang memiliki pengajuan perubahan fungsi ruang aktif (${activeFungsiRuang.nomor_pengajuan}) dengan status "${activeFungsiRuang.status}". Pengajuan baru tidak dapat dibuat hingga proses sebelumnya selesai.`,
+          message: isApproved
+            ? `Proyek renovasi ini sudah memiliki pengajuan perubahan fungsi ruang (${activeFungsiRuang.nomor_pengajuan}) yang telah disetujui (APPROVED). Pengajuan baru tidak dapat dibuat untuk proyek yang sama.`
+            : `Proyek renovasi ini sedang memiliki pengajuan perubahan fungsi ruang aktif (${activeFungsiRuang.nomor_pengajuan}) dengan status "${activeFungsiRuang.status}". Pengajuan baru tidak dapat dibuat hingga proses sebelumnya selesai.`,
         },
         { status: 400 }
       );
@@ -250,13 +264,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Sanitasi teks (Title Case untuk input teks bebas, lowercase untuk email)
+    // Sanitasi teks (Title Case untuk input teks bebas)
     const sanitized = sanitizeFungsiRuangInput({
-      nama_pemohon,
-      email_pemohon,
-      jabatan,
-      divisi,
-      departemen,
+      nama_pemohon: masterPemohon.nama_pemohon,
+      email_pemohon: masterPemohon.email_pemohon,
+      jabatan: masterPemohon.jabatan,
+      divisi: masterPemohon.divisi,
+      departemen: masterPemohon.departemen,
       jenis_pengajuan,
       alasan_pengajuan,
     });
@@ -272,17 +286,14 @@ export async function POST(request: Request) {
         nomor_pengajuan: nomorPengajuan,
         renovasi_id: renovasi.id,
         project_id: renovasi.project_id,
-        nama_pemohon: sanitized.nama_pemohon,
-        email_pemohon: sanitized.email_pemohon,
-        jabatan: sanitized.jabatan,
-        divisi: sanitized.divisi,
-        departemen: sanitized.departemen,
+        pemohon_id: masterPemohon.id,
         jenis_pengajuan: sanitized.jenis_pengajuan,
         alasan_pengajuan: sanitized.alasan_pengajuan,
         status: 'MENUNGGU APPROVAL BM/DBM',
         created_by: session.email || 'SYSTEM',
       },
       include: {
+        pemohon: true,
         project: true,
         renovasi: true,
       },
@@ -298,8 +309,8 @@ export async function POST(request: Request) {
         aksi: 'CREATE_SUBMISSION',
         data_baru: {
           nomor_pengajuan: newSubmission.nomor_pengajuan,
-          nama_pemohon: newSubmission.nama_pemohon,
-          email_pemohon: newSubmission.email_pemohon,
+          nama_pemohon: masterPemohon.nama_pemohon,
+          email_pemohon: masterPemohon.email_pemohon,
           status: newSubmission.status,
           project: newSubmission.project?.nama_proyek,
         },

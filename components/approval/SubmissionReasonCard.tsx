@@ -59,6 +59,9 @@ export default function SubmissionReasonCard({
       if (typeof data.catatan === "string" && data.catatan.trim()) {
         return getInitialSubmissionReason(data.catatan);
       }
+      if (typeof data.catatan_maker === "string" && data.catatan_maker.trim()) {
+        return data.catatan_maker.trim();
+      }
     }
     return null;
   }, [explicitReason, data]);

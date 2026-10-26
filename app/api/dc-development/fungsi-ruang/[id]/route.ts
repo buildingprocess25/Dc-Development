@@ -6,6 +6,7 @@ import { isApprovalAdmin, isSameCreator, canManageFungsiRuang, canUserViewFungsi
 import { sanitizeFungsiRuangInput } from '@/lib/fungsi-ruang/utils';
 import { syncFungsiRuangPdfToDrive } from '@/lib/fungsi-ruang-sync';
 import { getDriveClient } from '@/lib/google-drive';
+import { findDepartmentApprovers } from '@/lib/department-roles';
 
 export async function GET(
   request: Request,
@@ -26,6 +27,7 @@ export async function GET(
     const submission = await prisma.dc_fungsi_ruang.findUnique({
       where: { id: submissionId },
       include: {
+        pemohon: true,
         project: true,
         renovasi: true,
       },
@@ -66,10 +68,32 @@ export async function GET(
       orderBy: { created_at: 'asc' },
     });
 
+    let enrichedPemohon: any = submission.pemohon;
+    if (submission.pemohon) {
+      const allUsers = await prisma.dc_users.findMany({
+        select: { email: true, nama: true, role: true },
+      });
+      const { gm, director } = findDepartmentApprovers(
+        allUsers,
+        submission.pemohon.departemen,
+        submission.pemohon.divisi
+      );
+      enrichedPemohon = {
+        ...submission.pemohon,
+        gm_nama: gm?.nama || null,
+        gm_email: gm?.email || null,
+        gm_role: gm?.role || null,
+        direktur_nama: director?.nama || null,
+        direktur_email: director?.email || null,
+        direktur_role: director?.role || null,
+      };
+    }
+
     return NextResponse.json({
       status: 'success',
       data: {
         ...submission,
+        pemohon: enrichedPemohon,
         audit_logs: auditLogs,
       },
     });
@@ -157,7 +181,7 @@ export async function DELETE(
         aksi: 'DELETE_SUBMISSION',
         data_lama: {
           nomor_pengajuan: existing.nomor_pengajuan,
-          nama_pemohon: existing.nama_pemohon,
+          pemohon_id: existing.pemohon_id,
         },
       },
     });
@@ -193,7 +217,7 @@ export async function PUT(
 
     const existing = await prisma.dc_fungsi_ruang.findUnique({
       where: { id: submissionId },
-      include: { project: true },
+      include: { project: true, pemohon: true },
     });
 
     if (!existing) {
@@ -220,34 +244,20 @@ export async function PUT(
 
     const body = await request.json();
     const {
-      nama_pemohon,
-      email_pemohon,
-      jabatan,
-      divisi,
-      departemen,
+      pemohon_id,
       jenis_pengajuan,
       alasan_pengajuan,
     } = body;
 
-    const sanitized = sanitizeFungsiRuangInput({
-      nama_pemohon,
-      email_pemohon,
-      jabatan,
-      divisi,
-      departemen,
-      jenis_pengajuan,
-      alasan_pengajuan,
-    });
+    const newPemohonId = pemohon_id ? parseInt(String(pemohon_id), 10) : existing.pemohon_id;
+    const cleanJenis = (jenis_pengajuan || existing.jenis_pengajuan).trim();
+    const cleanAlasan = (alasan_pengajuan || existing.alasan_pengajuan).trim();
 
     // Validasi bahwa pengajuan revisi wajib mengubah minimal satu data/rincian pengajuan
     const isUnchanged =
-      existing.nama_pemohon.trim() === sanitized.nama_pemohon.trim() &&
-      existing.email_pemohon.trim().toLowerCase() === sanitized.email_pemohon.trim().toLowerCase() &&
-      existing.jabatan.trim() === sanitized.jabatan.trim() &&
-      existing.divisi.trim() === sanitized.divisi.trim() &&
-      existing.departemen.trim() === sanitized.departemen.trim() &&
-      existing.jenis_pengajuan.trim() === sanitized.jenis_pengajuan.trim() &&
-      existing.alasan_pengajuan.trim() === sanitized.alasan_pengajuan.trim();
+      existing.pemohon_id === newPemohonId &&
+      existing.jenis_pengajuan.trim() === cleanJenis &&
+      existing.alasan_pengajuan.trim() === cleanAlasan;
 
     if (isUnchanged) {
       return NextResponse.json(
@@ -263,16 +273,13 @@ export async function PUT(
     const updated = await prisma.dc_fungsi_ruang.update({
       where: { id: submissionId },
       data: {
-        nama_pemohon: sanitized.nama_pemohon,
-        email_pemohon: sanitized.email_pemohon,
-        jabatan: sanitized.jabatan,
-        divisi: sanitized.divisi,
-        departemen: sanitized.departemen,
-        jenis_pengajuan: sanitized.jenis_pengajuan,
-        alasan_pengajuan: sanitized.alasan_pengajuan,
+        pemohon_id: newPemohonId,
+        jenis_pengajuan: cleanJenis,
+        alasan_pengajuan: cleanAlasan,
         status: 'MENUNGGU APPROVAL BM/DBM',
       },
       include: {
+        pemohon: true,
         project: true,
         renovasi: true,
       },

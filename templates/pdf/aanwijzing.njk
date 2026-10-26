@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Surat Undangan Aanwijzing - {{ aanwijzing.nomor_undangan }}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 15mm 12mm 15mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 10px;
+      color: #1f2937;
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+      position: relative;
+      line-height: 1.4;
+    }
+
+    /* Header Banner Orange Standar SPARTA */
+    .header-main {
+      background-color: #E65F2B;
+      color: #ffffff;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      border-radius: 4px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .header-alfamart-logo {
+      height: 32px;
+      margin-right: 12px;
+      padding-right: 12px;
+      border-right: 2px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin: 0;
+      letter-spacing: 0.8px;
+      line-height: 1.1;
+    }
+
+    .header-subtitle {
+      font-size: 8.5px;
+      opacity: 0.9;
+      margin: 3px 0 0;
+      letter-spacing: 0.5px;
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 8.5px;
+      font-weight: bold;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      background-color: #ffffff;
+      color: #E65F2B;
+    }
+
+    /* Section Info Surat */
+    .letter-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 9.5px;
+      line-height: 1.6;
+    }
+
+    .meta-left {
+      width: 60%;
+    }
+
+    .meta-right {
+      width: 38%;
+      text-align: right;
+    }
+
+    .meta-row {
+      display: flex;
+    }
+
+    .meta-label {
+      width: 80px;
+      font-weight: bold;
+      color: #4b5563;
+    }
+
+    .meta-colon {
+      width: 12px;
+    }
+
+    .meta-val {
+      flex: 1;
+      color: #111827;
+    }
+
+    /* Pembatas Tipis */
+    .divider {
+      border-bottom: 1.5px solid #E65F2B;
+      margin: 10px 0 14px;
+    }
+
+    .salutation {
+      font-size: 9.5px;
+      margin-bottom: 10px;
+      line-height: 1.45;
+    }
+
+    .body-paragraph {
+      font-size: 9.5px;
+      text-align: justify;
+      line-height: 1.5;
+      margin-bottom: 10px;
+      color: #374151;
+    }
+
+    /* Kotak Jadwal & Lokasi */
+    .event-card {
+      background-color: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-left: 4px solid #E65F2B;
+      border-radius: 4px;
+      padding: 9px 12px;
+      margin: 10px 0 12px;
+    }
+
+    .event-row {
+      display: flex;
+      margin-bottom: 5px;
+      font-size: 9.5px;
+    }
+
+    .event-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .event-label {
+      width: 130px;
+      font-weight: bold;
+      color: #4b5563;
+      flex-shrink: 0;
+    }
+
+    .event-val {
+      font-weight: 600;
+      color: #111827;
+      flex: 1;
+    }
+
+    /* Tabel Rekanan Kontraktor */
+    .table-container {
+      margin: 10px 0 12px;
+    }
+
+    .table-title {
+      font-size: 9px;
+      font-weight: bold;
+      color: #1f2937;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9px;
+    }
+
+    th {
+      background-color: #f3f4f6;
+      color: #374151;
+      font-weight: bold;
+      padding: 5px 8px;
+      border: 1px solid #d1d5db;
+      text-align: left;
+    }
+
+    td {
+      padding: 5px 8px;
+      border: 1px solid #e5e7eb;
+      color: #1f2937;
+      vertical-align: top;
+    }
+
+    /* Box Ketentuan & Batas Waktu */
+    .notice-box {
+      background-color: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 4px;
+      padding: 7px 11px;
+      margin: 10px 0 12px;
+      font-size: 8.5px;
+      color: #92400e;
+      line-height: 1.45;
+    }
+
+    .notice-title {
+      font-weight: bold;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+    }
+
+    /* Blok Penutup & Hormat Kami (Tanpa Halaman/Kotak Tanda Tangan) */
+    .closing-block {
+      margin-top: 14px;
+      margin-bottom: 4px;
+      font-size: 9.5px;
+      line-height: 1.45;
+      color: #1f2937;
+      page-break-inside: avoid;
+    }
+
+    .closing-dept {
+      font-weight: bold;
+      color: #111827;
+      margin-top: 2px;
+    }
+
+    .closing-company {
+      font-size: 8.5px;
+      color: #4b5563;
+    }
+
+    /* Footer Dokumen */
+    .doc-footer {
+      margin-top: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 7.5px;
+      color: #9ca3af;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 5px;
+      page-break-inside: avoid;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header Banner -->
+  <div class="header-main">
+    <div class="header-left">
+      {% if alfamart_logo_path %}
+      <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
+      {% endif %}
+      <div>
+        <h1 class="header-title">
+          {% if is_kontraktor %}
+          SURAT UNDANGAN AANWIJZING
+          {% else %}
+          SURAT UNDANGAN AANWIJZING
+          {% endif %}
+        </h1>
+        <p class="header-subtitle">BUILDING &amp; MAINTENANCE DC DEVELOPMENT — PT SUMBER ALFARIA TRIJAYA, TBK.</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-badge">
+        {% if is_kontraktor %}
+        UNDANGAN RESMI
+        {% else %}
+        {{ aanwijzing.status | replace("_", " ") }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Metadata Surat -->
+  <div class="letter-meta">
+    <div class="meta-left">
+      <div class="meta-row">
+        <div class="meta-label">Nomor</div>
+        <div class="meta-colon">:</div>
+        <div class="meta-val"><strong>{{ aanwijzing.nomor_undangan }}</strong></div>
+      </div>
+      <div class="meta-row">
+        <div class="meta-label">Lampiran</div>
+        <div class="meta-colon">:</div>
+        <div class="meta-val">1 (Satu) Berkas RKS / Scope of Work</div>
+      </div>
+      <div class="meta-row">
+        <div class="meta-label">Perihal</div>
+        <div class="meta-colon">:</div>
+        <div class="meta-val"><strong>Undangan Rapat Penjelasan Pekerjaan (Aanwijzing)</strong></div>
+      </div>
+    </div>
+    <div class="meta-right">
+      <div class="meta-row" style="justify-content: flex-end;">
+        <div>{{ aanwijzing.cabang }}, {{ tgl_surat_indo }}</div>
+      </div>
+      <div class="meta-row" style="justify-content: flex-end; margin-top: 2px;">
+        <div style="color: #6b7280; font-size: 8.5px;">Kategori Nilai: <strong>{{ "Diatas 1M" if aanwijzing.kategori_nilai == "DI_ATAS_1M" else "Dibawah 1M" }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Paragraf Pembuka -->
+  {% if is_kontraktor %}
+  <div class="salutation">
+    Kepada Yth.<br>
+    <strong>Pimpinan {{ target_vendor.nama_perusahaan or "Rekanan Kontraktor Terpilih" }}</strong><br>
+    {% if target_vendor.alamat %}
+    <span style="font-weight: normal; font-size: 8.5px; color: #4b5563;">{{ target_vendor.alamat }}</span><br>
+    {% endif %}
+    Di Tempat
+  </div>
+
+  <div class="body-paragraph">
+    Dengan hormat,<br>
+    Sehubungan dengan rencana pelaksanaan pekerjaan pada fasilitas Distribution Center (DC) <strong>{{ project.nama_proyek }} ({{ project.kode }})</strong>, bersama surat ini kami mengundang <strong>{{ target_vendor.nama_perusahaan or "perusahaan Bapak/Ibu" }}</strong> untuk hadir pada rapat penjelasan teknis dan peninjauan fisik lapangan (<strong>Aanwijzing</strong>) yang akan dilaksanakan pada:
+  </div>
+  {% else %}
+  <div class="salutation">
+    Kepada Yth.<br>
+    <strong>Tim Evaluasi &amp; Panitia Pengadaan DC</strong><br>
+    <span style="font-weight: normal; font-size: 8.5px; color: #4b5563;">Branch &amp; Head Office Building &amp; Maintenance</span><br>
+    Di Tempat
+  </div>
+
+  <div class="body-paragraph">
+    Dengan hormat,<br>
+    Berikut ini adalah dokumen resmi surat undangan rapat penjelasan teknis dan peninjauan fisik lapangan (<strong>Aanwijzing</strong>) beserta daftar rekanan kontraktor yang diundang untuk pelaksanaan pekerjaan pada fasilitas Distribution Center (DC) <strong>{{ project.nama_proyek }} ({{ project.kode }})</strong>:
+  </div>
+  {% endif %}
+
+  <!-- Kotak Jadwal & Lokasi Acara -->
+  <div class="event-card">
+    <div class="event-row">
+      <div class="event-label">Hari / Tanggal</div>
+      <div class="event-val">: {{ tgl_pelaksanaan_indo }}</div>
+    </div>
+    <div class="event-row">
+      <div class="event-label">Waktu Pelaksanaan</div>
+      <div class="event-val">: {{ aanwijzing.waktu_pelaksanaan }}</div>
+    </div>
+    <div class="event-row">
+      <div class="event-label">Tempat / Lokasi</div>
+      <div class="event-val">: {{ aanwijzing.lokasi }}</div>
+    </div>
+    <div class="event-row">
+      <div class="event-label">Agenda Rapat</div>
+      <div class="event-val">: 1. Penjelasan Rencana Kerja &amp; Syarat-syarat (RKS)<br>&nbsp;&nbsp;2. Penjelasan Gambar Kerja &amp; Bill of Quantity (BoQ)<br>&nbsp;&nbsp;3. Kunjungan / Peninjauan Fisik Lapangan Proyek</div>
+    </div>
+    {% if aanwijzing.catatan %}
+    <div class="event-row">
+      <div class="event-label">Catatan Tambahan</div>
+      <div class="event-val">: {{ aanwijzing.catatan }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Sesi Daftar Rekanan Kontraktor -->
+  {% if is_kontraktor %}
+  <!-- KHUSUS KONTRAKTOR: HANYA INFORMASI KONTRAKTOR BERSANGKUTAN, TIDAK ADA NAMA KONTRAKTOR LAIN -->
+  <div class="table-container">
+    <div class="table-title">Data Rekanan Peserta Undangan:</div>
+    <table>
+      <tbody>
+        <tr>
+          <td style="width: 160px; font-weight: bold; background-color: #f9fafb;">Nama Perusahaan</td>
+          <td><strong>{{ target_vendor.nama_perusahaan or "-" }}</strong></td>
+        </tr>
+        <tr>
+          <td style="font-weight: bold; background-color: #f9fafb;">Alamat Kantor</td>
+          <td>{{ target_vendor.alamat or "-" }}</td>
+        </tr>
+        <tr>
+          <td style="font-weight: bold; background-color: #f9fafb;">Email Resmi Penerima</td>
+          <td>{{ target_peserta.email or target_vendor.email or "-" }} {% if target_vendor.nomor_telepon %}({{ target_vendor.nomor_telepon }}){% endif %}</td>
+        </tr>
+        <tr>
+          <td style="font-weight: bold; background-color: #f9fafb;">Batas Waktu Konfirmasi</td>
+          <td><strong style="color: #b45309;">{{ deadline_konfirmasi_indo }}</strong> 2x24 JAM</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <!-- INTERNAL: DAFTAR LENGKAP SEMUA KONTRAKTOR YANG DIUNDANG -->
+  <div class="table-container">
+    <div class="table-title">Daftar Rekanan Kontraktor yang Diundang:</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 28px; text-align: center;">No.</th>
+          <th>Nama Perusahaan / Rekanan</th>
+          <th>Alamat Kantor</th>
+          <th style="width: 140px;">Kontak &amp; Email</th>
+          <th style="width: 95px; text-align: center;">Status Respon</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in peserta %}
+        <tr>
+          <td style="text-align: center;">{{ loop.index }}</td>
+          <td><strong>{{ item.vendor.nama_perusahaan }}</strong></td>
+          <td>{{ item.vendor.alamat or '-' }}</td>
+          <td>{{ item.email or item.vendor.email }}<br><span style="color: #6b7280;">{{ item.vendor.nomor_telepon or '-' }}</span></td>
+          <td style="text-align: center; font-weight: bold;">
+            {% if item.status_konfirmasi == "HADIR" %}
+              <span style="color: #059669;">HADIR</span>
+            {% elif item.status_konfirmasi == "TIDAK_HADIR" %}
+              <span style="color: #dc2626;">TIDAK HADIR</span>
+            {% else %}
+              <span style="color: #d97706;">MENUNGGU</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Catatan & Ketentuan Penting -->
+  <div class="notice-box">
+    <div class="notice-title">Ketentuan &amp; Syarat Kehadiran:</div>
+    <ol style="margin: 0; padding-left: 15px;">
+      <li>Konfirmasi kehadiran wajib dilakukan melalui sistem portal SPARTA paling lambat <strong>{{ deadline_konfirmasi_indo }}</strong> (hari ke-2 pukul 24:00 WIB dari penerbitan surat undangan).</li>
+      <li>Perwakilan kontraktor yang hadir diwajibkan menggunakan Alat Pelindung Diri (APD) lengkap: Rompi K3, Helm Proyek, dan Sepatu Safety saat peninjauan fisik lapangan.</li>
+      <li>Rekanan yang tidak mengonfirmasi atau tidak hadir pada rapat Aanwijzing tanpa pemberitahuan resmi dianggap mengundurkan diri dari proses tender pekerjaan ini.</li>
+    </ol>
+  </div>
+
+  <div class="body-paragraph" style="margin-top: 8px;">
+    Demikian surat undangan ini kami sampaikan. Atas perhatian, kehadiran, dan kerja sama yang baik dari Bapak/Ibu, kami ucapkan terima kasih.
+  </div>
+
+  <!-- Penutup Resmi (Tanpa Kotak/Halaman Tanda Tangan) -->
+  <div class="closing-block">
+    <div>Hormat kami,</div>
+    <div class="closing-dept">Building &amp; Maintenance DC Development</div>
+    <div class="closing-company">PT Sumber Alfaria Trijaya, Tbk.</div>
+  </div>
+
+  <!-- Footer Dokumen -->
+  <div class="doc-footer">
+    <div>Dokumen Resmi Sistem SPARTA DC-Development — PT Sumber Alfaria Trijaya, Tbk.</div>
+    <div>Dicetak pada: {{ dicetak_pada_indo }}</div>
+  </div>
+</body>
+</html>
