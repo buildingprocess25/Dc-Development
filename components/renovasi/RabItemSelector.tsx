@@ -158,7 +158,7 @@ export function RabItemSelector({
           title={deskripsi || ""}
           className={cn(
             "h-9 w-full max-w-full min-w-0 px-3 py-1 text-xs rounded-xl border border-slate-200 bg-white hover:bg-slate-50/80 flex items-center justify-between gap-2 cursor-pointer transition-colors shadow-2xs group focus:outline-none focus:ring-2 focus:ring-[#E65F2B]/20 focus:border-[#E65F2B] overflow-hidden",
-            disabled && "opacity-50 cursor-not-allowed bg-slate-50"
+            disabled && "opacity-50 cursor-not-allowed bg-slate-50 pointer-events-none"
           )}
         >
           <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">

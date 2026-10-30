@@ -39,6 +39,10 @@ export function MultiSelectInput({
       className="text-sm"
       isOptionDisabled={(option) => disabledIds.includes(option.value) && !value.includes(option.value)}
       styles={{
+        menu: (base) => ({
+          ...base,
+          zIndex: 60,
+        }),
         control: (base, state) => ({
           ...base,
           minHeight: "44px",

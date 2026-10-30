@@ -12,6 +12,8 @@ import { DaftarAanwijzingTable } from "@/components/aanwijzing/DaftarAanwijzingT
 import { FormUndanganAanwijzingModal } from "@/components/aanwijzing/FormUndanganAanwijzingModal";
 import { DetailAanwijzingModal } from "@/components/aanwijzing/DetailAanwijzingModal";
 import { KonfirmasiKehadiranModal } from "@/components/aanwijzing/KonfirmasiKehadiranModal";
+import { SesiAbsensiBBKModal } from "@/components/aanwijzing/SesiAbsensiBBKModal";
+import { ScannerKehadiranKontraktorModal } from "@/components/aanwijzing/ScannerKehadiranKontraktorModal";
 import { getUserCoverageBranches, isBranchAccessible, getBranchesUnderInduk } from "@/lib/branches";
 
 export default function UndanganAanwijzingPage() {
@@ -42,6 +44,22 @@ export default function UndanganAanwijzingPage() {
     aanwijzingId: null,
   });
 
+  const [sessionModalData, setSessionModalData] = useState<{
+    open: boolean;
+    aanwijzing: any | null;
+  }>({
+    open: false,
+    aanwijzing: null,
+  });
+
+  const [scannerModalData, setScannerModalData] = useState<{
+    open: boolean;
+    aanwijzing: any | null;
+  }>({
+    open: false,
+    aanwijzing: null,
+  });
+
   const roleUpper = (user?.role || "").toUpperCase();
   const isContractor =
     roleUpper.includes("KONTRAKTOR") ||
@@ -54,6 +72,9 @@ export default function UndanganAanwijzingPage() {
     { value: "MENUNGGU_KONFIRMASI", label: "Menunggu Konfirmasi" },
     { value: "AANWIJZING_LANJUT", label: "Aanwijzing Lanjut" },
     { value: "MENUNGGU_APPROVAL_DC_MANAGER", label: "Approval DC Manager" },
+    { value: "AANWIJZING_SELESAI", label: "Aanwijzing Selesai" },
+    { value: "AANWIJZING_ULANG", label: "Undangan Aanwijzing Ulang" },
+    { value: "TENDER_ULANG", label: "Proposal Tender Ulang" },
     { value: "ON_HOLD", label: "ON HOLD (Ditahan)" },
   ], []);
 
@@ -167,6 +188,20 @@ export default function UndanganAanwijzingPage() {
     });
   };
 
+  const handleOpenAbsensiSession = (aanwijzing: any) => {
+    setSessionModalData({
+      open: true,
+      aanwijzing,
+    });
+  };
+
+  const handleOpenScanner = (aanwijzing: any) => {
+    setScannerModalData({
+      open: true,
+      aanwijzing,
+    });
+  };
+
   return (
     <Dashboard title="Undangan Aanwijzing DC">
       <div className="flex flex-col bg-[#FAFAFA] p-3 md:p-5 lg:p-6 animate-in fade-in duration-300 overflow-y-auto h-[calc(100vh-60px)]">
@@ -266,6 +301,8 @@ export default function UndanganAanwijzingPage() {
           currentUser={user}
           onViewDetail={handleOpenDetail}
           onOpenKonfirmasi={handleOpenKonfirmasi}
+          onOpenAbsensiSession={handleOpenAbsensiSession}
+          onOpenScanner={handleOpenScanner}
           onNewUndangan={() => setIsFormModalOpen(true)}
         />
       </div>
@@ -288,6 +325,8 @@ export default function UndanganAanwijzingPage() {
             handleOpenKonfirmasi(selectedAanwijzing);
           }
         }}
+        onOpenAbsensiSession={handleOpenAbsensiSession}
+        onOpenScanner={handleOpenScanner}
       />
 
       {/* MODAL KONFIRMASI KEHADIRAN KONTRAKTOR */}
@@ -300,6 +339,30 @@ export default function UndanganAanwijzingPage() {
         onSuccess={() => {
           setKonfirmasiData((prev) => ({ ...prev, open: false }));
           setIsDetailModalOpen(false);
+          fetchData();
+        }}
+      />
+
+      {/* MODAL SESI ABSENSI BBK (Dynamic Rolling QR Code 60 Detik) */}
+      <SesiAbsensiBBKModal
+        isOpen={sessionModalData.open}
+        onClose={() => setSessionModalData({ open: false, aanwijzing: null })}
+        aanwijzingId={sessionModalData.aanwijzing?.id || null}
+        nomorUndangan={sessionModalData.aanwijzing?.nomor_undangan}
+        namaProyek={sessionModalData.aanwijzing?.project?.nama_proyek}
+        lokasiProyek={sessionModalData.aanwijzing?.lokasi || sessionModalData.aanwijzing?.project?.alamat}
+        tanggalPelaksanaan={sessionModalData.aanwijzing?.tanggal_pelaksanaan}
+        onRefreshParent={fetchData}
+      />
+
+      {/* MODAL SCANNER KAMERA KONTRAKTOR */}
+      <ScannerKehadiranKontraktorModal
+        isOpen={scannerModalData.open}
+        onClose={() => setScannerModalData({ open: false, aanwijzing: null })}
+        aanwijzingId={scannerModalData.aanwijzing?.id || null}
+        nomorUndangan={scannerModalData.aanwijzing?.nomor_undangan}
+        namaProyek={scannerModalData.aanwijzing?.project?.nama_proyek}
+        onSuccess={() => {
           fetchData();
         }}
       />

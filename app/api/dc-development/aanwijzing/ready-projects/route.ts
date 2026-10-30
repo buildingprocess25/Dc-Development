@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     const activeAanwijzings = await prisma.dc_aanwijzing.findMany({
       where: {
         status: {
-          notIn: ['ON_HOLD'], // Proyek yang ON_HOLD atau belum ada aanwijzing bisa diajukan ulang jika diizinkan
+          notIn: ['ON_HOLD', 'AANWIJZING_ULANG', 'TENDER_ULANG', 'AANWIJZING_SELESAI'],
         },
       },
       select: {

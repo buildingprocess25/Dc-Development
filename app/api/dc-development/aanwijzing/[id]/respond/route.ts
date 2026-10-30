@@ -145,18 +145,11 @@ export async function POST(
         newStatus = 'AANWIJZING_LANJUT';
         auditNotes += ` Seluruh kontraktor telah merespon dan quorum terpenuhi (${hadirCount} kontraktor hadir). Aanwijzing disetujui lanjut.`;
       } else {
-        // Semua sudah merespon tapi yang hadir < 3 orang
-        if (aanwijzing.kategori_nilai === 'DI_ATAS_1M') {
-          // Proyek > 1M: Otomatis ON_HOLD
-          newStatus = 'ON_HOLD';
-          auditAction = 'AUTO_ON_HOLD_QUORUM';
-          auditNotes += ` Semua kontraktor telah merespon, kontraktor hadir (${hadirCount}) kurang dari 3. Proyek > 1M otomatis DITAHAN (ON HOLD).`;
-        } else {
-          // Proyek < 1M: Eskalasi ke DC Building & Development Manager
-          newStatus = 'MENUNGGU_APPROVAL_DC_MANAGER';
-          auditAction = 'ESKALASI_DC_MANAGER';
-          auditNotes += ` Semua kontraktor telah merespon, kontraktor hadir (${hadirCount}) kurang dari 3. Berkas dialihkan ke approval DC Building & Development Manager.`;
-        }
+        // Semua sudah merespon tapi yang hadir < 3 orang:
+        // Sesuai aturan khusus, seluruh proyek (< 1M maupun > 1M) masuk ke antrean approval DC Development Manager
+        newStatus = 'MENUNGGU_APPROVAL_DC_MANAGER';
+        auditAction = 'ESKALASI_DC_MANAGER';
+        auditNotes += ` Semua kontraktor telah merespon, kontraktor hadir (${hadirCount}) kurang dari 3. Berkas dialihkan ke approval DC Building & Development Manager untuk otorisasi lanjut atau ulang.`;
       }
     } else {
       // Masih ada kontraktor yang belum merespon (pendingCount > 0)

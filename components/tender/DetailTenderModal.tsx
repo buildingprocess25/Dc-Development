@@ -713,8 +713,8 @@ export function DetailTenderModal({
           />
         </div>
 
-        {/* Footer Actions Standar SPARTA (Fixed di Bawah dengan Aksi Approval) */}
-        <div className="px-6 py-3.5 bg-slate-50/90 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 shrink-0 backdrop-blur-xs">
+        {/* Footer Actions Standar SPARTA (Fixed di Bawah dengan Aksi Approval, Solid, Tidak Mengambang Tembus) */}
+        <div className="px-6 py-3.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-[0_-4px_25px_rgba(0,0,0,0.06)] z-30 rounded-b-2xl">
           <div className="flex items-center gap-2.5">
             {hasPdf ? (
               <Button

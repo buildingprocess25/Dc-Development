@@ -220,15 +220,27 @@ export default function ApprovalAanwijzingPage() {
     },
     AANWIJZING_LANJUT: {
       label: "Aanwijzing Lanjut",
-      cls: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      cls: "bg-blue-100 text-blue-800 border-blue-200",
     },
     MENUNGGU_APPROVAL_DC_MANAGER: {
       label: "Approval DC Manager",
-      cls: "bg-blue-100 text-blue-800 border-blue-200",
+      cls: "bg-purple-100 text-purple-800 border-purple-200",
+    },
+    AANWIJZING_SELESAI: {
+      label: "Aanwijzing Selesai",
+      cls: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    },
+    AANWIJZING_ULANG: {
+      label: "Undangan Aanwijzing Ulang",
+      cls: "bg-amber-100 text-amber-800 border-amber-200",
+    },
+    TENDER_ULANG: {
+      label: "Proposal Tender Ulang",
+      cls: "bg-rose-100 text-rose-800 border-rose-200",
     },
     ON_HOLD: {
       label: "ON HOLD (Ditahan)",
-      cls: "bg-rose-100 text-rose-800 border-rose-200",
+      cls: "bg-slate-100 text-slate-800 border-slate-200",
     },
   };
 
@@ -264,6 +276,9 @@ export default function ApprovalAanwijzingPage() {
             { label: "Semua Status", value: "all" },
             { label: "Menunggu Approval DC Manager", value: "MENUNGGU_APPROVAL_DC_MANAGER" },
             { label: "Aanwijzing Lanjut", value: "AANWIJZING_LANJUT" },
+            { label: "Aanwijzing Selesai", value: "AANWIJZING_SELESAI" },
+            { label: "Undangan Aanwijzing Ulang", value: "AANWIJZING_ULANG" },
+            { label: "Proposal Tender Ulang", value: "TENDER_ULANG" },
             { label: "ON HOLD (Ditahan)", value: "ON_HOLD" },
           ]}
         />
@@ -409,13 +424,25 @@ export default function ApprovalAanwijzingPage() {
               <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 leading-relaxed flex items-start gap-2.5">
                 <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold">Quorum Kehadiran Kurang dari 3 Rekanan Kontraktor</p>
-                  <p className="text-[11.5px] text-amber-800 mt-0.5">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold">Quorum Kehadiran Kurang dari 3 Rekanan Kontraktor</p>
+                    <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-amber-200/70 text-amber-900">
+                      {selectedItem.kategori_nilai === "DI_ATAS_1M" ? "Proyek > 1M" : "Proyek < 1M"}
+                    </span>
+                  </div>
+                  <p className="text-[11.5px] text-amber-800 mt-1">
                     Hanya terdapat{" "}
                     <strong>
-                      {selectedItem.peserta.filter((p: any) => p.status_konfirmasi === "HADIR").length} rekanan
+                      {
+                        selectedItem.peserta.filter((p: any) =>
+                          selectedItem.session_absen_started_at
+                            ? p.status_kehadiran_aktual === "HADIR_AKTUAL"
+                            : p.status_konfirmasi === "HADIR"
+                        ).length
+                      }{" "}
+                      rekanan
                     </strong>{" "}
-                    yang mengonfirmasi hadir dari total {selectedItem.peserta.length} rekanan yang diundang. Sebagai DC Building & Development Manager, Anda dapat memutuskan apakah rapat aanwijzing tetap dilanjutkan atau ditahan (ON HOLD).
+                    yang hadir/konfirmasi hadir dari total {selectedItem.peserta.length} rekanan yang diundang. Sebagai DC Building & Development Manager, Anda memiliki wewenang untuk memutuskan apakah aanwijzing disetujui tetap lanjut atau dibatalkan (ulang).
                   </p>
                 </div>
               </div>
@@ -423,35 +450,44 @@ export default function ApprovalAanwijzingPage() {
               {/* Rincian Respon Kontraktor */}
               <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 space-y-2">
                 <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                  Rincian Respon Kontraktor:
+                  Rincian Kehadiran Rekanan:
                 </h4>
                 <div className="space-y-1.5">
-                  {selectedItem.peserta.map((p: any, idx: number) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200/60 shadow-2xs"
-                    >
-                      <div>
-                        <p className="font-bold text-slate-900">{p.vendor.nama_perusahaan}</p>
-                        {p.alasan_tidak_hadir && (
-                          <p className="text-[10px] text-rose-600 mt-0.5 italic">
-                            Alasan: {p.alasan_tidak_hadir}
-                          </p>
-                        )}
-                      </div>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          p.status_konfirmasi === "HADIR"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : p.status_konfirmasi === "TIDAK_HADIR"
-                            ? "bg-rose-50 text-rose-700 border border-rose-200"
-                            : "bg-amber-50 text-amber-700 border border-amber-200"
-                        }`}
+                  {selectedItem.peserta.map((p: any, idx: number) => {
+                    const isHadirAktual = p.status_kehadiran_aktual === "HADIR_AKTUAL";
+                    const isTidakHadir = p.status_kehadiran_aktual === "TIDAK_HADIR" || p.status_konfirmasi === "TIDAK_HADIR";
+
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200/60 shadow-2xs"
                       >
-                        {p.status_konfirmasi}
-                      </span>
-                    </div>
-                  ))}
+                        <div>
+                          <p className="font-bold text-slate-900">{p.vendor.nama_perusahaan}</p>
+                          {(p.catatan_absen || p.alasan_tidak_hadir) && (
+                            <p className="text-[10px] text-slate-500 mt-0.5 italic">
+                              Catatan: {p.catatan_absen || p.alasan_tidak_hadir}
+                            </p>
+                          )}
+                        </div>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            isHadirAktual || p.status_konfirmasi === "HADIR"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : isTidakHadir
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : "bg-amber-50 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {isHadirAktual
+                            ? "HADIR FISIK"
+                            : p.status_kehadiran_aktual === "TIDAK_HADIR"
+                            ? "TIDAK HADIR HARI-H"
+                            : p.status_konfirmasi}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -476,7 +512,7 @@ export default function ApprovalAanwijzingPage() {
                       Setujui Tetap Lanjut
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1">
-                      Aanwijzing dilanjutkan dengan rekanan yang hadir (status: AANWIJZING_LANJUT).
+                      Aanwijzing dilanjutkan ke proses pengadaan/tahap berikutnya dengan rekanan yang ada.
                     </p>
                   </button>
 
@@ -491,10 +527,12 @@ export default function ApprovalAanwijzingPage() {
                   >
                     <div className="flex items-center gap-2 font-bold text-xs text-rose-700">
                       <XCircle className="w-4 h-4" />
-                      Tolak / On Hold
+                      Tolak / Tidak Lanjut
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1">
-                      Pelaksanaan ditunda / ditahan terlebih dahulu (status: ON_HOLD).
+                      {selectedItem.kategori_nilai === "DI_ATAS_1M"
+                        ? "Sesuai SOP proyek > 1M: Dialihkan ke Pengajuan Proposal Tender Ulang."
+                        : "Sesuai SOP proyek < 1M: Dialihkan ke Undangan Aanwijzing Ulang."}
                     </p>
                   </button>
                 </div>

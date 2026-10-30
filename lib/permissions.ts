@@ -424,11 +424,12 @@ export const canAccessApprovalNavigation = (
 ): boolean => {
   if (!userRole) return false;
 
-  // Syarat Utama 1: Role harus salah satu dari approver RAB/OE, approver Fungsi Ruang, approver Tender, atau Administrator
+  // Syarat Utama 1: Role harus salah satu dari approver RAB/OE, approver Fungsi Ruang, approver Tender, approver Klarifikasi Aanwijzing, atau Administrator
   const isAllowedRole =
     canAccessRabOeApproval(userRole) ||
     canAccessFungsiRuangApproval(userRole) ||
-    canAccessTenderApproval(userRole);
+    canAccessTenderApproval(userRole) ||
+    canAccessKlarifikasiAanwijzingApproval(userRole);
   if (!isAllowedRole) return false;
 
   // Syarat Utama 2: Jika user memiliki konfigurasi akses_menu spesifik dari Manajemen User
@@ -1653,4 +1654,185 @@ export const canUserApproveAanwijzing = (user: any, aanwijzing: any): boolean =>
 
   return false;
 };
+
+/**
+ * Validasi apakah user berwenang membuka sesi absensi Hari-H (Host QR Code)
+ * HANYA: Branch Building Koordinator pembuat undangan (isSameCreator) ATAU Admin.
+ * Syarat: Status wajib AANWIJZING_LANJUT dan tanggal hari ini adalah Hari-H pelaksanaan.
+ */
+export const canOpenAanwijzingAbsenSession = (
+  user: any,
+  aanwijzing: any
+): { allowed: boolean; isHariH: boolean; reason?: string } => {
+  if (!user || !aanwijzing) {
+    return { allowed: false, isHariH: false, reason: 'Data pengguna atau undangan tidak valid.' };
+  }
+
+  const role = (user.role || '').trim().toUpperCase();
+  const isAdmin = isApprovalAdmin(role);
+  const isCreator = isSameCreator(user, aanwijzing.created_by);
+  const isKoordinator = isBranchBuildingKoordinator(role);
+  const targetBranch = (aanwijzing.cabang || aanwijzing.project?.cabang || '').trim().toUpperCase();
+  const userCoverage = getUserCoverageBranches(user);
+  const isBranchMatch = !targetBranch || isBranchAccessible(targetBranch, userCoverage) || (user.cabang && user.cabang.trim().toUpperCase() === targetBranch);
+
+  if (!isAdmin && !isCreator && !(isKoordinator && isBranchMatch)) {
+    return {
+      allowed: false,
+      isHariH: false,
+      reason: 'Hanya Branch Building Koordinator cabang terkait, pembuat undangan, atau Administrator yang berwenang mengelola sesi absensi.',
+    };
+  }
+
+  if (aanwijzing.status !== 'AANWIJZING_LANJUT') {
+    return {
+      allowed: false,
+      isHariH: false,
+      reason: `Sesi absensi hanya dapat dibuka jika status undangan adalah AANWIJZING LANJUT (Status saat ini: ${aanwijzing.status}).`,
+    };
+  }
+
+  // Jika sesi sudah aktif sebelumnya (session_absen_active === true), berikan akses penuh
+  if (aanwijzing.session_absen_active) {
+    return { allowed: true, isHariH: true };
+  }
+
+  // Validasi Hari-H (Format YYYY-MM-DD lokal)
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const targetDateStr = aanwijzing.tanggal_pelaksanaan
+    ? new Date(aanwijzing.tanggal_pelaksanaan).toLocaleDateString('en-CA')
+    : '';
+
+  const isHariH = Boolean(targetDateStr && todayStr === targetDateStr);
+
+  // Jika bukan Hari-H, izinkan untuk Admin atau mode development untuk testing
+  const isDev = process.env.NODE_ENV !== 'production';
+  if (!isHariH && !isAdmin && !isDev) {
+    const formattedDate = aanwijzing.tanggal_pelaksanaan
+      ? new Date(aanwijzing.tanggal_pelaksanaan).toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : '-';
+    return {
+      allowed: false,
+      isHariH: false,
+      reason: `Sesi absensi hanya dapat dibuka pada Hari-H pelaksanaan rapat (${formattedDate}).`,
+    };
+  }
+
+  return { allowed: true, isHariH: true };
+};
+
+/**
+ * Validasi apakah kontraktor/rekanan yang sedang login berhak melakukan scan absensi
+ * Syarat: Akun rekanan terdaftar di peserta, sudah konfirmasi HADIR, dan belum absen aktual.
+ */
+export const canContractorAttendAanwijzing = (
+  user: any,
+  aanwijzing: any
+): { allowed: boolean; myPeserta?: any; reason?: string } => {
+  if (!user || !aanwijzing) {
+    return { allowed: false, reason: 'Data pengguna atau undangan tidak valid.' };
+  }
+
+  const userEmail = (user.email || '').trim().toLowerCase();
+  const userPt = ((user.nama_pt || '') as string).trim().toLowerCase();
+
+  const pesertaList = Array.isArray(aanwijzing.peserta) ? aanwijzing.peserta : [];
+  const myPeserta = pesertaList.find((p: any) => {
+    const pEmail = (p.email || p.vendor?.email || '').trim().toLowerCase();
+    const pName = (p.vendor?.nama_perusahaan || '').trim().toLowerCase();
+    return (userEmail && pEmail === userEmail) || (userPt && pName && (pName.includes(userPt) || userPt.includes(pName)));
+  });
+
+  if (!myPeserta) {
+    return {
+      allowed: false,
+      reason: 'Akun atau perusahaan Anda tidak terdaftar sebagai peserta dalam rapat Aanwijzing ini.',
+    };
+  }
+
+  if (myPeserta.status_konfirmasi !== 'HADIR') {
+    return {
+      allowed: false,
+      myPeserta,
+      reason: 'Perusahaan Anda belum atau tidak mengonfirmasi kesediaan HADIR pada rapat Aanwijzing ini.',
+    };
+  }
+
+  if (myPeserta.status_kehadiran_aktual === 'HADIR_AKTUAL') {
+    return {
+      allowed: false,
+      myPeserta,
+      reason: 'Perusahaan Anda sudah terdata HADIR AKTUAL pada rapat ini.',
+    };
+  }
+
+  return { allowed: true, myPeserta };
+};
+
+// ============================================================================
+// KLARIFIKASI AANWIJZING PERMISSIONS (SOP BERITA ACARA AANWIJZING)
+// ============================================================================
+
+/**
+ * Memeriksa apakah role user berwenang membuat / mengelola Klarifikasi Aanwijzing:
+ * - Branch Building Koordinator
+ * - Administrator (DC Admin, Super Admin, Head Office)
+ */
+export const canManageKlarifikasiAanwijzing = (userRole: string | undefined | null): boolean => {
+  if (!userRole) return false;
+  const norm = userRole.trim().toUpperCase();
+  if (norm === 'BRANCH BUILDING KOORDINATOR' || norm.includes('KOORDINATOR')) return true;
+  if (isApprovalAdmin(norm)) return true;
+  return false;
+};
+
+/**
+ * Memeriksa apakah role user berhak mengakses antrean Approval Klarifikasi Aanwijzing
+ */
+export const canAccessKlarifikasiAanwijzingApproval = (userRole: string | undefined | null): boolean => {
+  if (!userRole) return false;
+  const norm = userRole.trim().toUpperCase();
+  if (isApprovalAdmin(norm)) return true;
+  if ((norm.includes('BRANCH BUILDING') && norm.includes('MANAGER')) || norm.includes('B&M MANAGER') || norm.includes('BM MANAGER')) return true;
+  if (norm.includes('DC SPECIALIST') || norm.includes('DEVELOPMENT SPECIALIST')) return true;
+  return false;
+};
+
+/**
+ * Validasi apakah user tertentu berwenang melakukan aksi APPROVE / REVISI
+ * pada dokumen Klarifikasi Aanwijzing spesifik sesuai tahapannya
+ */
+export const canUserApproveKlarifikasiAanwijzing = (user: any, item: any): boolean => {
+  if (!user || !item) return false;
+  const role = (user.role || '').trim().toUpperCase();
+  if (isApprovalAdmin(role)) return true;
+
+  const userCoverage = getUserCoverageBranches(user);
+  const targetBranch = (item.cabang || item.project?.cabang || '').trim().toUpperCase();
+  if (!isBranchAccessible(targetBranch, userCoverage)) return false;
+
+  const status = (item.status || '').trim().toUpperCase();
+  if (status === 'MENUNGGU_APPROVAL_BBM_MANAGER') {
+    return (
+      (role.includes('BRANCH BUILDING') && role.includes('MANAGER')) ||
+      role.includes('B&M MANAGER') ||
+      role.includes('BM MANAGER')
+    );
+  }
+
+  if (status === 'MENUNGGU_APPROVAL_DC_SPECIALIST') {
+    return (
+      role.includes('DC SPECIALIST') ||
+      role.includes('DEVELOPMENT SPECIALIST')
+    );
+  }
+
+  return false;
+};
+
+
 

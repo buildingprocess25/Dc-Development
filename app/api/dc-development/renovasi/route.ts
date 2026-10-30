@@ -399,6 +399,7 @@ export async function POST(request: Request) {
         kategori_pekerjaan: it.kategori_pekerjaan || 'Umum',
         master_item_id: it.master_item_id ? Number(it.master_item_id) : null,
         deskripsi: it.deskripsi || '',
+        satuan: (it.satuan || 'm2').trim(),
         harga_material: mat,
         harga_upah: wge,
         volume: vol,
@@ -426,7 +427,15 @@ export async function POST(request: Request) {
       // 2. Jika body.id ada, lakukan update pada pengajuan/draft yang sudah ada
       if (body.id) {
         const existingId = Number(body.id);
-        await tx.dc_renovasi_dokumen.deleteMany({ where: { renovasi_id: existingId } });
+        // Hapus dokumen lampiran lama kecuali dokumen CORETAN revisi reviewer yang wajib dipertahankan
+        await tx.dc_renovasi_dokumen.deleteMany({
+          where: {
+            renovasi_id: existingId,
+            NOT: {
+              kategori_file: { startsWith: 'CORETAN' }
+            }
+          }
+        });
         await tx.dc_renovasi_item.deleteMany({ where: { renovasi_id: existingId } });
 
         // Jika status pengajuan adalah REVISI dan user menyimpan sebagai draft, status tetap REVISI (tidak berubah jadi DRAFT)

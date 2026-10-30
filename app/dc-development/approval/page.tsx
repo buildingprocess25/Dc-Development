@@ -9,6 +9,7 @@ import {
   canAccessFungsiRuangApproval,
   canAccessTenderApproval,
   canAccessApprovalNavigation,
+  canAccessKlarifikasiAanwijzingApproval,
   isApprovalAdmin,
 } from "@/lib/permissions";
 import {
@@ -17,6 +18,7 @@ import {
   FileSignature,
   ShieldCheck,
   ClipboardCheck,
+  FileCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HubHeaderBanner, HubCategoryCard, HubCategoryCardProps } from "@/components/hub";
@@ -46,10 +48,12 @@ export default function ApprovalHubPage() {
   const canAccessRabOe = canAccessRabOeApproval(user?.role);
   const canAccessFungsiRuang = canAccessFungsiRuangApproval(user?.role);
   const canAccessTender = canAccessTenderApproval(user?.role);
+  const canAccessKlarifikasi = canAccessKlarifikasiAanwijzingApproval(user?.role);
   const canAccessAanwijzing = isApprovalAdmin(user?.role) || (user?.role?.toUpperCase().includes("MANAGER") && user?.role?.toUpperCase().includes("DEVELOPMENT"));
-  const canAccessNav = canAccessApprovalNavigation(user?.role, (user as any)?.akses_menu) || canAccessAanwijzing;
+  const canAccessNav = canAccessApprovalNavigation(user?.role, (user as any)?.akses_menu) || canAccessAanwijzing || canAccessKlarifikasi;
 
   const [aanwijzingPending, setAanwijzingPending] = useState(0);
+  const [klarifikasiPending, setKlarifikasiPending] = useState(0);
 
   const loadSummary = async () => {
     try {
@@ -92,6 +96,18 @@ export default function ApprovalHubPage() {
             .then((j) => {
               if (j.status === "success" && Array.isArray(j.data)) {
                 setAanwijzingPending(j.data.length);
+              }
+            })
+            .catch(() => {})
+        );
+      }
+      if (canAccessKlarifikasi) {
+        promises.push(
+          fetch("/api/dc-development/klarifikasi-aanwijzing/summary")
+            .then((r) => r.json())
+            .then((j) => {
+              if (j.status === "success" && j.data) {
+                setKlarifikasiPending(j.data.my_pending_count || 0);
               }
             })
             .catch(() => {})
@@ -192,6 +208,21 @@ export default function ApprovalHubPage() {
       badge: aanwijzingPending > 0 ? `${aanwijzingPending} Perlu Tindakan` : "Semua Diproses",
       badgeVariant: aanwijzingPending > 0 ? "orange" : "success",
       stats: "Otorisasi DC Manager (< 3 Rekanan)",
+      actionLabel: "Buka Antrean",
+    });
+  }
+
+  if (canAccessKlarifikasi) {
+    approvalCards.push({
+      id: "klarifikasi-aanwijzing",
+      title: "Klarifikasi Aanwijzing",
+      description: "Persetujuan Berita Acara Klarifikasi penyesuaian volume dan penambahan item pekerjaan pasca rapat aanwijzing fisik.",
+      href: "/dc-development/approval/klarifikasi-aanwijzing",
+      icon: FileCheck,
+      active: true,
+      badge: klarifikasiPending > 0 ? `${klarifikasiPending} Perlu Tindakan` : "Semua Diproses",
+      badgeVariant: klarifikasiPending > 0 ? "orange" : "success",
+      stats: "SOP SAT/SOP/DCB/003",
       actionLabel: "Buka Antrean",
     });
   }

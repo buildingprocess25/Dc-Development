@@ -26,16 +26,16 @@ export function DetailVendorModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto p-0 rounded-2xl border border-slate-200/80 shadow-xl bg-white">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10">
+      <DialogContent className="max-w-4xl sm:max-w-5xl lg:max-w-5xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0 rounded-2xl border border-slate-200/80 shadow-2xl bg-white [&>button:last-child]:hidden">
+        {/* Header (Solid bg-white, non-transparent, tidak tembus saat scroll) */}
+        <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-200/80 bg-white shrink-0 z-20">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E65F2B] to-[#cf4d1a] flex items-center justify-center text-white shadow-xs">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-base font-bold text-slate-800">
+                <h2 className="text-base font-bold text-slate-800 tracking-tight">
                   {vendor.nama_perusahaan}
                 </h2>
                 <span
@@ -56,16 +56,16 @@ export function DetailVendorModal({
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition-colors"
+            className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Card Info Kontak & Legalitas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 bg-slate-50/70 p-4 rounded-xl border border-slate-200/70">
+        {/* Content (Scrollable Body) */}
+        <div className="p-6 md:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar bg-white">
+          {/* Card Info Kontak & Legalitas (3 Kolom Responsif) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/70 p-5 rounded-2xl border border-slate-200/70">
             <div className="flex items-start space-x-2.5">
               <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
               <div>
@@ -87,6 +87,24 @@ export function DetailVendorModal({
               <div>
                 <p className="text-[10px] uppercase font-bold text-slate-400">Email Resmi</p>
                 <p className="text-xs text-slate-700 font-medium">{vendor.email || "-"}</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-2.5">
+              <Building2 className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-[10px] uppercase font-bold text-slate-400">Cabang Domisili</p>
+                <p className="text-xs text-slate-700 font-semibold">{vendor.cabang || "HEAD OFFICE"}</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-2.5">
+              <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-[10px] uppercase font-bold text-slate-400">Cakupan Wilayah (Coverage Cabang)</p>
+                <p className="text-xs text-slate-700 font-medium">
+                  {vendor.coverage_cabang || "Seluruh Cabang"}
+                </p>
               </div>
             </div>
 
@@ -113,24 +131,6 @@ export function DetailVendorModal({
                 )}
               </div>
             </div>
-
-            <div className="flex items-start space-x-2.5">
-              <Building2 className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-[10px] uppercase font-bold text-slate-400">Cabang Domisili</p>
-                <p className="text-xs text-slate-700 font-semibold">{vendor.cabang || "HEAD OFFICE"}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-2.5 md:col-span-2">
-              <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-[10px] uppercase font-bold text-slate-400">Cakupan Wilayah (Coverage Cabang)</p>
-                <p className="text-xs text-slate-700 font-medium">
-                  {vendor.coverage_cabang || "Nasional / Seluruh Cabang"}
-                </p>
-              </div>
-            </div>
           </div>
 
           {/* Section: Riwayat Pengalaman */}
@@ -142,7 +142,7 @@ export function DetailVendorModal({
               </h3>
             </div>
             {pengalaman.length > 0 ? (
-              <div className="space-y-1.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 {pengalaman.map((item, idx) => (
                   <div
                     key={idx}
@@ -158,77 +158,80 @@ export function DetailVendorModal({
             )}
           </div>
 
-          {/* Section: SBU / SKA */}
-          <div className="space-y-2.5">
-            <div className="flex items-center space-x-2 text-slate-800">
-              <ShieldCheck className="w-4 h-4 text-blue-600" />
-              <h3 className="text-xs font-bold uppercase tracking-wider">
-                Sertifikat Badan Usaha & SKA ({sertifikat.length})
-              </h3>
-            </div>
-            {sertifikat.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {sertifikat.map((item, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200/70"
-                  >
-                    {item}
-                  </span>
-                ))}
+          {/* Section: SBU / SKA & ISO (2 Kolom Responsif) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Section: SBU / SKA */}
+            <div className="space-y-2.5 p-4 rounded-xl bg-slate-50/50 border border-slate-200/70">
+              <div className="flex items-center space-x-2 text-slate-800">
+                <ShieldCheck className="w-4 h-4 text-blue-600" />
+                <h3 className="text-xs font-bold uppercase tracking-wider">
+                  Sertifikat Badan Usaha & SKA ({sertifikat.length})
+                </h3>
               </div>
-            ) : (
-              <p className="text-xs text-slate-400 italic py-1">Belum ada data sertifikat badan usaha.</p>
-            )}
-          </div>
-
-          {/* Section: ISO */}
-          <div className="space-y-2.5">
-            <div className="flex items-center space-x-2 text-slate-800">
-              <Award className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-xs font-bold uppercase tracking-wider">
-                Sertifikasi Standar ISO ({sertifikasiIso.length})
-              </h3>
+              {sertifikat.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {sertifikat.map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200/70"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic py-1">Belum ada data sertifikat badan usaha.</p>
+              )}
             </div>
-            {sertifikasiIso.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {sertifikasiIso.map((item, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/70"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 italic py-1">Belum ada data sertifikasi ISO.</p>
-            )}
-          </div>
 
-          {/* Footer */}
-          <div className="flex items-center justify-end space-x-2 pt-4 border-t border-slate-100">
-            {onEdit && (
-              <Button
-                type="button"
-                onClick={() => {
-                  onOpenChange(false);
-                  onEdit(vendor);
-                }}
-                className="h-9 px-4 text-xs rounded-xl bg-slate-800 hover:bg-slate-900 text-white"
-              >
-                Edit Vendor
-              </Button>
-            )}
+            {/* Section: ISO */}
+            <div className="space-y-2.5 p-4 rounded-xl bg-slate-50/50 border border-slate-200/70">
+              <div className="flex items-center space-x-2 text-slate-800">
+                <Award className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-bold uppercase tracking-wider">
+                  Sertifikasi Standar ISO ({sertifikasiIso.length})
+                </h3>
+              </div>
+              {sertifikasiIso.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {sertifikasiIso.map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/70"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic py-1">Belum ada data sertifikasi ISO.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer (Solid bg-slate-50/90, non-transparent, pinned at bottom) */}
+        <div className="flex items-center justify-end space-x-2 px-6 py-3.5 border-t border-slate-200/80 bg-slate-50/90 shrink-0 z-20">
+          {onEdit && (
             <Button
               type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="h-9 px-4 text-xs rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
+              onClick={() => {
+                onOpenChange(false);
+                onEdit(vendor);
+              }}
+              className="h-9.5 px-4 text-xs rounded-xl bg-slate-800 hover:bg-slate-900 text-white cursor-pointer"
             >
-              Tutup
+              Edit Vendor
             </Button>
-          </div>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="h-9.5 px-4 text-xs rounded-xl border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer"
+          >
+            Tutup
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

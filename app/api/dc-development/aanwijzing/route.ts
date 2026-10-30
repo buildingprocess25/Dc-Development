@@ -73,46 +73,24 @@ async function runAanwijzingTimeoutEngine() {
         },
       });
     } else {
-      // Quorum < 3 orang
-      if (aanwijzing.kategori_nilai === 'DI_ATAS_1M') {
-        // Proyek > 1M jika hadir < 3 orang: Otomatis ON_HOLD (ditahan dulu)
-        await prisma.dc_aanwijzing.update({
-          where: { id: aanwijzing.id },
-          data: { status: 'ON_HOLD' },
-        });
+      // Quorum < 3 orang: Seluruh proyek (< 1M maupun > 1M) masuk ke antrean approval DC BUILDING & DEVELOPMENT MANAGER
+      await prisma.dc_aanwijzing.update({
+        where: { id: aanwijzing.id },
+        data: { status: 'MENUNGGU_APPROVAL_DC_MANAGER' },
+      });
 
-        await prisma.dc_aanwijzing_audit_log.create({
-          data: {
-            aanwijzing_id: aanwijzing.id,
-            user_email: 'system.engine@sparta.local',
-            user_name: 'SPARTA Automation Engine',
-            user_role: 'SYSTEM',
-            action: 'AUTO_ON_HOLD_QUORUM',
-            from_status: 'MENUNGGU_KONFIRMASI',
-            to_status: 'ON_HOLD',
-            notes: `Batas waktu 48 jam berakhir. Hanya ${hadirCount} kontraktor hadir (kurang dari 3). Sesuai aturan proyek > 1M, status otomatis DITAHAN (ON HOLD).`,
-          },
-        });
-      } else {
-        // Proyek < 1M jika hadir < 3 orang: Masuk ke antrean approval DC BUILDING & DEVELOPMENT MANAGER
-        await prisma.dc_aanwijzing.update({
-          where: { id: aanwijzing.id },
-          data: { status: 'MENUNGGU_APPROVAL_DC_MANAGER' },
-        });
-
-        await prisma.dc_aanwijzing_audit_log.create({
-          data: {
-            aanwijzing_id: aanwijzing.id,
-            user_email: 'system.engine@sparta.local',
-            user_name: 'SPARTA Automation Engine',
-            user_role: 'SYSTEM',
-            action: 'AUTO_DECLINE_TIMEOUT',
-            from_status: 'MENUNGGU_KONFIRMASI',
-            to_status: 'MENUNGGU_APPROVAL_DC_MANAGER',
-            notes: `Batas waktu 48 jam berakhir. Hanya ${hadirCount} kontraktor hadir (kurang dari 3). Berkas dialihkan ke antrean approval DC Building & Development Manager.`,
-          },
-        });
-      }
+      await prisma.dc_aanwijzing_audit_log.create({
+        data: {
+          aanwijzing_id: aanwijzing.id,
+          user_email: 'system.engine@sparta.local',
+          user_name: 'SPARTA Automation Engine',
+          user_role: 'SYSTEM',
+          action: 'AUTO_DECLINE_TIMEOUT',
+          from_status: 'MENUNGGU_KONFIRMASI',
+          to_status: 'MENUNGGU_APPROVAL_DC_MANAGER',
+          notes: `Batas waktu 48 jam berakhir. Hanya ${hadirCount} kontraktor konfirmasi hadir (kurang dari 3). Berkas dialihkan ke antrean approval DC Building & Development Manager untuk otorisasi lanjut atau ulang.`,
+        },
+      });
     }
   }
 }

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Dashboard from "@/components/dashboard/dashboard";
-import { FileSpreadsheet, LayoutGrid, FileSignature } from "lucide-react";
+import { FileSpreadsheet, LayoutGrid, FileSignature, FileCheck } from "lucide-react";
 import { HubHeaderBanner, HubCategoryCard, HubCategoryCardProps } from "@/components/hub";
 
 export default function DaftarDokumenHubPage() {
@@ -53,6 +53,18 @@ export default function DaftarDokumenHubPage() {
       badge: "Tersedia & Aktif",
       badgeVariant: "success",
       stats: "Dual-Tier & Timeout 48H",
+      actionLabel: "Buka Dokumen",
+    },
+    {
+      id: "klarifikasi-aanwijzing",
+      title: "Berita Acara Aanwijzing",
+      description: "Arsip resmi Berita Acara Klarifikasi Hasil Aanwijzing, penyesuaian volume fisik lapangan, dan penambahan item pekerjaan baru.",
+      href: "/dc-development/daftar-dokumen/klarifikasi-aanwijzing",
+      icon: FileCheck,
+      active: true,
+      badge: "Tersedia & Aktif",
+      badgeVariant: "success",
+      stats: "SOP SAT/SOP/DCB/003",
       actionLabel: "Buka Dokumen",
     },
   ];

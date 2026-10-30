@@ -24,10 +24,11 @@ import {
   CheckCircle2,
   AlertCircle,
   User,
-  MessageSquare,
   Download,
-  Loader2
+  Loader2,
+  PenTool
 } from "lucide-react";
+import PdfAnnotatorModal from "@/components/renovasi/PdfAnnotatorModal";
 import { useRouter } from "next/navigation";
 import {
   parseApprovalNotes,
@@ -63,6 +64,8 @@ export default function DetailRenovasiModal({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"INFO" | "GAMBAR" | "FOTO" | "RAB">("INFO");
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [activeAnnotatingDoc, setActiveAnnotatingDoc] = useState<any | null>(null);
+  const [initialAnnotatorLayerId, setInitialAnnotatorLayerId] = useState<string | number | undefined>(undefined);
 
   const handleDownloadPdf = async () => {
     if (!renovasi?.id) return;
@@ -169,6 +172,11 @@ export default function DetailRenovasiModal({
       d.kategori_file === "GAMBAR_ME_PDF" ||
       d.kategori_file === "GAMBAR_ME_DWG"
   );
+  const coretanDocs = dokumen.filter(
+    (d: any) =>
+      d.kategori_file?.startsWith("CORETAN") ||
+      d.nama_file?.toLowerCase().startsWith("coretan_")
+  );
   const fotos = dokumen.filter((d: any) => d.kategori_file === "FOTO_LINGKUNGAN");
 
   const getStatusBadge = (status: string) => {
@@ -260,7 +268,7 @@ export default function DetailRenovasiModal({
         <div className="flex items-center gap-1 px-6 bg-slate-50/60 border-b border-slate-200/80 shrink-0 text-xs font-medium overflow-x-auto">
           {[
             { id: "INFO", label: "Informasi Proyek", count: null },
-            { id: "GAMBAR", label: "Gambar Teknis", count: docsSipil.length + docsMe.length },
+            { id: "GAMBAR", label: "Gambar Teknis", count: docsSipil.length + docsMe.length + coretanDocs.length },
             { id: "FOTO", label: "Foto Lingkungan", count: fotos.length },
             { id: "RAB", label: "Rincian RAB", count: items.length }
           ].map((tab) => {
@@ -373,6 +381,126 @@ export default function DetailRenovasiModal({
                 revisionDetails={renovasi.status === "REVISI" ? revisionDetails : undefined}
               />
 
+              {/* Catatan Visual & Coretan Gambar Kerja (Reviewer Redline) */}
+              {coretanDocs.length > 0 && (
+                <div className="p-4 sm:p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-200 text-[#E65F2B] flex items-center justify-center shrink-0">
+                        <PenTool className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                            Catatan Visual &amp; Coretan Reviewer
+                          </h4>
+                          {renovasi.status === "REVISI" && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 animate-pulse">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              Wajib Dicek Maker
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          Reviewer melampirkan coretan gambar kerja teknis sebagai instruksi revisi.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-lg">
+                        {coretanDocs.length} Berkas di Drive
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {coretanDocs.map((cdoc: any) => {
+                      const isSipil = cdoc.kategori_file?.includes("SIPIL") || cdoc.nama_file?.toLowerCase().includes("sipil");
+                      const baseDoc = isSipil ? docsSipil[0] : docsMe[0];
+                      const rawLabel = cdoc.nama_label || cdoc.nama_file || "";
+                      let roleLabel = cdoc.user_role || (isSipil ? "Gambar Sipil" : "Gambar ME");
+                      let reviewerName = cdoc.user_nama || "";
+                      if (!reviewerName && rawLabel) {
+                        const m = rawLabel.match(/oleh\s+(.*?)\s*\((.*?)\)/i);
+                        if (m) {
+                          reviewerName = m[1]?.trim();
+                          roleLabel = m[2]?.trim();
+                        }
+                      }
+
+                      return (
+                        <div
+                          key={cdoc.id}
+                          className="flex flex-col justify-between p-3.5 bg-slate-50/70 hover:bg-slate-50 border border-slate-200/90 rounded-xl transition-all gap-3"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              <div className="w-7 h-7 rounded-lg bg-orange-100 text-[#E65F2B] flex items-center justify-center shrink-0 mt-0.5">
+                                <PenTool className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-xs font-bold text-slate-900 truncate">
+                                    {reviewerName || "Reviewer"}
+                                  </span>
+                                  {(() => {
+                                    const stageMatch = (cdoc.nama_file || "").match(/^Coretan_([A-Z0-9_]+?)_/i);
+                                    const sCode = cdoc.tahap_alur || (stageMatch ? stageMatch[1] : null);
+                                    return sCode ? (
+                                      <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                                        Tahap: {sCode.replace(/_/g, " ")}
+                                      </span>
+                                    ) : null;
+                                  })()}
+                                  <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-blue-100 text-blue-700 border border-blue-200">
+                                    {roleLabel}
+                                  </span>
+                                  <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-slate-200/80 text-slate-700">
+                                    {isSipil ? "Sipil" : "ME"}
+                                  </span>
+                                </div>
+                                <span className="text-[11px] font-mono text-slate-500 block truncate mt-0.5" title={cdoc.nama_file}>
+                                  {cdoc.nama_file}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200/70">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveAnnotatingDoc(baseDoc || cdoc);
+                                setInitialAnnotatorLayerId(cdoc.id);
+                              }}
+                              className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                              title="Lihat lembar gambar beserta coretan di penampil SPARTA"
+                            >
+                              <PenTool className="w-3 h-3 text-[#E65F2B]" />
+                              <span>Lihat Coretan</span>
+                            </button>
+
+                            {cdoc.file_url && (
+                              <a
+                                href={cdoc.file_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-white bg-[#E65F2B] hover:bg-[#d04f1f] px-2.5 py-1.5 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                                title="Buka berkas di Google Drive"
+                              >
+                                <span>Buka di Drive</span>
+                                <ExternalLink className="w-3 h-3 ml-0.5" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Financial Summary Card: Refined, trustworthy enterprise balance */}
               <div className="p-4 sm:p-5 bg-slate-50/70 border border-slate-200/90 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -477,16 +605,28 @@ export default function DetailRenovasiModal({
                               </div>
                             </div>
                           </div>
-                          {doc.file_url && (
-                            <a
-                              href={doc.file_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-xs font-bold text-[#E65F2B] hover:text-[#d04f1f] bg-orange-50 hover:bg-orange-100/80 px-2.5 py-1 rounded-lg transition-colors shrink-0"
-                            >
-                              Buka File <ExternalLink className="w-3 h-3 ml-0.5" />
-                            </a>
-                          )}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isPdf && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveAnnotatingDoc(doc)}
+                                className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shrink-0"
+                              >
+                                <PenTool className="w-3 h-3 text-[#E65F2B]" />
+                                <span>Lihat Coretan PDF</span>
+                              </button>
+                            )}
+                            {doc.file_url && (
+                              <a
+                                href={doc.file_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-[#E65F2B] hover:text-[#d04f1f] bg-orange-50 hover:bg-orange-100/80 px-2.5 py-1 rounded-lg transition-colors shrink-0"
+                              >
+                                Buka File <ExternalLink className="w-3 h-3 ml-0.5" />
+                              </a>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -543,22 +683,108 @@ export default function DetailRenovasiModal({
                               </div>
                             </div>
                           </div>
-                          {doc.file_url && (
-                            <a
-                              href={doc.file_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-xs font-bold text-[#E65F2B] hover:text-[#d04f1f] bg-orange-50 hover:bg-orange-100/80 px-2.5 py-1 rounded-lg transition-colors shrink-0"
-                            >
-                              Buka File <ExternalLink className="w-3 h-3 ml-0.5" />
-                            </a>
-                          )}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isPdf && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveAnnotatingDoc(doc)}
+                                className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shrink-0"
+                              >
+                                <PenTool className="w-3 h-3 text-[#E65F2B]" />
+                                <span>Lihat Coretan PDF</span>
+                              </button>
+                            )}
+                            {doc.file_url && (
+                              <a
+                                href={doc.file_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-[#E65F2B] hover:text-[#d04f1f] bg-orange-50 hover:bg-orange-100/80 px-2.5 py-1 rounded-lg transition-colors shrink-0"
+                              >
+                                Buka File <ExternalLink className="w-3 h-3 ml-0.5" />
+                              </a>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 )}
               </div>
+
+              {/* Dokumen Hasil Coretan & Revisi Reviewer (Google Drive) */}
+              {coretanDocs.length > 0 && (
+                <div className="pt-2 border-t border-slate-200/80">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <PenTool className="w-4 h-4 text-[#E65F2B]" />
+                      Dokumen Hasil Coretan &amp; Revisi Reviewer
+                    </h4>
+                    <span className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md font-semibold">
+                      {coretanDocs.length} berkas di Google Drive
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {coretanDocs.map((doc: any) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between p-3.5 bg-blue-50/40 rounded-xl border border-blue-200/90 shadow-2xs hover:border-blue-300 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-orange-100 text-[#E65F2B]">
+                            <PenTool className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-900 text-xs block truncate" title={doc.nama_label || doc.nama_file}>
+                              {doc.nama_label || doc.nama_file}
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-500">
+                              <span className="font-mono truncate max-w-[160px]">{doc.nama_file}</span>
+                              <span className="text-emerald-700 font-semibold">&bull; Tersimpan di Drive</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {(() => {
+                            const isSipil = doc.kategori_file?.includes("SIPIL") || doc.nama_file?.toLowerCase().includes("sipil");
+                            const baseDoc = isSipil ? docsSipil[0] : docsMe[0];
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveAnnotatingDoc(baseDoc || doc);
+                                  setInitialAnnotatorLayerId(doc.id);
+                                }}
+                                className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                                title="Lihat lembar gambar beserta coretan"
+                              >
+                                <PenTool className="w-3 h-3 text-[#E65F2B]" />
+                                <span>Lihat Coretan</span>
+                              </button>
+                            );
+                          })()}
+
+                          {doc.file_url ? (
+                            <a
+                              href={doc.file_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-bold text-white bg-[#E65F2B] hover:bg-[#d04f1f] px-3 py-1.5 rounded-lg shadow-xs transition-colors shrink-0"
+                            >
+                              <span>Buka di Google Drive</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">Tautan tidak tersedia</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -827,8 +1053,8 @@ export default function DetailRenovasiModal({
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="px-6 py-3.5 bg-slate-50/80 border-t border-slate-200/80 flex flex-wrap justify-between items-center gap-3 shrink-0">
+        {/* Modal Footer (Solid, Opaque, Fixed di Bawah, Tidak Mengambang Tembus) */}
+        <div className="px-6 py-3.5 bg-white border-t border-slate-200 flex flex-wrap justify-between items-center gap-3 shrink-0 shadow-[0_-4px_25px_rgba(0,0,0,0.06)] z-30 rounded-b-2xl">
           {canApprove ? (
             <div className="flex items-center gap-1.5 text-xs text-amber-800 font-semibold bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/80">
               <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
@@ -887,7 +1113,7 @@ export default function DetailRenovasiModal({
               ) : (
                 <>
                   <Download className="w-3.5 h-3.5 mr-1.5 text-[#E65F2B]" />
-                  Unduh Dokumen PDF
+                  Lihat Dokumen PDF
                 </>
               )}
             </Button>
@@ -900,6 +1126,24 @@ export default function DetailRenovasiModal({
             </Button>
           </div>
         </div>
+
+        {/* Modal Kanvas Coretan Anotasi PDF (Mode Baca/Inspeksi) */}
+        {activeAnnotatingDoc && renovasi?.id && (
+          <PdfAnnotatorModal
+            open={Boolean(activeAnnotatingDoc)}
+            onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                setActiveAnnotatingDoc(null);
+                setInitialAnnotatorLayerId(undefined);
+              }
+            }}
+            doc={activeAnnotatingDoc}
+            renovasiId={renovasi.id}
+            isReadOnly={true}
+            initialLayerId={initialAnnotatorLayerId}
+            currentApprovalStatus={renovasi.status}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

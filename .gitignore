@@ -52,5 +52,6 @@ skills-lock.json
 scratch/
 public/pdf/
 
-data/
-docs/
+data
+
+docs

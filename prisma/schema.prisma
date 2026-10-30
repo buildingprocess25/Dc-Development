@@ -8,11 +8,11 @@ datasource db {
 }
 
 model dc_users {
-  id         Int       @id @default(autoincrement())
-  email      String    @unique
-  nama       String
-  cabang     String
-  role       String
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  nama            String
+  cabang          String
+  role            String
   nama_pt         String?
   last_login      DateTime?
   akses_menu      String?
@@ -20,523 +20,646 @@ model dc_users {
 }
 
 model dc_project {
-  id                      Int           @id @default(autoincrement())
-  kode                    String        @unique
-  nama_proyek             String
-  dc_induk                String?
-  tipe                    String
-  cabang                  String
-  inisial                 String?
-  alamat                  String?       @db.Text
-  tanggal_go              DateTime?     @db.Date
-  masa_sewa_start         DateTime?     @db.Date
-  masa_sewa_finish        DateTime?     @db.Date
-  kapasitas_toko          Int?
-  luas_lahan              Float?
-  total_luas_bangunan     Float?
-  luas_office_lt1         Float?
-  luas_office_lt2         Float?
-  luas_warehouse          Float?
-  luas_mezanine           Float?
-  luas_cold_storage       Float?
-  luas_bangunan_penunjang Float?
-  luas_area_parkir        Float?
-  luas_tapak_terbangun    Float?
-  kdb_persen              Float?
-  sisa_lahan              Float?
-  main_kontraktor         String?
-  daya_listrik            String?
-  genset                  String?
-  sumber_air              String?
-  spek_lantai_tonase      Float?
-  spek_lantai_tebal       Float?
-  spek_lantai_mutu_beton  String?
-  created_at              DateTime      @default(now())
-  updated_at              DateTime      @updatedAt
-  dokumen                 dc_dokumen[]
-  renovasi                dc_renovasi[]
-  fungsi_ruang            dc_fungsi_ruang[]
-  tenders                 dc_tender[]
-  aanwijzings             dc_aanwijzing[]
+  id                        Int                         @id @default(autoincrement())
+  kode                      String                      @unique
+  nama_proyek               String
+  dc_induk                  String?
+  tipe                      String
+  cabang                    String
+  inisial                   String?
+  alamat                    String?                     @db.Text
+  tanggal_go                DateTime?                   @db.Date
+  masa_sewa_start           DateTime?                   @db.Date
+  masa_sewa_finish          DateTime?                   @db.Date
+  kapasitas_toko            Int?
+  luas_lahan                Float?
+  total_luas_bangunan       Float?
+  luas_office_lt1           Float?
+  luas_office_lt2           Float?
+  luas_warehouse            Float?
+  luas_mezanine             Float?
+  luas_cold_storage         Float?
+  luas_bangunan_penunjang   Float?
+  luas_area_parkir          Float?
+  luas_tapak_terbangun      Float?
+  kdb_persen                Float?
+  sisa_lahan                Float?
+  main_kontraktor           String?
+  daya_listrik              String?
+  genset                    String?
+  sumber_air                String?
+  spek_lantai_tonase        Float?
+  spek_lantai_tebal         Float?
+  spek_lantai_mutu_beton    String?
+  created_at                DateTime                    @default(now())
+  updated_at                DateTime                    @updatedAt
+  dokumen                   dc_dokumen[]
+  renovasi                  dc_renovasi[]
+  fungsi_ruang              dc_fungsi_ruang[]
+  tenders                   dc_tender[]
+  aanwijzings               dc_aanwijzing[]
+  dc_aanwijzing_klarifikasi dc_aanwijzing_klarifikasi[]
 }
 
 model dc_dokumen {
-  id              Int      @id @default(autoincrement())
-  project_id      Int
-  fase_proyek     String   // "PEMBANGUNAN", "RENOVASI", "PERLUASAN"
-  kategori        String
-  nama_item       String
-  jenis_file      String   // "PDF/JPEG", "AUTOCAD", dll
-  
-  file_url        String?
-  file_name       String?
-  catatan         String?
-  is_custom       Boolean  @default(false)
-  
-  updated_by      String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-  
-  project         dc_project @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  riwayat         dc_dokumen_riwayat[]
-  
+  id          Int    @id @default(autoincrement())
+  project_id  Int
+  fase_proyek String // "PEMBANGUNAN", "RENOVASI", "PERLUASAN"
+  kategori    String
+  nama_item   String
+  jenis_file  String // "PDF/JPEG", "AUTOCAD", dll
+
+  file_url  String?
+  file_name String?
+  catatan   String?
+  is_custom Boolean @default(false)
+
+  updated_by String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  project dc_project           @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  riwayat dc_dokumen_riwayat[]
+
   @@unique([project_id, fase_proyek, kategori, nama_item])
 }
 
 model dc_dokumen_riwayat {
-  id              Int        @id @default(autoincrement())
-  dokumen_id      Int
-  action          String     // "UPLOAD_FILE", "UPDATE_CATATAN", "ADD_CUSTOM_ITEM", "DELETE_FILE"
-  deskripsi_log   String
-  created_by      String
-  created_at      DateTime   @default(now())
-  
-  dokumen         dc_dokumen @relation(fields: [dokumen_id], references: [id], onDelete: Cascade)
+  id            Int      @id @default(autoincrement())
+  dokumen_id    Int
+  action        String // "UPLOAD_FILE", "UPDATE_CATATAN", "ADD_CUSTOM_ITEM", "DELETE_FILE"
+  deskripsi_log String
+  created_by    String
+  created_at    DateTime @default(now())
+
+  dokumen dc_dokumen @relation(fields: [dokumen_id], references: [id], onDelete: Cascade)
 }
 
 // --- MASTER HARGA MODULE ---
 
 model mh_master_item {
-  id                   Int       @id @default(autoincrement())
-  kode                 String?
-  kode_anak            String    @unique
-  abjad_lokasi         String?
-  lingkup              String    @default("SIPIL") // "SIPIL" or "ME"
-  kategori_pekerjaan   String
-  item_material        String
-  ukuran_dimensi       String?
-  merk_brand           String?
-  warna_corak          String?
-  tipe_produk          String?
-  ketebalan            String?
-  finishing_permukaan  String?
-  toleransi            String?
-  implementasi         String?
-  lokasi_penerapan     String?
-  informasi_tambahan   String?
-  deskripsi_otomatis   String    @db.Text
-  email_pembuat        String?
-  
-  created_at           DateTime  @default(now())
-  updated_at           DateTime  @updatedAt
+  id                  Int     @id @default(autoincrement())
+  kode                String?
+  kode_anak           String  @unique
+  abjad_lokasi        String?
+  lingkup             String  @default("SIPIL") // "SIPIL" or "ME"
+  kategori_pekerjaan  String
+  item_material       String
+  ukuran_dimensi      String?
+  merk_brand          String?
+  warna_corak         String?
+  tipe_produk         String?
+  ketebalan           String?
+  finishing_permukaan String?
+  toleransi           String?
+  implementasi        String?
+  lokasi_penerapan    String?
+  informasi_tambahan  String?
+  deskripsi_otomatis  String  @db.Text
+  email_pembuat       String?
 
-  koefisien            mh_analisa_koefisien[]
-  item_cabang          mh_item_cabang[]
-  harga_upah_cabang    mh_harga_upah_item_cabang[]
-  renovasi_item        dc_renovasi_item[]
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  koefisien         mh_analisa_koefisien[]
+  item_cabang       mh_item_cabang[]
+  harga_upah_cabang mh_harga_upah_item_cabang[]
+  renovasi_item     dc_renovasi_item[]
 }
 
 model mh_komponen_dasar {
-  id              Int       @id @default(autoincrement())
-  kategori        String    // "UPAH" | "MATERIAL"
-  nama_komponen   String
-  satuan          String
-  email           String?
-  
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  id            Int     @id @default(autoincrement())
+  kategori      String // "UPAH" | "MATERIAL"
+  nama_komponen String
+  satuan        String
+  email         String?
 
-  harga_cabang    mh_harga_material_item_cabang[]
-  koefisien_item  mh_analisa_koefisien[]
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  harga_cabang      mh_harga_material_item_cabang[]
+  koefisien_item    mh_analisa_koefisien[]
   harga_upah_cabang mh_harga_upah_item_cabang[]
 }
 
 model mh_harga_material_item_cabang {
-  id              Int       @id @default(autoincrement())
+  id              Int    @id @default(autoincrement())
   komponen_id     Int
   cabang          String
-  coverage_cabang String    @default("")
+  coverage_cabang String @default("")
   harga_satuan    Float
-  
-  updated_at      DateTime  @updatedAt
 
-  komponen        mh_komponen_dasar @relation(fields: [komponen_id], references: [id], onDelete: Cascade)
+  updated_at DateTime @updatedAt
+
+  komponen mh_komponen_dasar @relation(fields: [komponen_id], references: [id], onDelete: Cascade)
 
   @@unique([komponen_id, cabang, coverage_cabang])
 }
 
 model mh_analisa_koefisien {
-  id               Int       @id @default(autoincrement())
+  id               Int    @id @default(autoincrement())
   master_item_id   Int
   komponen_id      Int
-  tipe             String    // "UPAH" | "MATERIAL"
+  tipe             String // "UPAH" | "MATERIAL"
   volume_koefisien Float
-  
-  master_item      mh_master_item    @relation(fields: [master_item_id], references: [id], onDelete: Cascade)
-  komponen         mh_komponen_dasar @relation(fields: [komponen_id], references: [id], onDelete: Cascade)
+
+  master_item mh_master_item    @relation(fields: [master_item_id], references: [id], onDelete: Cascade)
+  komponen    mh_komponen_dasar @relation(fields: [komponen_id], references: [id], onDelete: Cascade)
 
   @@unique([master_item_id, komponen_id])
 }
 
 model mh_item_cabang {
-  id               Int       @id @default(autoincrement())
-  master_item_id   Int
-  cabang           String
-  coverage_cabang  String    @default("")
-  
-  total_upah       Float
-  total_material   Float
-  harga_kalkulasi  Float
-  harga_release    Float
-  status_aktif     Boolean   @default(false)
-  
-  updated_at       DateTime  @updatedAt
+  id              Int    @id @default(autoincrement())
+  master_item_id  Int
+  cabang          String
+  coverage_cabang String @default("")
 
-  master_item      mh_master_item @relation(fields: [master_item_id], references: [id], onDelete: Cascade)
+  total_upah      Float
+  total_material  Float
+  harga_kalkulasi Float
+  harga_release   Float
+  status_aktif    Boolean @default(false)
+
+  updated_at DateTime @updatedAt
+
+  master_item mh_master_item @relation(fields: [master_item_id], references: [id], onDelete: Cascade)
 
   @@unique([master_item_id, cabang, coverage_cabang])
 }
 
 model mh_kategori_pekerjaan {
-  id       Int    @id @default(autoincrement())
-  lingkup  String // "SIPIL" or "ME"
-  nama     String
-  
+  id      Int    @id @default(autoincrement())
+  lingkup String // "SIPIL" or "ME"
+  nama    String
+
   @@unique([lingkup, nama])
 }
 
-
-
 model mh_harga_upah_item_cabang {
-  id               Int       @id @default(autoincrement())
-  master_item_id   Int
-  komponen_id      Int
-  cabang           String
-  coverage_cabang  String    @default("")
-  harga_satuan     Float
+  id              Int    @id @default(autoincrement())
+  master_item_id  Int
+  komponen_id     Int
+  cabang          String
+  coverage_cabang String @default("")
+  harga_satuan    Float
 
-  master_item      mh_master_item    @relation(fields: [master_item_id], references: [id], onDelete: Cascade)
-  komponen         mh_komponen_dasar @relation(fields: [komponen_id], references: [id], onDelete: Cascade)
+  master_item mh_master_item    @relation(fields: [master_item_id], references: [id], onDelete: Cascade)
+  komponen    mh_komponen_dasar @relation(fields: [komponen_id], references: [id], onDelete: Cascade)
 
   @@unique([master_item_id, komponen_id, cabang, coverage_cabang])
 }
 
-
 model app_audit_log {
-  id           Int       @id @default(autoincrement())
-  user_email   String
-  modul        String
-  entitas      String
-  entitas_id   String
-  aksi         String
-  data_lama    Json?
-  data_baru    Json?
-  created_at   DateTime  @default(now())
+  id         Int      @id @default(autoincrement())
+  user_email String
+  modul      String
+  entitas    String
+  entitas_id String
+  aksi       String
+  data_lama  Json?
+  data_baru  Json?
+  created_at DateTime @default(now())
 }
 
 // --- Penawaran RAB/OE MODULE ---
 
 model dc_renovasi {
-  id                 Int                    @id @default(autoincrement())
-  nomor_pengajuan    String                 @unique
-  project_id         Int
-  jenis_renovasi     String
-  lingkup_pekerjaan  String                 @default("Sipil + ME")
-  durasi_hari        Int                    @default(0)
-  satuan_durasi      String                 @default("Hari")
-  status             String                 @default("DRAFT") // DRAFT, MENUNGGU APPROVAL B&M MANAGER, REVISI, APPROVED, DITOLAK
-  kategori_nilai     String                 @default("DI_BAWAH_1M") // "DI_ATAS_1M" | "DI_BAWAH_1M"
-  total_biaya_sipil  Float                  @default(0)
-  total_biaya_me     Float                  @default(0)
-  total_sebelum_ppn  Float                  @default(0)
-  nilai_ppn          Float                  @default(0)
-  nilai_pembulatan   Float                  @default(0)
-  grand_total        Float                  @default(0)
-  catatan_pengajuan  String?
-  created_by         String                 // email user
-  cabang             String
-  created_at         DateTime               @default(now())
-  updated_at         DateTime               @updatedAt
+  id                Int      @id @default(autoincrement())
+  nomor_pengajuan   String   @unique
+  project_id        Int
+  jenis_renovasi    String
+  lingkup_pekerjaan String   @default("Sipil + ME")
+  durasi_hari       Int      @default(0)
+  satuan_durasi     String   @default("Hari")
+  status            String   @default("DRAFT") // DRAFT, MENUNGGU APPROVAL B&M MANAGER, REVISI, APPROVED, DITOLAK
+  kategori_nilai    String   @default("DI_BAWAH_1M") // "DI_ATAS_1M" | "DI_BAWAH_1M"
+  total_biaya_sipil Float    @default(0)
+  total_biaya_me    Float    @default(0)
+  total_sebelum_ppn Float    @default(0)
+  nilai_ppn         Float    @default(0)
+  nilai_pembulatan  Float    @default(0)
+  grand_total       Float    @default(0)
+  catatan_pengajuan String?
+  created_by        String // email user
+  cabang            String
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 
-  project            dc_project             @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  dokumen            dc_renovasi_dokumen[]
-  item_rab           dc_renovasi_item[]
-  fungsi_ruang       dc_fungsi_ruang[]
-  tenders            dc_tender[]
-  aanwijzings        dc_aanwijzing[]
+  project                 dc_project                  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  dokumen                 dc_renovasi_dokumen[]
+  item_rab                dc_renovasi_item[]
+  fungsi_ruang            dc_fungsi_ruang[]
+  tenders                 dc_tender[]
+  aanwijzings             dc_aanwijzing[]
+  klarifikasi_aanwijzings dc_aanwijzing_klarifikasi[]
 }
 
 model dc_renovasi_dokumen {
-  id                  Int          @id @default(autoincrement())
+  id                  Int       @id @default(autoincrement())
   renovasi_id         Int
-  kategori_file       String       // "GAMBAR_SIPIL", "GAMBAR_ME", "FOTO_LINGKUNGAN"
+  kategori_file       String // "GAMBAR_SIPIL", "GAMBAR_ME", "FOTO_LINGKUNGAN"
   nama_file           String
-  nama_label          String?      // Nama / Deskripsi foto
-  file_url            String?      // Link Google Drive
+  nama_label          String? // Nama / Deskripsi foto
+  file_url            String? // Link Google Drive
   drive_file_id       String?
   mime_type           String?
   latitude            Float?
   longitude           Float?
   timestamp_watermark DateTime?
-  created_at          DateTime     @default(now())
+  created_at          DateTime  @default(now())
 
-  renovasi            dc_renovasi  @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
+  renovasi dc_renovasi                   @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
+  anotasi  dc_renovasi_dokumen_anotasi[]
+}
+
+model dc_renovasi_dokumen_anotasi {
+  id           Int      @id @default(autoincrement())
+  dokumen_id   Int
+  user_email   String
+  user_nama    String
+  user_role    String // "BRANCH B&M MANAGER" | "DC SPECIALIST" | "B&M GM" | etc.
+  status_aksi  String // "REVISI" | "TOLAK" | "APPROVE"
+  catatan      String?  @db.Text
+  anotasi_json Json // Vector annotations per page: { pages: [{ pageIndex: number, width: number, height: number, objects: AnnotationObject[] }] }
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  dokumen dc_renovasi_dokumen @relation(fields: [dokumen_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([dokumen_id])
+  @@index([user_email])
 }
 
 model dc_renovasi_item {
-  id                 Int             @id @default(autoincrement())
+  id                 Int      @id @default(autoincrement())
   renovasi_id        Int
-  lingkup            String          // "SIPIL" or "ME"
+  lingkup            String // "SIPIL" or "ME"
   kategori_pekerjaan String
-  master_item_id     Int?            // Nullable jika custom item
+  master_item_id     Int? // Nullable jika custom item
   deskripsi          String
-  harga_material     Float           @default(0)
-  harga_upah         Float           @default(0)
-  volume             Float           @default(0)
-  total_material     Float           @default(0)
-  total_upah         Float           @default(0)
-  total_biaya        Float           @default(0)
+  satuan             String   @default("m2")
+  harga_material     Float    @default(0)
+  harga_upah         Float    @default(0)
+  volume             Float    @default(0)
+  total_material     Float    @default(0)
+  total_upah         Float    @default(0)
+  total_biaya        Float    @default(0)
   catatan            String?
-  is_custom          Boolean         @default(false)
-  created_at         DateTime        @default(now())
+  is_custom          Boolean  @default(false)
+  created_at         DateTime @default(now())
 
-  renovasi           dc_renovasi     @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
-  master_item        mh_master_item? @relation(fields: [master_item_id], references: [id], onDelete: SetNull)
+  renovasi          dc_renovasi                      @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
+  master_item       mh_master_item?                  @relation(fields: [master_item_id], references: [id], onDelete: SetNull)
+  klarifikasi_items dc_aanwijzing_klarifikasi_item[]
 }
 
 // --- Pengajuan Perubahan Fungsi Ruang (PFR) MODULE ---
 
 model dc_master_pemohon {
-  id               Int               @id @default(autoincrement())
-  nama_pemohon     String
-  email_pemohon    String            @unique
-  jabatan          String
-  divisi           String
-  departemen       String
-  cabang           String            @default("BALI")
-  created_at       DateTime          @default(now())
-  updated_at       DateTime          @updatedAt
+  id            Int      @id @default(autoincrement())
+  nama_pemohon  String
+  email_pemohon String   @unique
+  jabatan       String
+  divisi        String
+  departemen    String
+  cabang        String   @default("BALI")
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
-  fungsi_ruang     dc_fungsi_ruang[]
+  fungsi_ruang dc_fungsi_ruang[]
 }
 
 model dc_fungsi_ruang {
-  id               Int               @id @default(autoincrement())
-  nomor_pengajuan  String            @unique
-  renovasi_id      Int
-  project_id       Int
-  pemohon_id       Int
-  
+  id              Int    @id @default(autoincrement())
+  nomor_pengajuan String @unique
+  renovasi_id     Int
+  project_id      Int
+  pemohon_id      Int
+
   // Data Pengajuan Ruang
-  jenis_pengajuan  String       // "Perubahan Fungsi Ruang" | "Pengurangan Fungsi Ruang" | "Penambahan Fungsi Ruang"
-  alasan_pengajuan String       @db.Text
-  
+  jenis_pengajuan  String // "Perubahan Fungsi Ruang" | "Pengurangan Fungsi Ruang" | "Penambahan Fungsi Ruang"
+  alasan_pengajuan String @db.Text
+
   // Alur Approval
-  status           String       @default("MENUNGGU APPROVAL BM/DBM")
-  
+  status String @default("MENUNGGU APPROVAL BM/DBM")
+
   // Google Drive File
-  file_url         String?      // Link Google Drive
-  drive_file_id    String?
+  file_url      String? // Link Google Drive
+  drive_file_id String?
 
-  created_by       String       // email maker (B&M Manager / Admin)
-  created_at       DateTime     @default(now())
-  updated_at       DateTime     @updatedAt
+  created_by String // email maker (B&M Manager / Admin)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  pemohon          dc_master_pemohon @relation(fields: [pemohon_id], references: [id], onDelete: Cascade)
-  renovasi         dc_renovasi       @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
-  project          dc_project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  tenders          dc_tender[]
-  aanwijzings      dc_aanwijzing[]
+  pemohon     dc_master_pemohon @relation(fields: [pemohon_id], references: [id], onDelete: Cascade)
+  renovasi    dc_renovasi       @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
+  project     dc_project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenders     dc_tender[]
+  aanwijzings dc_aanwijzing[]
 }
 
 model dc_master_vendor {
-  id               Int       @id @default(autoincrement())
-  nama_perusahaan  String
-  alamat           String    @db.Text
-  nomor_telepon    String
-  email            String
-  golongan         String    // "BESAR" | "MENENGAH"
-  jenis            String    // "KONTRAKTOR" | "KONSULTAN PENGAWAS" | "KONSULTAN PERENCANA" | "KONSULTAN PERENCANA & PENGAWAS"
-  cabang           String    @default("HEAD OFFICE")
-  coverage_cabang  String?   @db.Text
-  
-  // Portofolio & Legalitas (disimpan terstruktur JSON Array)
-  pengalaman       Json?     // string[] riwayat pengalaman proyek
-  sertifikat       Json?     // string[] daftar sertifikat SBU / SKA
-  sertifikasi_iso  Json?     // string[] daftar sertifikasi ISO
-  
-  status_aktif     Boolean   @default(true)
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
+  id              Int     @id @default(autoincrement())
+  nama_perusahaan String
+  alamat          String  @db.Text
+  nomor_telepon   String
+  email           String
+  golongan        String // "BESAR" | "MENENGAH"
+  jenis           String // "KONTRAKTOR" | "KONSULTAN PENGAWAS" | "KONSULTAN PERENCANA" | "KONSULTAN PERENCANA & PENGAWAS"
+  cabang          String  @default("HEAD OFFICE")
+  coverage_cabang String? @db.Text
 
-  peserta_tender   dc_tender_peserta[]
+  // Portofolio & Legalitas (disimpan terstruktur JSON Array)
+  pengalaman      Json? // string[] riwayat pengalaman proyek
+  sertifikat      Json? // string[] daftar sertifikat SBU / SKA
+  sertifikasi_iso Json? // string[] daftar sertifikasi ISO
+
+  status_aktif Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  peserta_tender     dc_tender_peserta[]
   peserta_aanwijzing dc_aanwijzing_vendor[]
 }
 
 // --- Pengajuan Kontraktor & Konsultan Tender MODULE ---
 
 model dc_tender {
-  id                 Int       @id @default(autoincrement())
-  nomor_tender       String    @unique // e.g. TND/DC/2610/0001
-  project_id         Int
-  renovasi_id        Int
-  fungsi_ruang_id    Int?
-  
-  kategori_nilai     String    // "DI_ATAS_1M" | "DI_BAWAH_1M"
-  nilai_proyek       Float     // Nominal grand_total dari dc_renovasi
-  
+  id              Int    @id @default(autoincrement())
+  nomor_tender    String @unique // e.g. TND/DC/2610/0001
+  project_id      Int
+  renovasi_id     Int
+  fungsi_ruang_id Int?
+
+  kategori_nilai String // "DI_ATAS_1M" | "DI_BAWAH_1M"
+  nilai_proyek   Float // Nominal grand_total dari dc_renovasi
+
   // Kebutuhan Konsultan
-  butuh_konsultan    Boolean   @default(false)
-  tipe_konsultan     String?   // "PENGAWAS" | "PERENCANA" | "PENGAWAS_DAN_PERENCANA" | null
-  
+  butuh_konsultan Boolean @default(false)
+  tipe_konsultan  String? // "PENGAWAS" | "PERENCANA" | "PENGAWAS_DAN_PERENCANA" | null
+
   // Status Alur
   // > 1M: PRAKUALIFIKASI -> KUALIFIKASI -> MENUNGGU APPROVAL DC SPECIALIST -> MENUNGGU APPROVAL B&M GM -> MENUNGGU APPROVAL PROPERTY DEV DIRECTOR -> APPROVED | REVISI | DITOLAK
   // <= 1M: PRAKUALIFIKASI -> KUALIFIKASI -> SELESAI
-  status             String    @default("PRAKUALIFIKASI")
-  catatan_maker      String?   @db.Text
-  catatan_kualifikasi String?   @db.Text
-  
-  // Arsip Dokumen Resmi Proposal PDF
-  file_url           String?
-  drive_file_id      String?
-  
-  created_by         String    // email pembuat
-  cabang             String    // cabang DC untuk filtering coverage
-  created_at         DateTime  @default(now())
-  updated_at         DateTime  @updatedAt
+  status              String  @default("PRAKUALIFIKASI")
+  catatan_maker       String? @db.Text
+  catatan_kualifikasi String? @db.Text
 
-  project            dc_project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  renovasi           dc_renovasi       @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
-  fungsi_ruang       dc_fungsi_ruang?  @relation(fields: [fungsi_ruang_id], references: [id], onDelete: Cascade)
-  
-  peserta            dc_tender_peserta[]
-  schedule           dc_tender_schedule[]
-  audit_logs         dc_tender_audit_log[]
-  aanwijzings        dc_aanwijzing[]
+  // Arsip Dokumen Resmi Proposal PDF
+  file_url      String?
+  drive_file_id String?
+
+  created_by String // email pembuat
+  cabang     String // cabang DC untuk filtering coverage
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  project      dc_project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  renovasi     dc_renovasi      @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
+  fungsi_ruang dc_fungsi_ruang? @relation(fields: [fungsi_ruang_id], references: [id], onDelete: Cascade)
+
+  peserta     dc_tender_peserta[]
+  schedule    dc_tender_schedule[]
+  audit_logs  dc_tender_audit_log[]
+  aanwijzings dc_aanwijzing[]
 }
 
 model dc_tender_peserta {
-  id                 Int       @id @default(autoincrement())
+  id                 Int      @id @default(autoincrement())
   tender_id          Int
   vendor_id          Int
-  peran              String    // "MAIN_KONTRAKTOR" | "KONSULTAN_PENGAWAS" | "KONSULTAN_PERENCANA"
-  status_tahap       String    @default("PRAKUALIFIKASI") // "PRAKUALIFIKASI" | "LOLOS_KUALIFIKASI" | "TIDAK_LOLOS"
-  alasan_tidak_lolos String?   @db.Text
+  peran              String // "MAIN_KONTRAKTOR" | "KONSULTAN_PENGAWAS" | "KONSULTAN_PERENCANA"
+  status_tahap       String   @default("PRAKUALIFIKASI") // "PRAKUALIFIKASI" | "LOLOS_KUALIFIKASI" | "TIDAK_LOLOS"
+  alasan_tidak_lolos String?  @db.Text
   score              Float?
-  is_pemenang        Boolean   @default(false)
-  created_at         DateTime  @default(now())
-  updated_at         DateTime  @updatedAt
-  
-  tender             dc_tender         @relation(fields: [tender_id], references: [id], onDelete: Cascade)
-  vendor             dc_master_vendor  @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
+  is_pemenang        Boolean  @default(false)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  tender dc_tender        @relation(fields: [tender_id], references: [id], onDelete: Cascade)
+  vendor dc_master_vendor @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
 
   @@unique([tender_id, vendor_id, peran])
 }
 
 model dc_tender_schedule {
-  id                 Int       @id @default(autoincrement())
-  tender_id          Int
-  kategori_jadwal    String    // "TENDER_MAIN_KONTRAKTOR" | "TENDER_KONSULTAN" | "KONSTRUKSI_MAIN_KONTRAKTOR" | "KONSTRUKSI_KONSULTAN"
-  nama_kegiatan      String
-  tanggal_mulai      DateTime  @db.Date
-  tanggal_selesai    DateTime  @db.Date
-  keterangan         String?   @db.Text
-  urutan             Int       @default(1)
-  created_at         DateTime  @default(now())
-  updated_at         DateTime  @updatedAt
-  
-  tender             dc_tender @relation(fields: [tender_id], references: [id], onDelete: Cascade)
+  id              Int      @id @default(autoincrement())
+  tender_id       Int
+  kategori_jadwal String // "TENDER_MAIN_KONTRAKTOR" | "TENDER_KONSULTAN" | "KONSTRUKSI_MAIN_KONTRAKTOR" | "KONSTRUKSI_KONSULTAN"
+  nama_kegiatan   String
+  tanggal_mulai   DateTime @db.Date
+  tanggal_selesai DateTime @db.Date
+  keterangan      String?  @db.Text
+  urutan          Int      @default(1)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  tender dc_tender @relation(fields: [tender_id], references: [id], onDelete: Cascade)
 }
 
 model dc_tender_audit_log {
-  id           Int       @id @default(autoincrement())
-  tender_id    Int
-  user_email   String
-  user_name    String
-  user_role    String
-  action       String    // "SUBMIT" | "KUALIFIKASI" | "APPROVE" | "REVISI" | "TOLAK"
-  from_status  String
-  to_status    String
-  notes        String?   @db.Text
-  created_at   DateTime  @default(now())
+  id          Int      @id @default(autoincrement())
+  tender_id   Int
+  user_email  String
+  user_name   String
+  user_role   String
+  action      String // "SUBMIT" | "KUALIFIKASI" | "APPROVE" | "REVISI" | "TOLAK"
+  from_status String
+  to_status   String
+  notes       String?  @db.Text
+  created_at  DateTime @default(now())
 
-  tender       dc_tender @relation(fields: [tender_id], references: [id], onDelete: Cascade)
+  tender dc_tender @relation(fields: [tender_id], references: [id], onDelete: Cascade)
 }
 
 // --- Undangan Aanwijzing DC MODULE ---
 
 model dc_aanwijzing {
-  id                   Int       @id @default(autoincrement())
-  nomor_undangan       String    @unique // e.g. UND/DC/2610/0001
-  project_id           Int
-  renovasi_id          Int
-  tender_id            Int?      // Nullable jika alur < 1M (langsung dari fungsi ruang)
-  fungsi_ruang_id      Int?      // Nullable jika alur > 1M (dari proposal tender)
-  kategori_nilai       String    // "DI_ATAS_1M" | "DI_BAWAH_1M"
-  
+  id              Int    @id @default(autoincrement())
+  nomor_undangan  String @unique // e.g. UND/DC/2610/0001
+  project_id      Int
+  renovasi_id     Int
+  tender_id       Int? // Nullable jika alur < 1M (langsung dari fungsi ruang)
+  fungsi_ruang_id Int? // Nullable jika alur > 1M (dari proposal tender)
+  kategori_nilai  String // "DI_ATAS_1M" | "DI_BAWAH_1M"
+
   // Waktu & Tempat Pelaksanaan
-  tanggal_pelaksanaan  DateTime  @db.Date
-  waktu_pelaksanaan    String    // format "09:00 WIB" atau rentang waktu
-  lokasi               String    @db.Text // statis 100% dari dc_project.alamat
-  catatan              String?   @db.Text
-  
+  tanggal_pelaksanaan DateTime @db.Date
+  waktu_pelaksanaan   String // format "09:00 WIB" atau rentang waktu
+  lokasi              String   @db.Text // statis 100% dari dc_project.alamat
+  catatan             String?  @db.Text
+
   // Status Alur
   // "MENUNGGU_KONFIRMASI" | "AANWIJZING_LANJUT" | "MENUNGGU_APPROVAL_DC_MANAGER" | "ON_HOLD"
-  status               String    @default("MENUNGGU_KONFIRMASI")
-  
+  status String @default("MENUNGGU_KONFIRMASI")
+
   // Batas Waktu Respon Kontraktor (2x24 JAM / 48 Jam)
-  deadline_konfirmasi  DateTime
-  
+  deadline_konfirmasi DateTime
+
   // Arsip Dokumen Surat Undangan PDF Resmi
-  file_url             String?
-  drive_file_id        String?
-  
-  created_by           String    // email pembuat
-  cabang               String    // cabang DC
-  created_at           DateTime  @default(now())
-  updated_at           DateTime  @updatedAt
+  file_url      String?
+  drive_file_id String?
 
-  project              dc_project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  renovasi             dc_renovasi           @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
-  tender               dc_tender?            @relation(fields: [tender_id], references: [id], onDelete: Cascade)
-  fungsi_ruang         dc_fungsi_ruang?      @relation(fields: [fungsi_ruang_id], references: [id], onDelete: Cascade)
+  // Sesi Absensi Hari-H Rapat Aanwijzing
+  session_absen_active     Boolean   @default(false)
+  session_absen_started_at DateTime?
+  session_absen_lat        Float?
+  session_absen_long       Float?
+  session_absen_address    String?   @db.Text
 
-  peserta              dc_aanwijzing_vendor[]
-  audit_logs           dc_aanwijzing_audit_log[]
+  created_by String // email pembuat
+  cabang     String // cabang DC
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  project      dc_project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  renovasi     dc_renovasi      @relation(fields: [renovasi_id], references: [id], onDelete: Cascade)
+  tender       dc_tender?       @relation(fields: [tender_id], references: [id], onDelete: Cascade)
+  fungsi_ruang dc_fungsi_ruang? @relation(fields: [fungsi_ruang_id], references: [id], onDelete: Cascade)
+
+  peserta     dc_aanwijzing_vendor[]
+  audit_logs  dc_aanwijzing_audit_log[]
+  klarifikasi dc_aanwijzing_klarifikasi?
 }
 
 model dc_aanwijzing_vendor {
-  id                  Int       @id @default(autoincrement())
-  aanwijzing_id       Int
-  vendor_id           Int
-  email               String
-  status_konfirmasi   String    @default("MENUNGGU_RESPON") // "MENUNGGU_RESPON" | "HADIR" | "TIDAK_HADIR"
-  respon_at           DateTime?
-  alasan_tidak_hadir  String?   @db.Text
-  
-  // Status pengiriman email
-  email_sent          Boolean   @default(false)
-  email_sent_at       DateTime?
-  email_error         String?   @db.Text
-  
-  // Link Arsip Dokumen PDF Undangan Khusus Rekanan di Google Drive
-  file_url            String?
-  drive_file_id       String?
-  
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  id                 Int       @id @default(autoincrement())
+  aanwijzing_id      Int
+  vendor_id          Int
+  email              String
+  status_konfirmasi  String    @default("MENUNGGU_RESPON") // "MENUNGGU_RESPON" | "HADIR" | "TIDAK_HADIR"
+  respon_at          DateTime?
+  alasan_tidak_hadir String?   @db.Text
 
-  aanwijzing          dc_aanwijzing     @relation(fields: [aanwijzing_id], references: [id], onDelete: Cascade)
-  vendor              dc_master_vendor  @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
+  // Status pengiriman email
+  email_sent    Boolean   @default(false)
+  email_sent_at DateTime?
+  email_error   String?   @db.Text
+
+  // Link Arsip Dokumen PDF Undangan Khusus Rekanan di Google Drive
+  file_url      String?
+  drive_file_id String?
+
+  // Pelacakan Kehadiran Fisik Aktual di Hari-H
+  status_kehadiran_aktual String    @default("BELUM_ABSEN") // "BELUM_ABSEN" | "HADIR_AKTUAL" | "TIDAK_HADIR"
+  absen_at                DateTime?
+  absen_lat               Float?
+  absen_long              Float?
+  absen_distance_meter    Float?
+  absen_metode            String? // "QR_SCAN_GPS" | "VERIFIKASI_MANUAL_BBK"
+  catatan_absen           String?   @db.Text
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  aanwijzing dc_aanwijzing    @relation(fields: [aanwijzing_id], references: [id], onDelete: Cascade)
+  vendor     dc_master_vendor @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
 
   @@unique([aanwijzing_id, vendor_id])
 }
 
 model dc_aanwijzing_audit_log {
-  id            Int       @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   aanwijzing_id Int
   user_email    String
   user_name     String
   user_role     String
-  action        String    // "SUBMIT_UNDANGAN" | "KONFIRMASI_HADIR" | "KONFIRMASI_TIDAK_HADIR" | "AUTO_DECLINE_TIMEOUT" | "APPROVAL_DC_MANAGER_LANJUT" | "APPROVAL_DC_MANAGER_ON_HOLD" | "AUTO_ON_HOLD_QUORUM"
+  action        String // "SUBMIT_UNDANGAN" | "KONFIRMASI_HADIR" | "KONFIRMASI_TIDAK_HADIR" | "AUTO_DECLINE_TIMEOUT" | "APPROVAL_DC_MANAGER_LANJUT" | "APPROVAL_DC_MANAGER_ON_HOLD" | "AUTO_ON_HOLD_QUORUM"
   from_status   String
   to_status     String
-  notes         String?   @db.Text
-  created_at    DateTime  @default(now())
+  notes         String?  @db.Text
+  created_at    DateTime @default(now())
 
-  aanwijzing    dc_aanwijzing @relation(fields: [aanwijzing_id], references: [id], onDelete: Cascade)
+  aanwijzing dc_aanwijzing @relation(fields: [aanwijzing_id], references: [id], onDelete: Cascade)
 }
 
+// --- Klarifikasi Aanwijzing DC MODULE ---
 
+model dc_aanwijzing_klarifikasi {
+  id                Int    @id @default(autoincrement())
+  nomor_klarifikasi String @unique // e.g. BA/DC/2610/0001
+  aanwijzing_id     Int    @unique // 1-to-1 dengan dc_aanwijzing
+  project_id        Int
+  renovasi_id       Int
 
+  // Status Alur Approval Bertingkat
+  // "DRAFT" | "MENUNGGU_APPROVAL_BBM_MANAGER" | "MENUNGGU_APPROVAL_DC_SPECIALIST" | "REVISI" | "APPROVED"
+  status String @default("DRAFT")
 
+  total_item_baru     Int     @default(0)
+  total_item_ubah_vol Int     @default(0)
+  catatan_maker       String? @db.Text
+
+  // Arsip Dokumen PDF Resmi di Google Drive
+  file_url      String?
+  drive_file_id String?
+
+  created_by String // email pembuat (BBK / Admin)
+  cabang     String // cabang DC
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  aanwijzing dc_aanwijzing @relation(fields: [aanwijzing_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  project    dc_project    @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  renovasi   dc_renovasi   @relation(fields: [renovasi_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  items      dc_aanwijzing_klarifikasi_item[]
+  audit_logs dc_aanwijzing_klarifikasi_audit_log[]
+
+  @@index([aanwijzing_id])
+  @@index([project_id])
+  @@index([renovasi_id])
+  @@index([created_by])
+  @@index([cabang])
+}
+
+model dc_aanwijzing_klarifikasi_item {
+  id                        Int    @id @default(autoincrement())
+  klarifikasi_id            Int
+  tipe_perubahan            String // "ITEM_BARU" | "UBAH_VOLUME"
+  original_renovasi_item_id Int? // Referensi ke dc_renovasi_item (null jika ITEM_BARU)
+
+  lingkup            String // "SIPIL" | "ME"
+  kategori_pekerjaan String
+  deskripsi          String @db.Text
+  satuan             String @default("m2")
+
+  volume_awal       Float @default(0) // 0 jika item baru
+  volume_akhir      Float @default(0)
+  harga_material    Float @default(0)
+  harga_upah        Float @default(0)
+  total_biaya_awal  Float @default(0)
+  total_biaya_akhir Float @default(0)
+
+  status_perubahan String? @default("ITEM_BARU") // "ITEM_BARU" | "VOLUME_BERUBAH" | "HARGA_MATERIAL_BERUBAH" | "HARGA_UPAH_BERUBAH" | "VOLUME_DAN_HARGA_BERUBAH"
+  catatan          String? @db.Text // Catatan wajib dari maker / user
+  keterangan       String  @db.Text // "Item Baru ditambahkan" | "Volume berubah dari X [satuan] menjadi Y [satuan]"
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  klarifikasi   dc_aanwijzing_klarifikasi @relation(fields: [klarifikasi_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  original_item dc_renovasi_item?         @relation(fields: [original_renovasi_item_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([klarifikasi_id])
+  @@index([original_renovasi_item_id])
+}
+
+model dc_aanwijzing_klarifikasi_audit_log {
+  id             Int      @id @default(autoincrement())
+  klarifikasi_id Int
+  user_email     String
+  user_name      String
+  user_role      String
+  action         String // "SUBMIT" | "APPROVE_BBM_MANAGER" | "APPROVE_DC_SPECIALIST" | "REVISI" | "RESUBMIT"
+  from_status    String
+  to_status      String
+  notes          String?  @db.Text
+  created_at     DateTime @default(now())
+
+  klarifikasi dc_aanwijzing_klarifikasi @relation(fields: [klarifikasi_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([klarifikasi_id])
+  @@index([user_email])
+}

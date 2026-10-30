@@ -6,22 +6,9 @@ import {
   Building2,
   Plus,
   Search,
-  Filter,
   RefreshCw,
-  Edit3,
-  Trash2,
-  Eye,
-  Briefcase,
-  Award,
-  ShieldCheck,
-  UserCheck,
-  Phone,
-  Mail,
-  Loader2,
-  Users,
   AlertTriangle,
-  MapPin,
-  Globe,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +16,7 @@ import { FeedbackModal } from "@/components/ui/feedback-modal";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { VendorModal } from "@/components/master-vendor/VendorModal";
 import { DetailVendorModal } from "@/components/master-vendor/DetailVendorModal";
+import { MasterVendorTable } from "@/components/master-vendor/MasterVendorTable";
 import { useSession } from "@/context/SessionContext";
 import {
   getUserCoverageBranches,
@@ -37,6 +25,7 @@ import {
   getIndukFromCabang,
 } from "@/lib/branches";
 import { BranchFilterSelect } from "@/components/ui/branch-filter-select";
+import { FilterSelect } from "@/components/ui/filter-select";
 
 export default function MasterKontraktorPage() {
   const { user } = useSession();
@@ -214,357 +203,89 @@ export default function MasterKontraktorPage() {
     return result;
   }, [vendors, userCoverageBranches, branchFilter]);
 
-  // Metrics summary berdasarkan hasil filter wewenang cabang
-  const metrics = useMemo(() => {
-    const total = filteredVendors.length;
-    const kontraktorCount = filteredVendors.filter((v) => v.jenis === "KONTRAKTOR").length;
-    const konsultanCount = filteredVendors.filter((v) => (v.jenis || "").includes("KONSULTAN")).length;
-    const besarCount = filteredVendors.filter((v) => v.golongan === "BESAR").length;
-    const menengahCount = filteredVendors.filter((v) => v.golongan === "MENENGAH").length;
-    return { total, kontraktorCount, konsultanCount, besarCount, menengahCount };
-  }, [filteredVendors]);
-
   return (
     <Dashboard title="Master Kontraktor &amp; Konsultan">
-      <div className="flex flex-col bg-[#FAFAFA] p-3 md:p-5 lg:p-6 animate-in fade-in duration-300 overflow-y-auto h-[calc(100vh-60px)] space-y-4">
-        {/* Banner Header Info */}
-        <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 p-5 shadow-2xs">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center space-x-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#E65F2B] to-[#cf4d1a] flex items-center justify-center text-white shadow-xs shrink-0">
-                <Building2 className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-                    Master Rekanan Kontraktor &amp; Konsultan
-                  </h1>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-[#E65F2B] border border-orange-200 uppercase tracking-wider">
-                    Modul Pengadaan DC
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Database resmi rekanan vendor tender pembangunan, renovasi gudang, konsultan perencana, dan pengawas. Terfilter sesuai wewenang cabang Anda.
-                </p>
-              </div>
-            </div>
-
-            <Button
-              onClick={handleOpenAdd}
-              className="h-10 px-4.5 rounded-xl bg-[#E65F2B] hover:bg-[#d04f1f] text-white text-xs font-semibold shadow-xs transition-all flex items-center space-x-2 shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tambah Rekanan Vendor</span>
-            </Button>
-          </div>
-
-          {/* Cards Metrik Ringkasan */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-4 border-t border-slate-100">
-            <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/60">
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                Total Rekanan Sesuai Wilayah
-              </p>
-              <p className="text-xl font-bold text-slate-800 mt-0.5">{metrics.total}</p>
-            </div>
-            <div className="p-3 bg-orange-50/60 rounded-xl border border-orange-200/60">
-              <p className="text-[11px] font-semibold text-orange-700 uppercase tracking-wide">
-                Kontraktor Utama
-              </p>
-              <p className="text-xl font-bold text-orange-900 mt-0.5">{metrics.kontraktorCount}</p>
-            </div>
-            <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200/60">
-              <p className="text-[11px] font-semibold text-blue-700 uppercase tracking-wide">
-                Konsultan (MK/Perencana)
-              </p>
-              <p className="text-xl font-bold text-blue-900 mt-0.5">{metrics.konsultanCount}</p>
-            </div>
-            <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200/60">
-              <p className="text-[11px] font-semibold text-purple-700 uppercase tracking-wide">
-                Kualifikasi Besar
-              </p>
-              <p className="text-xl font-bold text-purple-900 mt-0.5">{metrics.besarCount}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Toolbar Filter & Pencarian */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <form onSubmit={handleSearchSubmit} className="flex-1 relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+      <div className="flex-1 min-h-0 flex flex-col space-y-3.5 animate-in fade-in duration-300">
+        {/* Toolbar Filter & Pencarian (Standar SPARTA modul Pengadaan DC) */}
+        <div className="bg-white p-3.5 lg:p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between shrink-0">
+          {/* Kolom Pencarian */}
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari nama PT, cabang, coverage, email, atau kontak rekanan..."
-              className="h-10 pl-9.5 pr-20 text-xs rounded-xl border-slate-200 focus:border-[#E65F2B] focus:ring-[#E65F2B]/20 w-full"
+              className="pl-9 w-full rounded-xl border-slate-200 focus-visible:ring-[#E65F2B] h-10 text-xs bg-slate-50/50"
             />
-            <button
-              type="submit"
-              className="absolute right-2 top-2 h-6 px-2 text-[10px] font-semibold uppercase tracking-wider bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors"
-            >
-              Cari
-            </button>
-          </form>
+          </div>
 
-          <div className="flex items-center flex-wrap gap-2">
-            {/* Filter Cabang Otomatis Berdasarkan Coverage Akun */}
-            <div className="w-44">
-              <BranchFilterSelect
-                value={branchFilter}
-                onChange={setBranchFilter}
-                allLabel="Semua Cabang Wewenang"
-                className="w-full"
-              />
-            </div>
+          {/* Kolom Filter & Tombol Tambah Rekanan */}
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            <BranchFilterSelect
+              value={branchFilter}
+              onChange={setBranchFilter}
+              allLabel="Semua Cabang"
+              className="w-full sm:w-44 h-10 text-xs"
+            />
 
-            {/* Filter Jenis */}
-            <select
+            <FilterSelect
               value={filterJenis}
-              onChange={(e) => setFilterJenis(e.target.value)}
-              className="h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#E65F2B]"
-            >
-              <option value="ALL">Semua Rekanan</option>
-              <option value="KONTRAKTOR">Hanya Kontraktor</option>
-              <option value="KONSULTAN">Semua Konsultan</option>
-              <option value="KONSULTAN PENGAWAS">Konsultan Pengawas (MK)</option>
-              <option value="KONSULTAN PERENCANA">Konsultan Perencana</option>
-              <option value="KONSULTAN PERENCANA & PENGAWAS">Konsultan Perencana &amp; Pengawas</option>
-            </select>
+              onChange={setFilterJenis}
+              placeholder="Semua Rekanan"
+              className="w-full sm:w-48 h-10 text-xs"
+              options={[
+                { value: "ALL", label: "Semua Rekanan" },
+                { value: "KONTRAKTOR", label: "Hanya Kontraktor" },
+                { value: "KONSULTAN", label: "Semua Konsultan" },
+                { value: "KONSULTAN PENGAWAS", label: "Konsultan Pengawas (MK)" },
+                { value: "KONSULTAN PERENCANA", label: "Konsultan Perencana" },
+                { value: "KONSULTAN PERENCANA & PENGAWAS", label: "Konsultan Perencana & Pengawas" },
+              ]}
+            />
 
-            {/* Filter Golongan */}
-            <select
+            <FilterSelect
               value={filterGolongan}
-              onChange={(e) => setFilterGolongan(e.target.value)}
-              className="h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-[#E65F2B]"
-            >
-              <option value="ALL">Semua Golongan</option>
-              <option value="BESAR">Golongan BESAR</option>
-              <option value="MENENGAH">Golongan MENENGAH</option>
-            </select>
+              onChange={setFilterGolongan}
+              placeholder="Semua Golongan"
+              className="w-full sm:w-40 h-10 text-xs"
+              options={[
+                { value: "ALL", label: "Semua Golongan" },
+                { value: "BESAR", label: "Golongan BESAR" },
+                { value: "MENENGAH", label: "Golongan MENENGAH" },
+              ]}
+            />
 
             <Button
               variant="outline"
+              size="icon"
               onClick={fetchVendors}
               disabled={loading}
-              className="h-10 px-3 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
-              title="Refresh Data"
+              className="h-10 w-10 shrink-0 rounded-xl border-slate-200 text-slate-600 hover:text-[#E65F2B] hover:bg-orange-50/50 cursor-pointer"
+              title="Segarkan Data"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-[#E65F2B]" : ""}`} />
+            </Button>
+
+            <Button
+              onClick={handleOpenAdd}
+              className="w-full sm:w-auto bg-[#E65F2B] hover:bg-[#d04f1f] text-white font-bold text-xs h-10 px-4.5 rounded-xl shadow-md shadow-[#E65F2B]/20 transition-all flex items-center space-x-1.5 shrink-0 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              <span>Tambah Rekanan</span>
             </Button>
           </div>
         </div>
 
-        {/* Tabel Data Rekanan Vendor */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/70 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                  <th className="py-3 px-4 w-12 text-center">No</th>
-                  <th className="py-3 px-4 min-w-[200px]">Rekanan Vendor</th>
-                  <th className="py-3 px-4 min-w-[130px]">Cabang &amp; Wilayah</th>
-                  <th className="py-3 px-4 min-w-[130px]">Jenis &amp; Peran</th>
-                  <th className="py-3 px-4 min-w-[100px]">Golongan</th>
-                  <th className="py-3 px-4 min-w-[170px]">Kontak &amp; Alamat</th>
-                  <th className="py-3 px-4 min-w-[140px]">PIC Akun Login</th>
-                  <th className="py-3 px-4 min-w-[120px]">Legalitas &amp; Portofolio</th>
-                  <th className="py-3 px-4 w-28 text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {loading ? (
-                  <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400">
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <Loader2 className="w-6 h-6 animate-spin text-[#E65F2B]" />
-                        <span className="text-xs">Memuat database rekanan vendor...</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : filteredVendors.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400">
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <Building2 className="w-8 h-8 opacity-40" />
-                        <p className="text-xs font-medium text-slate-600">Belum ada rekanan vendor yang sesuai</p>
-                        <p className="text-[11px] text-slate-400">
-                          {branchFilter !== "all"
-                            ? `Tidak ada vendor terdaftar untuk cabang ${branchFilter}.`
-                            : "Klik tombol \"Tambah Rekanan Vendor\" untuk mendaftarkan kontraktor/konsultan baru."}
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredVendors.map((vendor, idx) => {
-                    const pengalamanCount = Array.isArray(vendor.pengalaman) ? vendor.pengalaman.length : 0;
-                    const sertifikatCount = Array.isArray(vendor.sertifikat) ? vendor.sertifikat.length : 0;
-                    const isoCount = Array.isArray(vendor.sertifikasi_iso) ? vendor.sertifikasi_iso.length : 0;
-
-                    return (
-                      <tr key={vendor.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-3.5 px-4 text-center font-medium text-slate-400 text-xs">
-                          {idx + 1}
-                        </td>
-
-                        {/* Nama & Alamat */}
-                        <td className="py-3.5 px-4">
-                          <div className="font-bold text-slate-800 flex items-center space-x-1.5">
-                            <span>{vendor.nama_perusahaan}</span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
-                            {vendor.alamat}
-                          </p>
-                        </td>
-
-                        {/* Cabang & Coverage */}
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center space-x-1.5">
-                            <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span className="font-semibold text-slate-800 text-[11px]">
-                              {vendor.cabang || "HEAD OFFICE"}
-                            </span>
-                          </div>
-                          {vendor.coverage_cabang ? (
-                            <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5" title={`Coverage: ${vendor.coverage_cabang}`}>
-                              Area: {vendor.coverage_cabang}
-                            </p>
-                          ) : (
-                            <span className="text-[10px] text-emerald-600 font-medium">
-                              Nasional
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Jenis & Peran */}
-                        <td className="py-3.5 px-4">
-                          {vendor.jenis === "KONTRAKTOR" ? (
-                            <span className="inline-flex items-center text-[10px] font-bold px-2.5 py-1 rounded-md bg-orange-50 text-orange-800 border border-orange-200">
-                              KONTRAKTOR
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center text-[10px] font-bold px-2.5 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200">
-                              {vendor.jenis}
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Golongan */}
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`inline-flex items-center text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                              vendor.golongan === "BESAR"
-                                ? "bg-purple-100 text-purple-800 border border-purple-200"
-                                : "bg-slate-100 text-slate-700 border border-slate-200"
-                            }`}
-                          >
-                            {vendor.golongan}
-                          </span>
-                        </td>
-
-                        {/* Kontak */}
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center space-x-1.5 text-slate-600 text-[11px]">
-                            <Phone className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span>{vendor.nomor_telepon}</span>
-                          </div>
-                          <div className="flex items-center space-x-1.5 text-slate-500 text-[11px] mt-0.5">
-                            <Mail className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span className="truncate max-w-[140px]">{vendor.email}</span>
-                          </div>
-                        </td>
-
-                        {/* PIC Akun */}
-                        <td className="py-3.5 px-4">
-                          {vendor.pic_user ? (
-                            <div className="flex items-center space-x-1.5">
-                              <UserCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                              <div className="flex flex-col">
-                                <span className="font-semibold text-slate-800 text-[11px]">
-                                  {vendor.pic_user.nama}
-                                </span>
-                                <span className="text-[10px] text-slate-400">
-                                  {vendor.pic_user.role} ({vendor.pic_user.cabang})
-                                </span>
-                                {vendor.pic_users && vendor.pic_users.length > 1 && (
-                                  <span className="text-[9px] text-emerald-700 font-bold">
-                                    +{vendor.pic_users.length - 1} personil PIC
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-slate-400 italic">
-                              Belum terhubung
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Portofolio & Legalitas */}
-                        <td className="py-3.5 px-4">
-                          <div className="flex flex-wrap gap-1">
-                            <span
-                              className="text-[10px] font-semibold px-1.5 py-0.5 bg-orange-50 text-orange-700 rounded border border-orange-100"
-                              title={`${pengalamanCount} riwayat pengalaman proyek`}
-                            >
-                              {pengalamanCount} Proyek
-                            </span>
-                            <span
-                              className="text-[10px] font-semibold px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100"
-                              title={`${sertifikatCount} sertifikat badan usaha/keahlian`}
-                            >
-                              {sertifikatCount} SBU
-                            </span>
-                            {isoCount > 0 && (
-                              <span
-                                className="text-[10px] font-semibold px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-100"
-                                title={`${isoCount} sertifikasi ISO`}
-                              >
-                                {isoCount} ISO
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Aksi */}
-                        <td className="py-3.5 px-4 text-center">
-                          <div className="flex items-center justify-center space-x-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenDetail(vendor)}
-                              className="h-8 w-8 p-0 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg"
-                              title="Lihat Detail Profil"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenEdit(vendor)}
-                              className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg"
-                              title="Edit Rekanan"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDeleteTarget(vendor)}
-                              className="h-8 w-8 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg"
-                              title="Hapus Rekanan"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* Tabel Data Rekanan Vendor Komponen Modular */}
+        <MasterVendorTable
+          vendors={filteredVendors}
+          loading={loading}
+          branchFilter={branchFilter}
+          onOpenDetail={handleOpenDetail}
+          onOpenEdit={handleOpenEdit}
+          onDeleteTarget={(vendor) => setDeleteTarget(vendor)}
+          onOpenAdd={handleOpenAdd}
+        />
 
         {/* Modal Form Tambah / Edit */}
         <VendorModal

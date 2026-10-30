@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StringListInput } from "./StringListInput";
 import { ALL_INDUK_CABANG } from "@/lib/branches";
+import { SearchableSelectInput } from "@/components/ui/searchable-select";
+import { MultiSelectInput } from "@/components/ui/multi-select";
 
 interface VendorModalProps {
   open: boolean;
@@ -34,9 +36,9 @@ export function VendorModal({
     alamat: "",
     nomor_telepon: "",
     email: "",
-    golongan: "BESAR",
-    jenis: "KONTRAKTOR",
-    cabang: "HEAD OFFICE",
+    golongan: "",
+    jenis: "",
+    cabang: "",
     coverage_cabang: "",
     pengalaman: [] as string[],
     sertifikat: [] as string[],
@@ -51,9 +53,9 @@ export function VendorModal({
         alamat: vendorData.alamat || "",
         nomor_telepon: vendorData.nomor_telepon || "",
         email: vendorData.email || "",
-        golongan: vendorData.golongan || "BESAR",
-        jenis: vendorData.jenis || "KONTRAKTOR",
-        cabang: vendorData.cabang || "HEAD OFFICE",
+        golongan: vendorData.golongan || "",
+        jenis: vendorData.jenis || "",
+        cabang: vendorData.cabang || "",
         coverage_cabang: vendorData.coverage_cabang || "",
         pengalaman: Array.isArray(vendorData.pengalaman) ? vendorData.pengalaman : [],
         sertifikat: Array.isArray(vendorData.sertifikat) ? vendorData.sertifikat : [],
@@ -65,9 +67,9 @@ export function VendorModal({
         alamat: "",
         nomor_telepon: "",
         email: "",
-        golongan: "BESAR",
-        jenis: "KONTRAKTOR",
-        cabang: "HEAD OFFICE",
+        golongan: "",
+        jenis: "",
+        cabang: "",
         coverage_cabang: "",
         pengalaman: [],
         sertifikat: [],
@@ -83,6 +85,14 @@ export function VendorModal({
       onError("Nama perusahaan wajib diisi.");
       return;
     }
+    if (!formData.jenis) {
+      onError("Jenis rekanan wajib dipilih.");
+      return;
+    }
+    if (!formData.golongan) {
+      onError("Golongan kualifikasi wajib dipilih.");
+      return;
+    }
     if (!formData.alamat.trim()) {
       onError("Alamat perusahaan wajib diisi.");
       return;
@@ -93,6 +103,10 @@ export function VendorModal({
     }
     if (!formData.email.trim()) {
       onError("Email perusahaan wajib diisi.");
+      return;
+    }
+    if (!formData.cabang) {
+      onError("Cabang domisili utama wajib dipilih.");
       return;
     }
 
@@ -126,15 +140,15 @@ export function VendorModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl border border-slate-200/80 shadow-xl bg-white">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10">
+      <DialogContent className="max-w-4xl sm:max-w-5xl lg:max-w-5xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0 rounded-2xl border border-slate-200/80 shadow-2xl bg-white [&>button:last-child]:hidden">
+        {/* Header (Solid bg-white, non-transparent, tidak tembus saat scroll) */}
+        <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-200/80 bg-white shrink-0 z-20">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E65F2B] to-[#cf4d1a] flex items-center justify-center text-white shadow-xs">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-800">
+              <h2 className="text-base font-bold text-slate-800 tracking-tight">
                 {isEdit ? "Edit Rekanan Vendor" : "Tambah Rekanan Vendor Baru"}
               </h2>
               <p className="text-xs text-slate-500">
@@ -145,14 +159,14 @@ export function VendorModal({
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition-colors"
+            className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Form Body (Scrollable Body) */}
+        <form id="vendor-modal-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 custom-scrollbar bg-white">
           {/* Bagian 1: Identitas & Klasifikasi */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2 border-b border-slate-100 pb-2">
@@ -180,30 +194,32 @@ export function VendorModal({
                 <label className="text-xs font-semibold text-slate-700">
                   Jenis Rekanan <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <SearchableSelectInput
                   value={formData.jenis}
-                  onChange={(e) => setFormData({ ...formData, jenis: e.target.value })}
-                  className="w-full h-9.5 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-[#E65F2B] focus:ring-1 focus:ring-[#E65F2B]/20"
-                >
-                  <option value="KONTRAKTOR">KONTRAKTOR (Main Contractor)</option>
-                  <option value="KONSULTAN PENGAWAS">KONSULTAN PENGAWAS (MK)</option>
-                  <option value="KONSULTAN PERENCANA">KONSULTAN PERENCANA</option>
-                  <option value="KONSULTAN PERENCANA & PENGAWAS">KONSULTAN PERENCANA &amp; PENGAWAS</option>
-                </select>
+                  onChange={(val) => setFormData((prev) => ({ ...prev, jenis: val }))}
+                  options={[
+                    { value: "KONTRAKTOR", label: "KONTRAKTOR (Main Contractor)" },
+                    { value: "KONSULTAN PENGAWAS", label: "KONSULTAN PENGAWAS (MK)" },
+                    { value: "KONSULTAN PERENCANA", label: "KONSULTAN PERENCANA" },
+                    { value: "KONSULTAN PERENCANA & PENGAWAS", label: "KONSULTAN PERENCANA & PENGAWAS" },
+                  ]}
+                  placeholder="Pilih Jenis Rekanan..."
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700">
                   Golongan Kualifikasi <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <SearchableSelectInput
                   value={formData.golongan}
-                  onChange={(e) => setFormData({ ...formData, golongan: e.target.value })}
-                  className="w-full h-9.5 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-[#E65F2B] focus:ring-1 focus:ring-[#E65F2B]/20"
-                >
-                  <option value="BESAR">BESAR (Kualifikasi Besar / &gt; Rp 1 Miliar)</option>
-                  <option value="MENENGAH">MENENGAH (Kualifikasi Menengah)</option>
-                </select>
+                  onChange={(val) => setFormData((prev) => ({ ...prev, golongan: val }))}
+                  options={[
+                    { value: "BESAR", label: "BESAR (Kualifikasi Besar / > Rp 1 Miliar)" },
+                    { value: "MENENGAH", label: "MENENGAH (Kualifikasi Menengah)" },
+                  ]}
+                  placeholder="Pilih Golongan Kualifikasi..."
+                />
               </div>
 
               <div className="space-y-1.5 md:col-span-2">
@@ -229,7 +245,7 @@ export function VendorModal({
                   <Input
                     value={formData.nomor_telepon}
                     onChange={(e) => setFormData({ ...formData, nomor_telepon: e.target.value })}
-                    placeholder="021-79188888 / 08123456789"
+                    placeholder="08123456789"
                     className="h-9.5 text-xs pl-9 rounded-xl border-slate-200 focus:border-[#E65F2B]"
                     required
                   />
@@ -258,37 +274,45 @@ export function VendorModal({
                 <label className="text-xs font-semibold text-slate-700">
                   Cabang Domisili Utama <span className="text-rose-500">*</span>
                 </label>
-                <div className="relative">
-                  <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
-                  <select
-                    value={formData.cabang}
-                    onChange={(e) => setFormData({ ...formData, cabang: e.target.value })}
-                    className="w-full h-9.5 pl-9 pr-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-[#E65F2B] focus:ring-1 focus:ring-[#E65F2B]/20"
-                    required
-                  >
-                    <option value="HEAD OFFICE">HEAD OFFICE (Nasional / Kantor Pusat)</option>
-                    {ALL_INDUK_CABANG.filter((c) => c !== "HEAD OFFICE").map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelectInput
+                  value={formData.cabang}
+                  onChange={(val) => setFormData((prev) => ({ ...prev, cabang: val }))}
+                  options={[
+                    { value: "HEAD OFFICE", label: "HEAD OFFICE" },
+                    ...ALL_INDUK_CABANG.filter((c) => c !== "HEAD OFFICE").map((c) => ({
+                      value: c,
+                      label: c,
+                    })),
+                  ]}
+                  placeholder="Pilih Cabang Domisili..."
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700">
                   Cakupan Wilayah Operasional (Coverage Cabang)
                 </label>
-                <div className="relative">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
-                  <Input
-                    value={formData.coverage_cabang}
-                    onChange={(e) => setFormData({ ...formData, coverage_cabang: e.target.value })}
-                    placeholder="Contoh: BALI, LOMBOK, JEMBER (Kosongkan jika Nasional)"
-                    className="h-9.5 text-xs pl-9 rounded-xl border-slate-200 focus:border-[#E65F2B]"
-                  />
-                </div>
+                <MultiSelectInput
+                  value={
+                    formData.coverage_cabang
+                      ? formData.coverage_cabang
+                        .split(",")
+                        .map((c) => c.trim())
+                        .filter(Boolean)
+                      : []
+                  }
+                  onChange={(branches) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      coverage_cabang: branches.join(", "),
+                    }))
+                  }
+                  options={ALL_INDUK_CABANG.map((c) => ({
+                    value: c,
+                    label: c,
+                  }))}
+                  placeholder="Pilih Cabang"
+                />
               </div>
 
               <div className="space-y-1.5 md:col-span-2">
@@ -342,28 +366,29 @@ export function VendorModal({
               badgeColor="emerald"
             />
           </div>
-
-          {/* Footer Actions */}
-          <div className="flex items-center justify-end space-x-2.5 pt-4 border-t border-slate-100 sticky bottom-0 bg-white">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-              className="h-9.5 px-4 text-xs rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
-            >
-              Batal
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="h-9.5 px-5 text-xs rounded-xl bg-[#E65F2B] hover:bg-[#d04f1f] text-white shadow-xs transition-all flex items-center space-x-1.5"
-            >
-              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>{isEdit ? "Simpan Perubahan" : "Simpan Rekanan Vendor"}</span>
-            </Button>
-          </div>
         </form>
+
+        {/* Footer Actions (Solid bg-slate-50/90, non-transparent, pinned at bottom) */}
+        <div className="flex items-center justify-end space-x-2.5 px-6 py-3.5 border-t border-slate-200/80 bg-slate-50/90 shrink-0 z-20">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+            className="h-9.5 px-4 text-xs rounded-xl border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer"
+          >
+            Batal
+          </Button>
+          <Button
+            type="submit"
+            form="vendor-modal-form"
+            disabled={loading}
+            className="h-9.5 px-5 text-xs rounded-xl bg-[#E65F2B] hover:bg-[#d04f1f] text-white shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+          >
+            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            <span>{isEdit ? "Simpan Perubahan" : "Simpan Rekanan Vendor"}</span>
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

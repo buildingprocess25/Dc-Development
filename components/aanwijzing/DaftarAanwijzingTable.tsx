@@ -11,8 +11,12 @@ import {
   Users,
   AlertCircle,
   Plus,
+  QrCode,
+  Camera,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isSameCreator, isApprovalAdmin } from "@/lib/permissions";
 
 interface DaftarAanwijzingTableProps {
   aanwijzings: any[];
@@ -20,6 +24,8 @@ interface DaftarAanwijzingTableProps {
   currentUser: any;
   onViewDetail: (aanwijzing: any) => void;
   onOpenKonfirmasi: (aanwijzing: any) => void;
+  onOpenAbsensiSession?: (aanwijzing: any) => void;
+  onOpenScanner?: (aanwijzing: any) => void;
   onNewUndangan?: () => void;
 }
 
@@ -29,9 +35,12 @@ export function DaftarAanwijzingTable({
   currentUser,
   onViewDetail,
   onOpenKonfirmasi,
+  onOpenAbsensiSession,
+  onOpenScanner,
   onNewUndangan,
 }: DaftarAanwijzingTableProps) {
   const roleUpper = (currentUser?.role || "").toUpperCase();
+  const isAdmin = isApprovalAdmin(roleUpper);
   const isContractor =
     roleUpper.includes("KONTRAKTOR") ||
     roleUpper.includes("KONSULTAN") ||
@@ -45,15 +54,27 @@ export function DaftarAanwijzingTable({
     },
     AANWIJZING_LANJUT: {
       label: "Aanwijzing Lanjut",
-      cls: "bg-emerald-50 text-emerald-800 border-emerald-200/80",
+      cls: "bg-blue-50 text-blue-800 border-blue-200/80",
     },
     MENUNGGU_APPROVAL_DC_MANAGER: {
       label: "Approval DC Manager",
-      cls: "bg-blue-50 text-blue-800 border-blue-200/80",
+      cls: "bg-purple-50 text-purple-800 border-purple-200/80",
+    },
+    AANWIJZING_SELESAI: {
+      label: "Aanwijzing Selesai",
+      cls: "bg-emerald-50 text-emerald-800 border-emerald-200/80",
+    },
+    AANWIJZING_ULANG: {
+      label: "Undangan Aanwijzing Ulang",
+      cls: "bg-amber-50 text-amber-800 border-amber-200/80",
+    },
+    TENDER_ULANG: {
+      label: "Proposal Tender Ulang",
+      cls: "bg-rose-50 text-rose-800 border-rose-200/80",
     },
     ON_HOLD: {
       label: "ON HOLD (Ditahan)",
-      cls: "bg-rose-50 text-rose-800 border-rose-200/80",
+      cls: "bg-slate-50 text-slate-800 border-slate-200/80",
     },
   };
 
@@ -184,10 +205,10 @@ export function DaftarAanwijzingTable({
                     </td>
 
                     <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap sm:flex-nowrap">
                         {contractorPeserta &&
                         contractorPeserta.status_konfirmasi === "MENUNGGU_RESPON" &&
-                        a.status === "MENUNGGU_KONFIRMASI" ? (
+                        a.status === "MENUNGGU_KONFIRMASI" && (
                           <Button
                             type="button"
                             size="sm"
@@ -196,36 +217,72 @@ export function DaftarAanwijzingTable({
                           >
                             Konfirmasi
                           </Button>
-                        ) : (
-                          <>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onViewDetail(a)}
-                              title="Lihat Detail & Quorum"
-                              className="h-8 w-8 p-0 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                window.open(
-                                  `/api/dc-development/aanwijzing/${a.id}/pdf?download=1`,
-                                  "_blank"
-                                )
-                              }
-                              title="Unduh PDF Resmi"
-                              className="h-8 w-8 p-0 rounded-lg hover:bg-slate-100 text-[#E65F2B] cursor-pointer"
-                            >
-                              <FileDown className="w-4 h-4" />
-                            </Button>
-                          </>
                         )}
+
+                        {/* Tombol Scan Absensi untuk Rekanan pada Hari-H */}
+                        {a.status === "AANWIJZING_LANJUT" &&
+                          contractorPeserta &&
+                          contractorPeserta.status_konfirmasi === "HADIR" && (
+                            contractorPeserta.status_kehadiran_aktual === "HADIR_AKTUAL" ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                Hadir Fisik
+                              </span>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => onOpenScanner?.(a)}
+                                title="Scan QR Code Absensi Hari-H"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-xl h-8 px-2.5 cursor-pointer shadow-xs inline-flex items-center gap-1"
+                              >
+                                <Camera className="w-3.5 h-3.5" />
+                                <span>Scan Absen</span>
+                              </Button>
+                            )
+                          )}
+
+                        {/* Tombol Buka Sesi Absensi untuk BBK Pembuat / Admin */}
+                        {a.status === "AANWIJZING_LANJUT" &&
+                          (isAdmin || isSameCreator(currentUser, a.created_by)) && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => onOpenAbsensiSession?.(a)}
+                              title="Buka Sesi Absensi Hari-H (Dynamic Rolling QR Code)"
+                              className="bg-[#E65F2B] hover:bg-[#d04f1f] text-white text-[11px] font-bold rounded-xl h-8 px-2.5 cursor-pointer shadow-xs inline-flex items-center gap-1"
+                            >
+                              <QrCode className="w-3.5 h-3.5" />
+                              <span>Sesi Absen</span>
+                            </Button>
+                          )}
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onViewDetail(a)}
+                          title="Lihat Detail & Quorum"
+                          className="h-8 w-8 p-0 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            window.open(
+                              `/api/dc-development/aanwijzing/${a.id}/pdf?download=1`,
+                              "_blank"
+                            )
+                          }
+                          title="Unduh PDF Resmi"
+                          className="h-8 w-8 p-0 rounded-lg hover:bg-slate-100 text-[#E65F2B] cursor-pointer"
+                        >
+                          <FileDown className="w-4 h-4" />
+                        </Button>
                       </div>
                     </td>
                   </tr>

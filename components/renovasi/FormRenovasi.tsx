@@ -35,8 +35,10 @@ import {
   MessageSquare,
   RotateCcw,
   Check,
-  Sparkles
+  Sparkles,
+  PenTool
 } from "lucide-react";
+import PdfAnnotatorModal from "@/components/renovasi/PdfAnnotatorModal";
 import {
   RevisionPinpointBadge,
   RevisionInstructionBanner
@@ -62,6 +64,8 @@ import UploadFotoLingkunganModal from "./UploadFotoLingkunganModal";
 import ReviewRenovasiModal from "./ReviewRenovasiModal";
 import { RabItemSelector } from "./RabItemSelector";
 import { CurrencyInput, formatRupiahNumber } from "@/components/ui/currency-input";
+import { VolumeInput } from "@/components/ui/volume-input";
+import { SatuanCombobox } from "@/components/ui/satuan-combobox";
 import { formatRupiah, cn, toTitleCase } from "@/lib/utils";
 import { useSession } from "@/context/SessionContext";
 import { getIndukFromCabang, getUserCoverageBranches, isBranchAccessible } from "@/lib/branches";
@@ -118,6 +122,7 @@ interface RabItem {
   kategori_pekerjaan: string;
   master_item_id: number | null;
   deskripsi: string;
+  satuan?: string;
   harga_material: number;
   harga_upah: number;
   volume: number;
@@ -260,6 +265,7 @@ export default function FormRenovasi() {
   const [docsMePdf, setDocsMePdf] = useState<UploadedDoc[]>([]);
   const [docsMeDwg, setDocsMeDwg] = useState<UploadedDoc[]>([]);
   const [fotosLingkungan, setFotosLingkungan] = useState<UploadedDoc[]>([]);
+  const [viewingAnnotatedDoc, setViewingAnnotatedDoc] = useState<any | null>(null);
 
   // RAB Items State
   const [activeRabTab, setActiveRabTab] = useState<"SIPIL" | "ME">("SIPIL");
@@ -319,6 +325,46 @@ export default function FormRenovasi() {
     fotos: Array<{ id: string; name: string; label?: string; url: string }>;
     rabItems: Array<{ dbId?: number; id: string; volume: number; mat: number; upah: number; desc: string }>;
   } | null>(null);
+
+  const isRevision = loadedDraft?.status === "REVISI";
+
+  const allCoretanDocs = useMemo(() => {
+    return (loadedDraft?.dokumen || []).filter(
+      (d: any) =>
+        d.kategori_file?.startsWith("CORETAN") ||
+        d.nama_file?.toLowerCase().startsWith("coretan_")
+    );
+  }, [loadedDraft?.dokumen]);
+
+  const [viewedCoretanIds, setViewedCoretanIds] = useState<number[]>([]);
+  const [initialAnnotatorLayerId, setInitialAnnotatorLayerId] = useState<string | number | undefined>(undefined);
+
+  const markCoretanAsViewed = useCallback((id: number) => {
+    setViewedCoretanIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+
+  const coretanSipilDoc = (loadedDraft?.dokumen || []).find(
+    (d: any) =>
+      d.kategori_file === "CORETAN_GAMBAR_SIPIL" ||
+      (d.kategori_file?.startsWith("CORETAN") && d.kategori_file?.includes("SIPIL")) ||
+      (d.nama_file?.toLowerCase().startsWith("coretan_") && d.nama_file?.toLowerCase().includes("sipil"))
+  );
+  const coretanMeDoc = (loadedDraft?.dokumen || []).find(
+    (d: any) =>
+      d.kategori_file === "CORETAN_GAMBAR_ME" ||
+      (d.kategori_file?.startsWith("CORETAN") && d.kategori_file?.includes("ME")) ||
+      (d.nama_file?.toLowerCase().startsWith("coretan_") && /\bme\b|_me_|_me\.|\.me\./i.test(d.nama_file?.toLowerCase()))
+  );
+  const revisiSipilDwgDoc = (loadedDraft?.dokumen || []).find(
+    (d: any) =>
+      d.kategori_file === "REVISI_GAMBAR_SIPIL_DWG" ||
+      (d.kategori_file?.startsWith("REVISI_GAMBAR") && d.kategori_file?.includes("SIPIL"))
+  );
+  const revisiMeDwgDoc = (loadedDraft?.dokumen || []).find(
+    (d: any) =>
+      d.kategori_file === "REVISI_GAMBAR_ME_DWG" ||
+      (d.kategori_file?.startsWith("REVISI_GAMBAR") && d.kategori_file?.includes("ME"))
+  );
 
   const revisionNotesList = useMemo(() => {
     return getRevisionNotes(loadedDraft?.catatan_pengajuan, loadedDraft?.created_by, loadedDraft?.created_at);
@@ -488,6 +534,7 @@ export default function FormRenovasi() {
                 kategori_pekerjaan: it.kategori_pekerjaan || "Umum",
                 master_item_id: it.master_item_id ? Number(it.master_item_id) : null,
                 deskripsi: it.deskripsi || "",
+                satuan: it.satuan || "",
                 harga_material: it.harga_material || 0,
                 harga_upah: it.harga_upah || 0,
                 volume: it.volume || 0,
@@ -627,6 +674,13 @@ export default function FormRenovasi() {
       }
 
       if (item.category === "FOTO") {
+        if (item.fieldOrId === "foto_lingkungan" || item.id === "foto_general_lingkungan") {
+          const initCount = initialRevisionSnapshot?.fotos?.length || 0;
+          return (
+            fotosLingkungan.length !== initCount ||
+            fotosLingkungan.some((f) => !f.id || String(f.id).startsWith("temp-"))
+          );
+        }
         const currentPhoto = fotosLingkungan.find((f) => f.id === item.fieldOrId);
         if (!currentPhoto) return true; // Foto telah dihapus
         const initPhoto = initialRevisionSnapshot?.fotos?.find((f) => f.id === item.fieldOrId);
@@ -872,6 +926,7 @@ export default function FormRenovasi() {
           kategori_pekerjaan: cat,
           master_item_id: null,
           deskripsi: "",
+          satuan: "",
           harga_material: 0,
           harga_upah: 0,
           volume: 0,
@@ -886,6 +941,7 @@ export default function FormRenovasi() {
           kategori_pekerjaan: cat,
           master_item_id: null,
           deskripsi: "",
+          satuan: "",
           harga_material: 0,
           harga_upah: 0,
           volume: 0,
@@ -909,6 +965,7 @@ export default function FormRenovasi() {
           kategori_pekerjaan: cat,
           master_item_id: null,
           deskripsi: "",
+          satuan: "",
           harga_material: 0,
           harga_upah: 0,
           volume: 0,
@@ -923,6 +980,7 @@ export default function FormRenovasi() {
           kategori_pekerjaan: cat,
           master_item_id: null,
           deskripsi: "",
+          satuan: "",
           harga_material: 0,
           harga_upah: 0,
           volume: 0,
@@ -1405,6 +1463,7 @@ export default function FormRenovasi() {
       kategori_pekerjaan: kategori,
       master_item_id: null,
       deskripsi: "",
+      satuan: "",
       harga_material: 0,
       harga_upah: 0,
       volume: 0,
@@ -1655,6 +1714,19 @@ export default function FormRenovasi() {
         return;
       }
 
+      // 7. Satuan Pekerjaan pada Item yang Diisi (Wajib Diisi / Dipilih)
+      const missingSatuanItem = rabItems.find(
+        (r) => (r.deskripsi.trim() || r.master_item_id) && Number(r.volume) > 0 && (!r.satuan || !r.satuan.trim())
+      );
+      if (missingSatuanItem) {
+        setFeedback({
+          open: true,
+          type: "error",
+          title: "Satuan Pekerjaan Wajib Diisi",
+          message: `Harap pilih atau isi Satuan (misal: m2, ls, unit) untuk item "${missingSatuanItem.deskripsi || "Item Pekerjaan"}" pada Bagian 5 (RAB/OE).`
+        });
+        return;
+      }
     }
 
     // Cek apakah ada berkas atau foto lingkungan yang masih dalam proses upload ke Google Drive
@@ -1871,8 +1943,8 @@ export default function FormRenovasi() {
           )}
 
           {/* SECTION 1: PEMILIHAN PROYEK & IDENTITAS PROYEK */}
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center gap-2.5">
+          <section className="bg-white rounded-2xl border border-slate-200 shadow-xs relative z-30">
+            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center gap-2.5 rounded-t-2xl">
               <div className="w-7 h-7 rounded-lg bg-[#E65F2B]/10 text-[#E65F2B] flex items-center justify-center font-bold text-xs">
                 1
               </div>
@@ -1892,6 +1964,7 @@ export default function FormRenovasi() {
                   options={projectOptions}
                   disabledIds={lockedProjectIds}
                   placeholder="Cari kode proyek, nama DC, cabang, tipe..."
+                  menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
                 />
                 <p className="text-[11px] text-slate-500">
                   *Mencakup seluruh jenis properti: DC Induk, Warehouse, Depo, Bulky, Store-Hub, Gudang Anak.
@@ -2031,8 +2104,8 @@ export default function FormRenovasi() {
           </section>
 
           {/* SECTION 2: PARAMETER PENGAJUAN RENOVASI */}
-          <section id="section-parameter" className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden scroll-mt-6">
-            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center gap-2.5">
+          <section id="section-parameter" className="bg-white rounded-2xl border border-slate-200 shadow-xs relative z-20 scroll-mt-6">
+            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center gap-2.5 rounded-t-2xl">
               <div className="w-7 h-7 rounded-lg bg-[#E65F2B]/10 text-[#E65F2B] flex items-center justify-center font-bold text-xs">
                 2
               </div>
@@ -2159,6 +2232,68 @@ export default function FormRenovasi() {
               </div>
             </div>
 
+            {/* Banner Khusus Revisi: Coretan Reviewer Wajib Diperiksa Maker */}
+            {isRevision && allCoretanDocs.length > 0 && (
+              <div className="mx-5 lg:mx-6 mt-4 p-4 rounded-xl border border-amber-300 bg-amber-50/70 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    <PenTool className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                        Perhatian Revisi: Coretan Reviewer Wajib Diperiksa
+                      </span>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
+                        {viewedCoretanIds.length}/{allCoretanDocs.length} Telah Ditinjau
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-900/90 mt-0.5">
+                      Reviewer memberikan coretan koreksi pada gambar kerja. Anda <strong>wajib membuka dan memeriksa seluruh coretan</strong> di bawah ini sebelum dapat mengajukan ulang revisi.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  {allCoretanDocs.map((cdoc: any) => {
+                    const isViewed = viewedCoretanIds.includes(cdoc.id);
+                    const isSipil = cdoc.kategori_file?.includes("SIPIL") || cdoc.nama_file?.toLowerCase().includes("sipil");
+                    const stageMatch = (cdoc.nama_file || "").match(/^Coretan_([A-Z0-9_]+?)_/i);
+                    const sCode = cdoc.tahap_alur || (stageMatch ? stageMatch[1] : null);
+                    const baseDoc = isSipil ? (docsSipilPdf[0] || cdoc) : (docsMePdf[0] || cdoc);
+
+                    return (
+                      <button
+                        key={cdoc.id}
+                        type="button"
+                        onClick={() => {
+                          markCoretanAsViewed(cdoc.id);
+                          setViewingAnnotatedDoc(baseDoc);
+                          setInitialAnnotatorLayerId(cdoc.id);
+                        }}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs",
+                          isViewed
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100"
+                            : "bg-[#E65F2B] text-white hover:bg-[#d04f1f] ring-2 ring-[#E65F2B]/40 animate-pulse"
+                        )}
+                      >
+                        <PenTool className="w-3.5 h-3.5" />
+                        <span>
+                          Coretan {isSipil ? "Sipil" : "ME"} {sCode ? `(${sCode.replace(/_/g, " ")})` : ""}
+                        </span>
+                        {isViewed ? (
+                          <span className="text-[10px] text-emerald-600 font-bold ml-0.5">✓ Ditinjau</span>
+                        ) : (
+                          <span className="text-[10px] text-amber-200 font-bold ml-0.5">[Wajib Dicek]</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* KOLOM 1: GAMBAR KERJA ARSITEKTUR & SIPIL (PDF & DWG) */}
               <div className="flex flex-col gap-4 p-4 sm:p-5 rounded-2xl border border-slate-200/90 bg-slate-50/30">
@@ -2273,6 +2408,40 @@ export default function FormRenovasi() {
                           </div>
                         </div>
                       </a>
+
+                      {isRevision && loadedDraft?.id && docsSipilPdf[0]?.id && Boolean(coretanSipilDoc) && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (coretanSipilDoc?.id) markCoretanAsViewed(coretanSipilDoc.id);
+                              setViewingAnnotatedDoc(docsSipilPdf[0]);
+                              setInitialAnnotatorLayerId(coretanSipilDoc?.id);
+                            }}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer shrink-0",
+                              coretanSipilDoc && !viewedCoretanIds.includes(coretanSipilDoc.id)
+                                ? "bg-amber-500 text-white border-amber-600 hover:bg-amber-600 animate-pulse shadow-xs"
+                                : "text-[#E65F2B] hover:text-[#cf4d1a] bg-orange-50 hover:bg-orange-100 border-orange-200"
+                            )}
+                            title="Lihat lembar catatan coretan yang diberikan reviewer"
+                          >
+                            <PenTool className="w-3.5 h-3.5" />
+                            <span>Lihat Coretan</span>
+                            {coretanSipilDoc && !viewedCoretanIds.includes(coretanSipilDoc.id) ? (
+                              <span className="text-[10px] font-extrabold bg-white/20 px-1 py-0.2 rounded">
+                                Wajib
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-extrabold text-emerald-600">
+                                ✓
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-slate-100">
                         <Button
@@ -2404,6 +2573,22 @@ export default function FormRenovasi() {
                           </div>
                         </div>
                       </a>
+
+                      {isRevision && loadedDraft?.id && revisiSipilDwgDoc?.file_url && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <a
+                            href={revisiSipilDwgDoc.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-200 transition-all cursor-pointer shrink-0"
+                            title="Unduh / Buka berkas AutoCAD DWG revisi dari approver di Google Drive"
+                          >
+                            <FileCode2 className="w-3.5 h-3.5" />
+                            <span>DWG Revisi Reviewer</span>
+                            <ExternalLink className="w-3 h-3 text-indigo-500" />
+                          </a>
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-slate-100">
                         <Button
@@ -2553,6 +2738,40 @@ export default function FormRenovasi() {
                         </div>
                       </a>
 
+                      {isRevision && loadedDraft?.id && docsMePdf[0]?.id && Boolean(coretanMeDoc) && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (coretanMeDoc?.id) markCoretanAsViewed(coretanMeDoc.id);
+                              setViewingAnnotatedDoc(docsMePdf[0]);
+                              setInitialAnnotatorLayerId(coretanMeDoc?.id);
+                            }}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer shrink-0",
+                              coretanMeDoc && !viewedCoretanIds.includes(coretanMeDoc.id)
+                                ? "bg-amber-500 text-white border-amber-600 hover:bg-amber-600 animate-pulse shadow-xs"
+                                : "text-[#E65F2B] hover:text-[#cf4d1a] bg-orange-50 hover:bg-orange-100 border-orange-200"
+                            )}
+                            title="Lihat lembar catatan coretan yang diberikan reviewer"
+                          >
+                            <PenTool className="w-3.5 h-3.5" />
+                            <span>Lihat Coretan</span>
+                            {coretanMeDoc && !viewedCoretanIds.includes(coretanMeDoc.id) ? (
+                              <span className="text-[10px] font-extrabold bg-white/20 px-1 py-0.2 rounded">
+                                Wajib
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-extrabold text-emerald-600">
+                                ✓
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-slate-100">
                         <Button
                           type="button"
@@ -2684,6 +2903,22 @@ export default function FormRenovasi() {
                         </div>
                       </a>
 
+                      {isRevision && loadedDraft?.id && revisiMeDwgDoc?.file_url && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <a
+                            href={revisiMeDwgDoc.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg border text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-200 transition-all cursor-pointer shrink-0"
+                            title="Unduh / Buka berkas AutoCAD DWG revisi dari approver di Google Drive"
+                          >
+                            <FileCode2 className="w-3.5 h-3.5" />
+                            <span>DWG Revisi Reviewer</span>
+                            <ExternalLink className="w-3 h-3 text-indigo-500" />
+                          </a>
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-slate-100">
                         <Button
                           type="button"
@@ -2778,6 +3013,26 @@ export default function FormRenovasi() {
             </div>
 
             <div className="p-5 lg:p-6">
+              {/* Pinpoint Banner Revisi General Kelengkapan Foto Lingkungan */}
+              {(() => {
+                const flaggedGeneralFoto = flaggedRevisionItems.find(
+                  (f) =>
+                    f.category === "FOTO" &&
+                    (f.fieldOrId === "foto_lingkungan" || f.id === "foto_general_lingkungan")
+                );
+                if (!flaggedGeneralFoto) return null;
+                const isMod = isRevisionItemModified(flaggedGeneralFoto);
+                return (
+                  <div className="mb-4">
+                    <RevisionPinpointBadge
+                      catatan={flaggedGeneralFoto.catatan}
+                      isModified={isMod}
+                      label="Revisi Kelengkapan Foto Lingkungan & Eksisting"
+                    />
+                  </div>
+                );
+              })()}
+
               {fotosLingkungan.length === 0 ? (
                 <div className="p-8 border-2 border-dashed border-slate-200 rounded-xl text-center flex flex-col items-center justify-center gap-2">
                   <Camera className="w-8 h-8 text-slate-300" />
@@ -3160,8 +3415,8 @@ export default function FormRenovasi() {
                                     </button>
                                   </div>
 
-                                  {/* Baris 2: Harga Material, Harga Upah, Volume, Catatan */}
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-slate-100">
+                                  {/* Baris 2: Harga Material, Harga Upah, Volume, Satuan, Catatan */}
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 pt-2 border-t border-slate-100">
                                     {/* Kolom 1: Harga Material (Selalu dapat diedit, rekomendasi ditampilkan) */}
                                     <div>
                                       <div className="flex items-center justify-between gap-1 mb-1">
@@ -3340,20 +3595,28 @@ export default function FormRenovasi() {
                                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                                         Volume
                                       </label>
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        value={row.volume || ""}
-                                        onWheel={(e) => e.currentTarget.blur()}
-                                        onChange={(e) =>
+                                      <VolumeInput
+                                        value={row.volume}
+                                        onChange={(val) =>
                                           handleUpdateRabRow(
                                             row.id,
                                             "volume",
-                                            parseFloat(e.target.value) || 0
+                                            val
                                           )
                                         }
-                                        placeholder="0"
-                                        className="h-8 text-xs text-center font-bold text-slate-900 border-slate-200 focus:border-[#E65F2B] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="h-8"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                                        Satuan
+                                      </label>
+                                      <SatuanCombobox
+                                        value={row.satuan || ""}
+                                        onChange={(val) => handleUpdateRabRow(row.id, "satuan", val)}
+                                        className="h-8"
+                                        placeholder="Pilih / ketik satuan..."
                                       />
                                     </div>
 
@@ -3481,6 +3744,20 @@ export default function FormRenovasi() {
                       return;
                     }
                     if (loadedDraft?.status === "REVISI") {
+                      // Wajib periksa seluruh coretan reviewer jika tersedia
+                      if (allCoretanDocs.length > 0) {
+                        const unviewed = allCoretanDocs.filter((c: any) => !viewedCoretanIds.includes(c.id));
+                        if (unviewed.length > 0) {
+                          setFeedback({
+                            open: true,
+                            type: "error",
+                            title: "Coretan Reviewer Belum Diperiksa",
+                            message: `Terdapat ${unviewed.length} berkas coretan gambar kerja dari reviewer yang belum Anda periksa. Harap buka dan periksa seluruh coretan di Seksi 3 (Gambar Teknis) sebelum mengajukan ulang revisi.`
+                          });
+                          return;
+                        }
+                      }
+
                       if (flaggedRevisionItems.length > 0) {
                         if (!flaggedItemsEvaluation.allModified) {
                           const unmodList = flaggedItemsEvaluation.unmodifiedItems
@@ -3735,6 +4012,31 @@ export default function FormRenovasi() {
         renovasi={loadedDraft}
         mode="revisi"
       />
+
+      {/* Modal Kanvas Coretan Anotasi PDF (Mode Baca/Inspeksi Maker) */}
+      {viewingAnnotatedDoc && loadedDraft?.id && (
+        <PdfAnnotatorModal
+          open={Boolean(viewingAnnotatedDoc)}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setViewingAnnotatedDoc(null);
+              setInitialAnnotatorLayerId(undefined);
+            }
+          }}
+          doc={{
+            id: Number(viewingAnnotatedDoc.id),
+            nama_file: viewingAnnotatedDoc.nama_file,
+            file_url: viewingAnnotatedDoc.file_url,
+            drive_file_id: viewingAnnotatedDoc.drive_file_id,
+            kategori_file: viewingAnnotatedDoc.kategori_file,
+            nama_label: viewingAnnotatedDoc.nama_label,
+          }}
+          renovasiId={Number(loadedDraft.id)}
+          isReadOnly={true}
+          initialLayerId={initialAnnotatorLayerId}
+          currentApprovalStatus={loadedDraft.status}
+        />
+      )}
     </div>
   );
 }

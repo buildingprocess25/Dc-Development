@@ -149,9 +149,35 @@ export const TENDER_APPROVAL_STEPS = TENDER_APPROVAL_STEPS_ABOVE_1M;
 // Kompatibilitas alur terdahulu
 export const TENDER_APPROVAL_STEPS_BELOW_1M = TENDER_APPROVAL_STEPS_ABOVE_1M;
 
+// 3-Tahap Alur Persetujuan Klarifikasi Aanwijzing (SOP SAT/SOP/DCB/003)
+// Maker (BBK / Admin) -> Mengetahui (Branch B&M Manager) -> Disetujui (DC Specialist) -> APPROVED
+export const KLARIFIKASI_AANWIJZING_APPROVAL_STEPS: ApprovalStepConfig[] = [
+  {
+    id: "maker",
+    stepNumber: 1,
+    label: "Maker",
+    subLabel: "Branch Building Koord.",
+    activeStatuses: ["DRAFT"]
+  },
+  {
+    id: "bm_mgr",
+    stepNumber: 2,
+    label: "Mengetahui",
+    subLabel: "Branch B&M Manager",
+    activeStatuses: ["MENUNGGU_APPROVAL_BBM_MANAGER", "MENUNGGU APPROVAL B&M MANAGER"]
+  },
+  {
+    id: "dc_specialist",
+    stepNumber: 3,
+    label: "Disetujui",
+    subLabel: "DC Specialist",
+    activeStatuses: ["MENUNGGU_APPROVAL_DC_SPECIALIST", "MENUNGGU APPROVAL DC SPECIALIST"]
+  }
+];
+
 export interface ApprovalStepperProps {
   currentStatus: string;
-  type?: "rab-oe" | "fungsi-ruang";
+  type?: "rab-oe" | "fungsi-ruang" | "tender" | "klarifikasi-aanwijzing";
   steps?: ApprovalStepConfig[];
   title?: string;
   catatanRevisi?: string | null;
@@ -170,7 +196,15 @@ export default function ApprovalStepper({
   departemen,
   divisi
 }: ApprovalStepperProps) {
-  const baseSteps = customSteps || (type === "fungsi-ruang" ? FUNGSI_RUANG_APPROVAL_STEPS : RAB_OE_APPROVAL_STEPS);
+  const baseSteps =
+    customSteps ||
+    (type === "fungsi-ruang"
+      ? FUNGSI_RUANG_APPROVAL_STEPS
+      : type === "klarifikasi-aanwijzing"
+      ? KLARIFIKASI_AANWIJZING_APPROVAL_STEPS
+      : type === "tender"
+      ? TENDER_APPROVAL_STEPS
+      : RAB_OE_APPROVAL_STEPS);
   const steps = type === "fungsi-ruang" && (departemen || divisi)
     ? baseSteps.map((s) => {
         if (s.id === "gm_dept") {

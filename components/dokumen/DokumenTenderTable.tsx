@@ -178,11 +178,10 @@ export default function DokumenTenderTable({
                     <td className="py-3.5 px-4">
                       <div>
                         <span
-                          className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                            isAbove1M
+                          className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isAbove1M
                               ? "bg-orange-100 text-[#E65F2B] border border-orange-200"
                               : "bg-blue-100 text-blue-700 border border-blue-200"
-                          }`}
+                            }`}
                         >
                           {isAbove1M ? "> Rp 1 Miliar" : "<= Rp 1 Miliar"}
                         </span>
@@ -203,7 +202,7 @@ export default function DokumenTenderTable({
                       <div className="text-[11px] text-slate-500 mt-0.5">
                         {item.butuh_konsultan
                           ? `+ Konsultan (${item.tipe_konsultan || "Pengawas"})`
-                          : "Hanya Main Kontraktor"}
+                          : "Hanya Kontraktor"}
                       </div>
                     </td>
 

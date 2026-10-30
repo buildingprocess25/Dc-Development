@@ -73,7 +73,7 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
       });
       const json = await res.json();
       if (!res.ok || json.status !== 'success') throw new Error(json.message);
-      
+
       setFeedback({ open: true, type: "success", title: "Berhasil Disimpan", message: "Perubahan data profile berhasil disimpan ke database." });
     } catch (err: any) {
       setFeedback({ open: true, type: "error", title: "Gagal Menyimpan", message: err.message || 'Terjadi kesalahan saat menyimpan perubahan.' });
@@ -90,7 +90,7 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
       });
       const json = await res.json();
       if (!res.ok || json.status !== 'success') throw new Error(json.message);
-      
+
       setFeedback({ open: true, type: "success", title: "Berhasil Dihapus", message: "Data profile berhasil dihapus secara permanen." });
     } catch (err: any) {
       setFeedback({ open: true, type: "error", title: "Gagal Menghapus", message: err.message || 'Terjadi kesalahan saat menghapus data.' });
@@ -103,11 +103,11 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
     <div className="space-y-1.5 mb-4 w-full">
       <label className="text-[12px] font-bold text-[#878787] uppercase tracking-wider">{label}</label>
       <div className="relative w-full">
-        <Input 
+        <Input
           type={type}
           value={
-            type === 'date' 
-              ? parseDateForInput(formData[field]) 
+            type === 'date'
+              ? parseDateForInput(formData[field])
               : formData[field] === null || formData[field] === undefined ? "" : formData[field]
           }
           onChange={e => {
@@ -140,8 +140,8 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-[1000px] w-full p-0 overflow-hidden bg-white rounded-[24px] border border-[#EAEAEA] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] [&>button]:hidden">
-        
-        <DiscardWarningModal 
+
+        <DiscardWarningModal
           open={showCloseWarning}
           onContinueEdit={() => setShowCloseWarning(false)}
           onDiscard={() => {
@@ -174,7 +174,7 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
 
 
         <div className="p-10 max-h-[80vh] overflow-y-auto custom-scrollbar">
-          
+
           {/* HEADER */}
           <div className="mb-10">
             <div className="flex items-center gap-3 mb-4">
@@ -190,11 +190,11 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
                 </span>
               )}
             </div>
-            
+
             <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight text-[#111111] mb-2">
               {profile.nama_proyek}
             </h1>
-            
+
             <div className="flex items-center gap-6 text-[#666666] text-[13px] font-medium">
               <span className="flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-[#A1A1A1]" /> Cabang {profile.cabang}
@@ -203,9 +203,9 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
           </div>
 
           <div className="w-full h-px bg-[#EAEAEA] mb-10"></div>
-          
+
           <div className="flex flex-col gap-10">
-            
+
             {/* IDENTITAS */}
             <div className="w-full">
               <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6">Identitas & Ops</h3>
@@ -256,14 +256,14 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
               <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6">Infrastruktur & Lainnya</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
                 {renderInput("Kapasitas Toko", "kapasitas_toko", "number")}
-                {renderInput("Main Kontraktor", "main_kontraktor")}
+                {renderInput("Kontraktor", "main_kontraktor")}
                 {renderInput("Daya Listrik", "daya_listrik")}
                 {renderInput("Genset", "genset")}
                 {renderInput("Sumber Air", "sumber_air")}
               </div>
-              
+
               <div className="mt-6 mb-6 h-px w-full bg-[#F0F0F0]"></div>
-              
+
               <h3 className="text-[11px] font-bold tracking-widest text-[#878787] uppercase mb-4">Spesifikasi Lantai</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
                 {renderInput("Tonase", "spek_lantai_tonase", "number")}
@@ -301,7 +301,7 @@ export function EditProfileModal({ open, onOpenChange, profile, onSuccess }: Edi
           <Button variant="outline" className="h-12 px-6 rounded-full text-[14px] font-bold border-[#EAEAEA] text-[#666666] hover:text-[#111111] hover:bg-white bg-white shadow-sm" onClick={() => handleOpenChange(false)}>
             Batal
           </Button>
-          <Button 
+          <Button
             className="h-12 px-8 rounded-full text-[14px] font-bold bg-[#111111] hover:bg-[#333333] text-white shadow-[0_4px_14px_0_rgba(0,0,0,0.15)] transition-all"
             onClick={saveChanges}
             disabled={saving}

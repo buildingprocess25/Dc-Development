@@ -26,11 +26,16 @@ import {
   FileText,
   Send,
   ShieldCheck,
+  QrCode,
+  Camera,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatRupiah } from "@/lib/utils";
 import ApprovalNotesHistory from "@/components/approval/ApprovalNotesHistory";
 import SubmissionReasonCard from "@/components/approval/SubmissionReasonCard";
+import { isSameCreator, isApprovalAdmin } from "@/lib/permissions";
+import { formatDistance } from "@/lib/geolocation";
 
 export interface PesertaItem {
   id: number;
@@ -42,6 +47,13 @@ export interface PesertaItem {
   email_sent: boolean;
   email_sent_at?: string | null;
   email_error?: string | null;
+  status_kehadiran_aktual?: string | null;
+  absen_at?: string | null;
+  absen_lat?: number | null;
+  absen_long?: number | null;
+  absen_distance_meter?: number | null;
+  absen_metode?: string | null;
+  catatan_absen?: string | null;
   vendor: {
     id: number;
     nama_perusahaan: string;
@@ -60,7 +72,15 @@ export interface AanwijzingDetail {
   waktu_pelaksanaan: string;
   lokasi: string;
   catatan?: string | null;
-  status: "MENUNGGU_KONFIRMASI" | "AANWIJZING_LANJUT" | "MENUNGGU_APPROVAL_DC_MANAGER" | "ON_HOLD";
+  status:
+    | "MENUNGGU_KONFIRMASI"
+    | "AANWIJZING_LANJUT"
+    | "MENUNGGU_APPROVAL_DC_MANAGER"
+    | "AANWIJZING_SELESAI"
+    | "AANWIJZING_ULANG"
+    | "TENDER_ULANG"
+    | "ON_HOLD"
+    | string;
   deadline_konfirmasi: string;
   file_url?: string | null;
   drive_file_id?: string | null;
@@ -100,6 +120,8 @@ export interface DetailAanwijzingModalProps {
   onClose?: () => void;
   aanwijzing: AanwijzingDetail | null;
   onOpenKonfirmasi?: (pesertaId: number) => void;
+  onOpenAbsensiSession?: (aanwijzing: any) => void;
+  onOpenScanner?: (aanwijzing: any) => void;
   currentUser?: {
     email?: string | null;
     role?: string | null;
@@ -115,6 +137,8 @@ export function DetailAanwijzingModal({
   onClose,
   aanwijzing: initialAanwijzing,
   onOpenKonfirmasi,
+  onOpenAbsensiSession,
+  onOpenScanner,
   currentUser,
 }: DetailAanwijzingModalProps) {
   const effectiveOpen = open !== undefined ? open : !!isOpen;
@@ -185,6 +209,7 @@ export function DetailAanwijzingModal({
   const tender = aanwijzing.tender || null;
 
   const roleUpper = (currentUser?.role || "").toUpperCase();
+  const isAdmin = isApprovalAdmin(roleUpper);
   const isContractor =
     roleUpper.includes("KONTRAKTOR") ||
     roleUpper.includes("KONSULTAN") ||
@@ -223,8 +248,26 @@ export function DetailAanwijzingModal({
       case "AANWIJZING_LANJUT":
         return {
           label: "Aanwijzing Lanjut",
+          bg: "bg-blue-50 text-blue-800 border-blue-200/80",
+          dot: "bg-blue-500",
+        };
+      case "AANWIJZING_SELESAI":
+        return {
+          label: "Aanwijzing Selesai",
           bg: "bg-emerald-50 text-emerald-800 border-emerald-200/80",
           dot: "bg-emerald-500",
+        };
+      case "AANWIJZING_ULANG":
+        return {
+          label: "Undangan Aanwijzing Ulang",
+          bg: "bg-amber-50 text-amber-800 border-amber-200/80",
+          dot: "bg-amber-500",
+        };
+      case "TENDER_ULANG":
+        return {
+          label: "Proposal Tender Ulang",
+          bg: "bg-rose-50 text-rose-800 border-rose-200/80",
+          dot: "bg-rose-500",
         };
       case "MENUNGGU_KONFIRMASI":
         return {
@@ -235,14 +278,14 @@ export function DetailAanwijzingModal({
       case "MENUNGGU_APPROVAL_DC_MANAGER":
         return {
           label: "Approval DC Manager",
-          bg: "bg-blue-50 text-blue-800 border-blue-200/80",
-          dot: "bg-blue-500",
+          bg: "bg-purple-50 text-purple-800 border-purple-200/80",
+          dot: "bg-purple-500",
         };
       case "ON_HOLD":
         return {
           label: "ON HOLD (Ditahan)",
-          bg: "bg-rose-50 text-rose-800 border-rose-200/80",
-          dot: "bg-rose-500",
+          bg: "bg-slate-100 text-slate-800 border-slate-200/80",
+          dot: "bg-slate-500",
         };
       default:
         return {
@@ -423,6 +466,109 @@ export function DetailAanwijzingModal({
                   Konfirmasi Kehadiran
                 </Button>
               )}
+            </div>
+          )}
+
+          {/* BANNER SESI ABSENSI HARI-H (Aktif jika AANWIJZING_LANJUT) */}
+          {aanwijzing.status === "AANWIJZING_LANJUT" && (
+            <div className="p-4.5 bg-gradient-to-r from-orange-50 via-amber-50/60 to-orange-50 border border-orange-200/90 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 text-[#E65F2B] flex items-center justify-center shrink-0">
+                  <QrCode className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    Sesi Absensi Hari-H Rapat Aanwijzing
+                  </p>
+                  <p className="text-[11.5px] text-slate-600 mt-0.5">
+                    {isContractor
+                      ? "Rapat Aanwijzing fisik berlangsung hari ini. Silakan scan QR Code di layar koordinator untuk verifikasi kehadiran."
+                      : "Gunakan sesi Dynamic Rolling QR Code 60 detik untuk memverifikasi kehadiran fisik rekanan di ruang rapat DC."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {isContractor && myContractorPeserta && myContractorPeserta.status_konfirmasi === "HADIR" && (
+                  myContractorPeserta.status_kehadiran_aktual === "HADIR_AKTUAL" ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-100/80 px-3.5 py-1.5 rounded-xl border border-emerald-300">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      Hadir Fisik Terverifikasi
+                    </span>
+                  ) : (
+                    <Button
+                      type="button"
+                      onClick={() => onOpenScanner?.(aanwijzing)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl h-9 px-4 cursor-pointer shadow-sm inline-flex items-center gap-1.5"
+                    >
+                      <Camera className="w-4 h-4" />
+                      Scan Absensi Sekarang
+                    </Button>
+                  )
+                )}
+
+                {(isAdmin || isSameCreator(currentUser, aanwijzing.created_by)) && (
+                  <Button
+                    type="button"
+                    onClick={() => onOpenAbsensiSession?.(aanwijzing)}
+                    className="bg-[#E65F2B] hover:bg-[#d04f1f] text-white text-xs font-bold rounded-xl h-9 px-4 cursor-pointer shadow-sm inline-flex items-center gap-1.5"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    Buka Sesi Absensi Hari-H
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* BANNER STATUS AANWIJZING SELESAI */}
+          {aanwijzing.status === "AANWIJZING_SELESAI" && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200/90 rounded-2xl flex items-start gap-3 shadow-2xs">
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-emerald-900">
+                  Rangkaian Rapat Aanwijzing Selesai Dilaksanakan
+                </p>
+                <p className="text-[11.5px] text-emerald-800 mt-0.5 leading-relaxed">
+                  Sesi absensi kehadiran Hari-H telah dikunci dan diselesaikan. Berkas pengadaan proyek ini dapat dilanjutkan ke tahap berikutnya sesuai ketentuan.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* BANNER STATUS AANWIJZING ULANG (< 1M) */}
+          {aanwijzing.status === "AANWIJZING_ULANG" && (
+            <div className="p-4 bg-amber-50 border border-amber-200/90 rounded-2xl flex items-start gap-3 shadow-2xs">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-amber-900">
+                  Undangan Aanwijzing Ulang (Proyek &lt; Rp 1 Miliar)
+                </p>
+                <p className="text-[11.5px] text-amber-800 mt-0.5 leading-relaxed">
+                  Aanwijzing ini tidak memenuhi syarat quorum minimal 3 rekanan kontraktor dan telah diputuskan untuk dijadwalkan ulang. Branch Building Koordinator pembuat dapat menerbitkan kembali surat undangan baru.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* BANNER STATUS TENDER ULANG (> 1M) */}
+          {aanwijzing.status === "TENDER_ULANG" && (
+            <div className="p-4 bg-rose-50 border border-rose-200/90 rounded-2xl flex items-start gap-3 shadow-2xs">
+              <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-rose-900">
+                  Pengajuan Proposal Tender Ulang (Proyek &gt; Rp 1 Miliar)
+                </p>
+                <p className="text-[11.5px] text-rose-800 mt-0.5 leading-relaxed">
+                  Aanwijzing ini tidak memenuhi syarat quorum minimal 3 rekanan kontraktor pada proyek bernilai &gt; Rp 1 Miliar. Sesuai SOP, tender terkait telah dibatalkan dan proyek harus diajukan Proposal Tender Ulang pada menu <strong>Pengajuan Kontraktor &amp; Konsultan Tender</strong>.
+                </p>
+              </div>
             </div>
           )}
 
@@ -658,6 +804,7 @@ export function DetailAanwijzingModal({
                     <th className="py-2.5 px-4">Email / Kontak</th>
                     <th className="py-2.5 px-4 text-center">Status Email</th>
                     <th className="py-2.5 px-4 text-center">Respon Kehadiran</th>
+                    <th className="py-2.5 px-4 text-center">Kehadiran Fisik (Hari-H)</th>
                     {!isContractor && <th className="py-2.5 px-4 text-right">Aksi</th>}
                   </tr>
                 </thead>
@@ -712,6 +859,28 @@ export function DetailAanwijzingModal({
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
                             MENUNGGU
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {p.status_kehadiran_aktual === "HADIR_AKTUAL" ? (
+                          <div className="inline-flex flex-col items-center">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Hadir Aktual
+                            </span>
+                            {p.absen_distance_meter !== null && p.absen_distance_meter !== undefined && (
+                              <span className="text-[9.5px] text-slate-500 mt-0.5">
+                                Jarak: {formatDistance(p.absen_distance_meter)}
+                              </span>
+                            )}
+                          </div>
+                        ) : p.status_konfirmasi === "TIDAK_HADIR" ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 bg-slate-100/80 px-2 py-0.5 rounded-full border border-slate-200">
+                            Tidak Hadir
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                            <Clock className="w-3 h-3 text-slate-400" /> Belum Hadir
                           </span>
                         )}
                       </td>

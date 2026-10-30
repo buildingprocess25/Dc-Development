@@ -74,15 +74,27 @@ export default function DaftarDokumenAanwijzingPage() {
     },
     AANWIJZING_LANJUT: {
       label: "Aanwijzing Lanjut",
-      cls: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      cls: "bg-blue-100 text-blue-800 border-blue-200",
     },
     MENUNGGU_APPROVAL_DC_MANAGER: {
       label: "Approval DC Manager",
-      cls: "bg-blue-100 text-blue-800 border-blue-200",
+      cls: "bg-purple-100 text-purple-800 border-purple-200",
+    },
+    AANWIJZING_SELESAI: {
+      label: "Aanwijzing Selesai",
+      cls: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    },
+    AANWIJZING_ULANG: {
+      label: "Undangan Aanwijzing Ulang",
+      cls: "bg-amber-100 text-amber-800 border-amber-200",
+    },
+    TENDER_ULANG: {
+      label: "Proposal Tender Ulang",
+      cls: "bg-rose-100 text-rose-800 border-rose-200",
     },
     ON_HOLD: {
       label: "ON HOLD (Ditahan)",
-      cls: "bg-rose-100 text-rose-800 border-rose-200",
+      cls: "bg-slate-100 text-slate-800 border-slate-200",
     },
   };
 
@@ -112,6 +124,9 @@ export default function DaftarDokumenAanwijzingPage() {
             { value: "MENUNGGU_KONFIRMASI", label: "Menunggu Konfirmasi" },
             { value: "AANWIJZING_LANJUT", label: "Aanwijzing Lanjut" },
             { value: "MENUNGGU_APPROVAL_DC_MANAGER", label: "Approval DC Manager" },
+            { value: "AANWIJZING_SELESAI", label: "Aanwijzing Selesai" },
+            { value: "AANWIJZING_ULANG", label: "Undangan Aanwijzing Ulang" },
+            { value: "TENDER_ULANG", label: "Proposal Tender Ulang" },
             { value: "ON_HOLD", label: "ON HOLD (Ditahan)" },
           ]}
         />

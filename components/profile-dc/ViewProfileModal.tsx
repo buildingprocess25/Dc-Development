@@ -41,7 +41,7 @@ export function ViewProfileModal({ open, onOpenChange, profile }: ViewProfileMod
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[900px] w-full p-0 overflow-hidden bg-white rounded-[24px] border border-[#EAEAEA] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] [&>button]:hidden">
-        
+
         {/* Custom Close Button */}
         <div className="absolute top-6 right-6 z-20">
           <button onClick={() => onOpenChange(false)} className="w-8 h-8 bg-white border border-[#EAEAEA] hover:bg-[#F7F7F7] text-[#666666] rounded-full flex items-center justify-center transition-all shadow-sm">
@@ -50,7 +50,7 @@ export function ViewProfileModal({ open, onOpenChange, profile }: ViewProfileMod
         </div>
 
         <div className="p-10 lg:p-14 max-h-[85vh] overflow-y-auto custom-scrollbar">
-          
+
           {/* HEADER */}
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-6">
@@ -63,11 +63,11 @@ export function ViewProfileModal({ open, onOpenChange, profile }: ViewProfileMod
                 </span>
               )}
             </div>
-            
+
             <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-[#111111] mb-4">
               {profile.nama_proyek}
             </h1>
-            
+
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[#666666] text-[14px] font-medium">
               <span className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-[#A1A1A1]" /> Cabang {profile.cabang}
@@ -95,7 +95,7 @@ export function ViewProfileModal({ open, onOpenChange, profile }: ViewProfileMod
 
           {/* CONTENT GRID */}
           <div className="flex flex-col gap-12">
-            
+
             {/* SECTION 1: IDENTITAS & OPERASIONAL */}
             <div className="w-full">
               <h3 className="text-[12px] font-bold tracking-widest text-[#111111] uppercase mb-6 flex items-center gap-2">
@@ -124,7 +124,7 @@ export function ViewProfileModal({ open, onOpenChange, profile }: ViewProfileMod
                   </div>
                 )}
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {renderItem("Total Luas Bangunan", formatNumber(profile.total_luas_bangunan), "m²")}
                 {renderItem("Luas Lahan Utama", formatNumber(profile.luas_lahan), "m²")}
@@ -159,7 +159,7 @@ export function ViewProfileModal({ open, onOpenChange, profile }: ViewProfileMod
                 <Settings2 className="w-4 h-4 text-[#A1A1A1]" /> Infrastruktur & Lainnya
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                {renderItem("Main Kontraktor", profile.main_kontraktor)}
+                {renderItem("Kontraktor", profile.main_kontraktor)}
                 {renderItem("Daya Listrik", profile.daya_listrik)}
                 {renderItem("Kapasitas Genset", profile.genset)}
                 {renderItem("Sumber Air", profile.sumber_air)}

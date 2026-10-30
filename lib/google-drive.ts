@@ -121,7 +121,7 @@ export async function getDcRenovasiFolderHierarchyId(
   nama_proyek: string,
   inisial: string | null,
   nomorPengajuan: string,
-  subFolder: "Gambar Sipil" | "Gambar ME" | "Foto Lingkungan" | "Dokumen PDF"
+  subFolder: "Gambar Sipil" | "Gambar ME" | "Foto Lingkungan" | "Dokumen PDF" | "Coretan Gambar" | string
 ): Promise<string> {
   // 1. Master Folder -> Cabang
   const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", getMasterDriveFolderId());
@@ -290,6 +290,30 @@ export async function uploadFileToFolder(
 
   return uploaded.data;
 }
+
+export async function updateFileInDrive(
+  drive: drive_v3.Drive,
+  fileId: string,
+  file: File,
+  cleanFileName?: string
+) {
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const updated = await drive.files.update({
+    fileId,
+    requestBody: cleanFileName ? { name: cleanFileName } : undefined,
+    media: {
+      mimeType: file.type || "application/pdf",
+      body: bufferToStream(buffer),
+    },
+    fields: "id, webViewLink, thumbnailLink, name, mimeType",
+    supportsAllDrives: true,
+  });
+
+  return updated.data;
+}
+
 
 export async function uploadBufferToFolder(
   drive: drive_v3.Drive,

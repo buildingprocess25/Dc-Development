@@ -152,9 +152,9 @@ export async function POST(req: NextRequest) {
       sertifikasi_iso,
     } = body;
 
-    if (!nama_perusahaan || !alamat || !nomor_telepon || !email || !golongan || !jenis) {
+    if (!nama_perusahaan || !alamat || !nomor_telepon || !email || !golongan || !jenis || !cabang) {
       return NextResponse.json(
-        { status: "error", message: "Mohon lengkapi seluruh field wajib profil vendor." },
+        { status: "error", message: "Mohon lengkapi seluruh field wajib profil vendor (termasuk jenis, golongan, dan cabang)." },
         { status: 400 }
       );
     }

@@ -503,7 +503,7 @@ export async function generateTenderPdfBuffer(tenderId: number): Promise<Buffer>
 
     const CATEGORY_MAP: Record<string, { title: string; order: number }> = {
       TENDER_KONSULTAN_PENGAWAS: { title: 'TENDER KONSULTAN PENGAWAS (MK)', order: 1 },
-      TENDER_MAIN_KONTRAKTOR: { title: 'TENDER MAIN KONTRAKTOR', order: 2 },
+      TENDER_MAIN_KONTRAKTOR: { title: 'TENDER Kontraktor', order: 2 },
       TENDER_KONSULTAN_PERENCANA: { title: 'TENDER KONSULTAN PERENCANA', order: 3 },
       KONSTRUKSI_MAIN_KONTRAKTOR: { title: 'TAHAP KONSTRUKSI', order: 4 },
       KONSTRUKSI_KONSULTAN_PENGAWAS: { title: 'SUPERVISI PENGAWAS (MK)', order: 5 },
