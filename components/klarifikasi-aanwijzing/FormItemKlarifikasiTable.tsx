@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Plus, Trash2, Layers, HardHat, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,7 @@ import {
 
 export interface KlarifikasiItemPayload {
   id?: number;
-  tipe_perubahan: "ITEM_BARU" | "UBAH_VOLUME";
+  tipe_perubahan: "ITEM_BARU" | "UBAH_VOLUME" | "SAMA_DENGAN_RAB";
   original_renovasi_item_id?: number | null;
   lingkup: "SIPIL" | "ME";
   kategori_pekerjaan: string;
@@ -281,19 +281,16 @@ export function FormItemKlarifikasiTable({
         const isDifferentFromRab = isVolChanged || isMatChanged || isUpahChanged;
 
         const wasInPreviousSubmission = Boolean(initialItemMap[orig.id]);
-        const shouldInclude = isRevision
-          ? (wasInPreviousSubmission || isDifferentFromRab)
-          : isDifferentFromRab;
+        const totalAwal = volAwal * (matAwal + upahAwal);
+        const totalAkhir = volAkhir * (matAkhir + upahAkhir);
 
-        if (shouldInclude) {
-          const totalAwal = volAwal * (matAwal + upahAwal);
-          const totalAkhir = volAkhir * (matAkhir + upahAkhir);
+        // Status Otomatis Sistem (Sama dengan RAB/OE jika tidak diubah)
+        let statusPerubahan = "Sama dengan RAB/OE";
+        let tipePerubahan: "ITEM_BARU" | "UBAH_VOLUME" | "SAMA_DENGAN_RAB" = "SAMA_DENGAN_RAB";
 
-          // Status Otomatis Sistem
-          let statusPerubahan = "Item Disesuaikan";
-          if (!isDifferentFromRab && isRevision && wasInPreviousSubmission) {
-            statusPerubahan = "Dikembalikan Sesuai RAB Awal";
-          } else if (isVolChanged && (isMatChanged || isUpahChanged)) {
+        if (isDifferentFromRab) {
+          tipePerubahan = "UBAH_VOLUME";
+          if (isVolChanged && (isMatChanged || isUpahChanged)) {
             statusPerubahan = "Volume & Harga Berubah";
           } else if (isVolChanged) {
             statusPerubahan = "Volume Berubah";
@@ -304,51 +301,56 @@ export function FormItemKlarifikasiTable({
           } else if (isUpahChanged) {
             statusPerubahan = "Harga Upah Berubah";
           }
+        } else if (isRevision && wasInPreviousSubmission) {
+          statusPerubahan = "Dikembalikan Sesuai RAB Awal";
+          tipePerubahan = "UBAH_VOLUME";
+        }
 
-          // Catatan dari user: Jika saat revisi dan ada catatan sebelumnya, catatan baru adalah add-on (bukan replace)
-          const prevNote = previousNoteMap[orig.id] || "";
-          const newRevNote = (currentRevNoteMap[orig.id] || "").trim();
-          let userCatatan = "";
-          if (isRevision) {
-            if (prevNote) {
-              userCatatan = newRevNote ? `${prevNote}\n[Perbaikan Revisi]: ${newRevNote}` : "";
-            } else {
-              userCatatan = newRevNote;
-            }
+        // Catatan dari user: Jika saat revisi dan ada catatan sebelumnya, catatan baru adalah add-on (bukan replace)
+        const prevNote = previousNoteMap[orig.id] || "";
+        const newRevNote = (currentRevNoteMap[orig.id] || "").trim();
+        let userCatatan = "";
+        if (isRevision) {
+          if (prevNote) {
+            userCatatan = newRevNote ? `${prevNote}\n[Perbaikan Revisi]: ${newRevNote}` : "";
           } else {
-            userCatatan = currentNoteMap[orig.id] || "";
+            userCatatan = newRevNote;
           }
+        } else {
+          userCatatan = currentNoteMap[orig.id] || "";
+        }
 
-          // Keterangan ringkas deskriptif
-          let ket = "";
-          if (!isDifferentFromRab && isRevision && wasInPreviousSubmission) {
-            ket = `Volume dan harga dikembalikan sesuai nilai RAB awal (${volAwal} ${orig.satuan || "m2"}, Mat: ${formatRupiah(matAwal)}, Upah: ${formatRupiah(upahAwal)})`;
-          } else if (isVolChanged && (isMatChanged || isUpahChanged)) {
+        // Keterangan ringkas deskriptif
+        let ket = "Sama dengan RAB/OE";
+        if (isDifferentFromRab) {
+          if (isVolChanged && (isMatChanged || isUpahChanged)) {
             ket = `Volume (${volAwal} -> ${volAkhir} ${orig.satuan || "m2"}) & Harga disesuaikan (Mat: ${formatRupiah(matAwal)} -> ${formatRupiah(matAkhir)}, Upah: ${formatRupiah(upahAwal)} -> ${formatRupiah(upahAkhir)})`;
           } else if (isVolChanged) {
             ket = `Volume berubah dari ${volAwal} ${orig.satuan || "m2"} menjadi ${volAkhir} ${orig.satuan || "m2"}`;
           } else {
             ket = `Harga disesuaikan (Mat: ${formatRupiah(matAwal)} -> ${formatRupiah(matAkhir)}, Upah: ${formatRupiah(upahAwal)} -> ${formatRupiah(upahAkhir)})`;
           }
-
-          compiled.push({
-            tipe_perubahan: "UBAH_VOLUME",
-            original_renovasi_item_id: orig.id,
-            lingkup: orig.lingkup || "SIPIL",
-            kategori_pekerjaan: orig.kategori_pekerjaan || "Pekerjaan",
-            deskripsi: orig.deskripsi,
-            satuan: orig.satuan || "m2",
-            volume_awal: volAwal,
-            volume_akhir: volAkhir,
-            harga_material: matAkhir,
-            harga_upah: upahAkhir,
-            total_biaya_awal: totalAwal,
-            total_biaya_akhir: totalAkhir,
-            status_perubahan: statusPerubahan,
-            catatan: userCatatan,
-            keterangan: ket,
-          });
+        } else if (isRevision && wasInPreviousSubmission) {
+          ket = `Volume dan harga dikembalikan sesuai nilai RAB awal (${volAwal} ${orig.satuan || "m2"}, Mat: ${formatRupiah(matAwal)}, Upah: ${formatRupiah(upahAwal)})`;
         }
+
+        compiled.push({
+          tipe_perubahan: tipePerubahan,
+          original_renovasi_item_id: orig.id,
+          lingkup: orig.lingkup || "SIPIL",
+          kategori_pekerjaan: orig.kategori_pekerjaan || "Pekerjaan",
+          deskripsi: orig.deskripsi,
+          satuan: orig.satuan || "m2",
+          volume_awal: volAwal,
+          volume_akhir: volAkhir,
+          harga_material: matAkhir,
+          harga_upah: upahAkhir,
+          total_biaya_awal: totalAwal,
+          total_biaya_akhir: totalAkhir,
+          status_perubahan: statusPerubahan,
+          catatan: userCatatan,
+          keterangan: ket,
+        });
       });
 
       // 2. Kumpulkan seluruh item baru yang memiliki deskripsi
@@ -389,6 +391,15 @@ export function FormItemKlarifikasiTable({
     },
     [originalItems, isRevision, initialItemMap, previousNoteMap, onChange]
   );
+
+  // Initial sync ke parent agar seluruh item eksisting langsung terdaftar di itemsPayload dengan status "Sama dengan RAB/OE"
+  const lastOrigLengthRef = useRef(0);
+  useEffect(() => {
+    if (originalItems.length > 0 && originalItems.length !== lastOrigLengthRef.current) {
+      lastOrigLengthRef.current = originalItems.length;
+      emitCompiled(volumeMap, priceMap, noteMap, revisionNoteMap, newItemRows);
+    }
+  }, [originalItems, emitCompiled, volumeMap, priceMap, noteMap, revisionNoteMap, newItemRows]);
 
   // Handle perubahan volume item eksisting
   const handleVolumeChange = (origId: number, val: number | string) => {

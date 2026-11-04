@@ -41,6 +41,7 @@ export async function GET(request: Request) {
         renovasi: {
           include: {
             item_rab: true,
+            dokumen: true,
           },
         },
         peserta: {

@@ -16,6 +16,10 @@ import {
   ShieldCheck,
   AlertTriangle,
   Info,
+  Clock,
+  Image as ImageIcon,
+  FileText,
+  FileCode,
 } from "lucide-react";
 import { formatRupiah, cn } from "@/lib/utils";
 
@@ -61,6 +65,36 @@ export function KlarifikasiApprovalView({
     selected: false,
     note: "",
   });
+  const [revDurasi, setRevDurasi] = useState<{ selected: boolean; note: string }>({
+    selected: false,
+    note: "",
+  });
+  const [revGambarTeknis, setRevGambarTeknis] = useState<{ selected: boolean; note: string }>({
+    selected: false,
+    note: "",
+  });
+  const [revFotoLingkungan, setRevFotoLingkungan] = useState<{ selected: boolean; note: string }>({
+    selected: false,
+    note: "",
+  });
+
+  const durasiAwal = klarifikasi?.durasi_hari_awal ?? klarifikasi?.renovasi?.durasi_hari ?? 0;
+  const durasiAkhir = klarifikasi?.durasi_hari_akhir ?? durasiAwal;
+  const statusDurasi = klarifikasi?.status_durasi || (durasiAkhir !== durasiAwal ? "BERUBAH" : "TETAP");
+
+  const rawDokumen = useMemo(() => {
+    return (klarifikasi?.dokumen && Array.isArray(klarifikasi.dokumen) && klarifikasi.dokumen.length > 0)
+      ? klarifikasi.dokumen
+      : (klarifikasi?.renovasi?.dokumen || []);
+  }, [klarifikasi]);
+
+  const drawingsList = useMemo(() => {
+    return rawDokumen.filter((d: any) => (d.kategori_file || "").startsWith("GAMBAR_"));
+  }, [rawDokumen]);
+
+  const fotoList = useMemo(() => {
+    return rawDokumen.filter((d: any) => d.kategori_file === "FOTO_LINGKUNGAN");
+  }, [rawDokumen]);
 
   const items = useMemo(() => klarifikasi?.items || [], [klarifikasi]);
 
@@ -89,7 +123,10 @@ export function KlarifikasiApprovalView({
 
   const selectedCount =
     Object.values(revSelectedItems).filter((v) => v.selected).length +
-    (revCatatanMaker.selected ? 1 : 0);
+    (revCatatanMaker.selected ? 1 : 0) +
+    (revDurasi.selected ? 1 : 0) +
+    (revGambarTeknis.selected ? 1 : 0) +
+    (revFotoLingkungan.selected ? 1 : 0);
 
   const filteredRevItems = useMemo(() => {
     return items.filter((it: any) => {
@@ -156,21 +193,61 @@ export function KlarifikasiApprovalView({
         });
       }
 
-      // Validasi 1: Jika tidak ada butir yang diceklis, catatan umum wajib diisi
+      if (revDurasi.selected) {
+        detailRevisiPayload.push({
+          id: "durasi_pekerjaan",
+          category: "DURASI_PEKERJAAN",
+          fieldOrId: "durasi_pekerjaan",
+          subCategory: "DURASI",
+          label: `Durasi Pekerjaan Proyek (${durasiAkhir} Hari)`,
+          catatan: revDurasi.note.trim(),
+          initialValue: {
+            durasi_hari_awal: durasiAwal,
+            durasi_hari_akhir: durasiAkhir,
+            catatan_durasi: klarifikasi?.catatan_durasi || "",
+          },
+        });
+      }
+
+      if (revGambarTeknis.selected) {
+        detailRevisiPayload.push({
+          id: "gambar_teknis",
+          category: "GAMBAR_TEKNIS",
+          fieldOrId: "gambar_teknis",
+          subCategory: "DOKUMEN",
+          label: "Gambar Teknis (Sipil & ME)",
+          catatan: revGambarTeknis.note.trim(),
+          initialValue: drawingsList,
+        });
+      }
+
+      if (revFotoLingkungan.selected) {
+        detailRevisiPayload.push({
+          id: "foto_lingkungan",
+          category: "FOTO_LINGKUNGAN",
+          fieldOrId: "foto_lingkungan",
+          subCategory: "FOTO",
+          label: "Foto Lingkungan & Eksisting Proyek",
+          catatan: revFotoLingkungan.note.trim(),
+          initialValue: fotoList,
+        });
+      }
+
+      // Validasi 1: Jika tidak ada item yang diceklis, catatan umum wajib diisi
       if (detailRevisiPayload.length === 0 && !actionNotes.trim()) {
         onErrorFeedback?.(
           "Catatan Revisi Wajib Diisi",
-          "Harap berikan catatan alasan revisi secara jelas atau pilih minimal satu butir pekerjaan yang wajib diperbaiki oleh pembuat."
+          "Harap berikan catatan alasan revisi secara jelas atau pilih minimal satu item pekerjaan yang wajib diperbaiki oleh pembuat."
         );
         return;
       }
 
-      // Validasi 2: Setiap butir yang diceklis wajib memiliki catatan instruksi perbaikan
+      // Validasi 2: Setiap item yang diceklis wajib memiliki catatan instruksi perbaikan
       for (const revItem of detailRevisiPayload) {
         if (!revItem.catatan) {
           onErrorFeedback?.(
-            "Catatan Butir Revisi Wajib Diisi",
-            `Harap berikan catatan instruksi perbaikan untuk butir yang diceklis: "${revItem.label}".`
+            "Catatan item Revisi Wajib Diisi",
+            `Harap berikan catatan instruksi perbaikan untuk item yang diceklis: "${revItem.label}".`
           );
           return;
         }
@@ -232,8 +309,8 @@ export function KlarifikasiApprovalView({
             </h3>
             <p className="text-xs text-slate-600 mt-0.5 truncate">
               {actionType === "REVISI"
-                ? "Tandai butir pekerjaan yang wajib diperbaiki atau berikan instruksi perbaikan umum untuk pembuat."
-                : "Pastikan seluruh butir penyesuaian volume dan penambahan item pekerjaan sudah sesuai sebelum menyetujui."}
+                ? "Tandai item pekerjaan yang wajib diperbaiki atau berikan instruksi perbaikan umum untuk pembuat."
+                : "Pastikan seluruh item penyesuaian volume dan penambahan item pekerjaan sudah sesuai sebelum menyetujui."}
             </p>
           </div>
         </div>
@@ -279,7 +356,7 @@ export function KlarifikasiApprovalView({
                 </span>
                 {selectedCount === 0 ? (
                   <span className="text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full font-bold text-[11px]">
-                    * Wajib Diisi jika tidak ada butir yang diceklis
+                    * Wajib Diisi jika tidak ada item yang diceklis
                   </span>
                 ) : (
                   <span className="text-slate-400 font-normal text-[11px]">
@@ -302,14 +379,14 @@ export function KlarifikasiApprovalView({
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
                     <Layers className="w-4 h-4 text-[#E65F2B]" />
-                    Pilih Butir / Item Pekerjaan yang Wajib Direvisi
+                    Pilih item / Item Pekerjaan yang Wajib Direvisi
                   </h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Tandai butir pekerjaan spesifik yang wajib diperbaiki oleh pembuat. Butir yang diceklis wajib diberikan catatan instruksi perbaikan.
+                    Tandai item pekerjaan spesifik yang wajib diperbaiki oleh pembuat. item yang diceklis wajib diberikan catatan instruksi perbaikan.
                   </p>
                 </div>
                 <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
-                  {selectedCount} Butir Ditandai
+                  {selectedCount} item Ditandai
                 </span>
               </div>
 
@@ -439,10 +516,206 @@ export function KlarifikasiApprovalView({
                   )}
                 </div>
 
+                {/* Checkbox Card Khusus: Durasi Pekerjaan Proyek */}
+                <div
+                  className={cn(
+                    "p-4 rounded-xl border transition-all",
+                    revDurasi.selected
+                      ? "bg-amber-50 border-amber-300 shadow-xs"
+                      : "bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs"
+                  )}
+                >
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={revDurasi.selected}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setRevDurasi((prev) => ({
+                          selected: checked,
+                          note: checked ? prev.note : "",
+                        }));
+                      }}
+                      className="mt-1 w-4 h-4 rounded border-slate-300 text-[#E65F2B] focus:ring-[#E65F2B] cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-[#E65F2B]" />
+                          Durasi Pekerjaan Proyek
+                        </span>
+                        <span
+                          className={cn(
+                            "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                            statusDurasi === "BERUBAH"
+                              ? "bg-amber-100 text-amber-800 border-amber-300"
+                              : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          )}
+                        >
+                          {statusDurasi === "BERUBAH"
+                            ? `Berubah (${durasiAkhir - durasiAwal > 0 ? `+${durasiAkhir - durasiAwal}` : durasiAkhir - durasiAwal} Hari)`
+                            : "Tetap Sesuai RAB"}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-600 mt-1 flex items-center gap-2 flex-wrap">
+                        <span>Awal: <strong>{durasiAwal} Hari</strong></span>
+                        <span>&rarr;</span>
+                        <span>Klarifikasi: <strong>{durasiAkhir} Hari</strong></span>
+                      </div>
+                      {klarifikasi?.catatan_durasi && (
+                        <p className="text-[11px] text-slate-500 mt-1 italic">
+                          Catatan Maker: &quot;{klarifikasi.catatan_durasi}&quot;
+                        </p>
+                      )}
+                    </div>
+                  </label>
+
+                  {revDurasi.selected && (
+                    <div className="mt-3 pt-3 border-t border-amber-200/80 space-y-1.5 animate-in fade-in duration-150">
+                      <label className="block text-xs font-bold text-amber-950 uppercase tracking-wide flex items-center justify-between">
+                        <span>Instruksi Revisi untuk Durasi Pekerjaan:</span>
+                        <span className="text-rose-600 font-bold text-[11px]">* Wajib Diisi</span>
+                      </label>
+                      <textarea
+                        value={revDurasi.note}
+                        onChange={(e) =>
+                          setRevDurasi((prev) => ({
+                            ...prev,
+                            note: e.target.value,
+                          }))
+                        }
+                        rows={2}
+                        placeholder="Tuliskan arahan durasi yang harus disesuaikan pembuat..."
+                        className="w-full text-xs p-3 rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-[#E65F2B] bg-white text-slate-800 placeholder:text-slate-400"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Checkbox Card Khusus: Gambar Teknis (Sipil & ME) */}
+                <div
+                  className={cn(
+                    "p-4 rounded-xl border transition-all",
+                    revGambarTeknis.selected
+                      ? "bg-amber-50 border-amber-300 shadow-xs"
+                      : "bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs"
+                  )}
+                >
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={revGambarTeknis.selected}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setRevGambarTeknis((prev) => ({
+                          selected: checked,
+                          note: checked ? prev.note : "",
+                        }));
+                      }}
+                      className="mt-1 w-4 h-4 rounded border-slate-300 text-[#E65F2B] focus:ring-[#E65F2B] cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <FileCode className="w-3.5 h-3.5 text-[#E65F2B]" />
+                          Gambar Teknis (Sipil &amp; ME)
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                          {drawingsList.length} Dokumen Terlampir
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Lampiran gambar kerja format PDF dan DWG untuk pekerjaan Sipil &amp; ME.
+                      </p>
+                    </div>
+                  </label>
+
+                  {revGambarTeknis.selected && (
+                    <div className="mt-3 pt-3 border-t border-amber-200/80 space-y-1.5 animate-in fade-in duration-150">
+                      <label className="block text-xs font-bold text-amber-950 uppercase tracking-wide flex items-center justify-between">
+                        <span>Instruksi Revisi untuk Gambar Teknis:</span>
+                        <span className="text-rose-600 font-bold text-[11px]">* Wajib Diisi</span>
+                      </label>
+                      <textarea
+                        value={revGambarTeknis.note}
+                        onChange={(e) =>
+                          setRevGambarTeknis((prev) => ({
+                            ...prev,
+                            note: e.target.value,
+                          }))
+                        }
+                        rows={2}
+                        placeholder="Jelaskan perbaikan gambar teknis (arsitektur/struktur/ME) yang wajib diunggah ulang..."
+                        className="w-full text-xs p-3 rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-[#E65F2B] bg-white text-slate-800 placeholder:text-slate-400"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Checkbox Card Khusus: Foto Lingkungan & Eksisting */}
+                <div
+                  className={cn(
+                    "p-4 rounded-xl border transition-all",
+                    revFotoLingkungan.selected
+                      ? "bg-amber-50 border-amber-300 shadow-xs"
+                      : "bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs"
+                  )}
+                >
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={revFotoLingkungan.selected}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setRevFotoLingkungan((prev) => ({
+                          selected: checked,
+                          note: checked ? prev.note : "",
+                        }));
+                      }}
+                      className="mt-1 w-4 h-4 rounded border-slate-300 text-[#E65F2B] focus:ring-[#E65F2B] cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <ImageIcon className="w-3.5 h-3.5 text-[#E65F2B]" />
+                          Foto Lingkungan &amp; Eksisting Proyek
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                          {fotoList.length} Foto Terlampir
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Foto fisik lapangan ber-watermark timestamp &amp; koordinat GPS lokasi.
+                      </p>
+                    </div>
+                  </label>
+
+                  {revFotoLingkungan.selected && (
+                    <div className="mt-3 pt-3 border-t border-amber-200/80 space-y-1.5 animate-in fade-in duration-150">
+                      <label className="block text-xs font-bold text-amber-950 uppercase tracking-wide flex items-center justify-between">
+                        <span>Instruksi Revisi untuk Foto Lingkungan:</span>
+                        <span className="text-rose-600 font-bold text-[11px]">* Wajib Diisi</span>
+                      </label>
+                      <textarea
+                        value={revFotoLingkungan.note}
+                        onChange={(e) =>
+                          setRevFotoLingkungan((prev) => ({
+                            ...prev,
+                            note: e.target.value,
+                          }))
+                        }
+                        rows={2}
+                        placeholder="Jelaskan bagian fisik atau foto lingkungan mana yang perlu diambil ulang atau ditambahkan..."
+                        className="w-full text-xs p-3 rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-[#E65F2B] bg-white text-slate-800 placeholder:text-slate-400"
+                      />
+                    </div>
+                  )}
+                </div>
+
                 {/* Rows Item Pekerjaan */}
                 {filteredRevItems.length === 0 ? (
                   <div className="p-8 text-center text-slate-400 text-xs bg-white border border-slate-200 rounded-2xl">
-                    Tidak ditemukan butir pekerjaan yang cocok dengan filter pencarian.
+                    Tidak ditemukan item pekerjaan yang cocok dengan filter pencarian.
                   </div>
                 ) : (
                   filteredRevItems.map((it: any) => {
@@ -499,10 +772,16 @@ export function KlarifikasiApprovalView({
                                   "px-2 py-0.5 rounded text-[10px] font-bold border",
                                   isBaru
                                     ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                    : "bg-sky-50 text-sky-700 border-sky-200"
+                                    : it.tipe_perubahan === "SAMA_DENGAN_RAB" || it.status_perubahan === "Sama dengan RAB/OE"
+                                      ? "bg-slate-100 text-slate-700 border-slate-200"
+                                      : "bg-sky-50 text-sky-700 border-sky-200"
                                 )}
                               >
-                                {isBaru ? "ITEM BARU" : "PENYESUAIAN"}
+                                {isBaru
+                                  ? "ITEM BARU"
+                                  : it.tipe_perubahan === "SAMA_DENGAN_RAB" || it.status_perubahan === "Sama dengan RAB/OE"
+                                    ? "SAMA DGN RAB"
+                                    : "PENYESUAIAN"}
                               </span>
 
                               <span className="text-xs font-bold text-slate-900">
@@ -661,10 +940,10 @@ export function KlarifikasiApprovalView({
             {isSubmitting
               ? "Memproses Keputusan..."
               : actionType === "APPROVE"
-              ? "Ya, Setujui Berita Acara (Approve)"
-              : selectedCount > 0
-              ? `Kembalikan Revisi (${selectedCount} Butir Ditandai)`
-              : "Kembalikan untuk Revisi"}
+                ? "Ya, Setujui Berita Acara (Approve)"
+                : selectedCount > 0
+                  ? `Kembalikan Revisi (${selectedCount} item Ditandai)`
+                  : "Kembalikan untuk Revisi"}
           </span>
         </Button>
       </div>

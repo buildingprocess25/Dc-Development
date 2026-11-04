@@ -220,7 +220,8 @@ export async function getDcAanwijzingFolderHierarchyId(
   kode: string,
   nama_proyek: string,
   inisial: string | null,
-  nomorUndangan: string
+  nomorUndangan: string,
+  subFolder?: string
 ): Promise<string> {
   // 1. Master Folder -> Cabang
   const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", getMasterDriveFolderId());
@@ -243,7 +244,48 @@ export async function getDcAanwijzingFolderHierarchyId(
   const safeUndangan = (nomorUndangan || "DRAFT").replace(/[\/\\]/g, "-");
   const specificFolderId = await getOrCreateFolder(drive, safeUndangan, aanwijzingFolderId);
 
+  if (subFolder) {
+    return await getOrCreateFolder(drive, subFolder, specificFolderId);
+  }
+
   return specificFolderId;
+}
+
+export async function getDcPenawaranFolderHierarchyId(
+  drive: drive_v3.Drive,
+  cabang: string,
+  kode: string,
+  nama_proyek: string,
+  inisial: string | null,
+  nomorPenawaran: string,
+  vendorNama: string
+): Promise<string> {
+  // 1. Master Folder -> Cabang
+  const cabangFolderId = await getOrCreateFolder(drive, cabang || "TANPA CABANG", getMasterDriveFolderId());
+  
+  // 2. Cabang -> DC Development
+  const dcDevFolderId = await getOrCreateFolder(drive, "DC Development", cabangFolderId);
+  
+  // 3. DC Development -> Project Folder (KODE - NAMA_PROYEK - INISIAL)
+  const inisialText = inisial ? ` - ${inisial}` : '';
+  const projectName = `${kode || "XXX"} - ${nama_proyek || "TANPA NAMA"}${inisialText}`;
+  const projectFolderId = await getOrCreateFolder(drive, projectName, dcDevFolderId);
+  
+  // 4. Project Folder -> Building
+  const buildingFolderId = await getOrCreateFolder(drive, "Building", projectFolderId);
+  
+  // 5. Building -> Penawaran Rekanan
+  const penawaranRootFolderId = await getOrCreateFolder(drive, "Penawaran Rekanan", buildingFolderId);
+
+  // 6. Penawaran Rekanan -> [Nomor Penawaran]
+  const safePenawaran = (nomorPenawaran || "DRAFT").replace(/[\/\\]/g, "-");
+  const specificPenawaranFolderId = await getOrCreateFolder(drive, safePenawaran, penawaranRootFolderId);
+
+  // 7. [Nomor Penawaran] -> [Nama Vendor]
+  const safeVendor = (vendorNama || "Vendor").replace(/[^a-zA-Z0-9_\-\s]/g, "_");
+  const targetFolderId = await getOrCreateFolder(drive, safeVendor, specificPenawaranFolderId);
+
+  return targetFolderId;
 }
 
 function bufferToStream(buffer: Buffer) {

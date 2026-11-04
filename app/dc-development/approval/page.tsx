@@ -10,6 +10,7 @@ import {
   canAccessTenderApproval,
   canAccessApprovalNavigation,
   canAccessKlarifikasiAanwijzingApproval,
+  canAccessPenawaranRekananApproval,
   isApprovalAdmin,
 } from "@/lib/permissions";
 import {
@@ -19,6 +20,7 @@ import {
   ShieldCheck,
   ClipboardCheck,
   FileCheck,
+  Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HubHeaderBanner, HubCategoryCard, HubCategoryCardProps } from "@/components/hub";
@@ -38,19 +40,26 @@ interface TenderApprovalSummary {
   total_all: number;
 }
 
+interface PenawaranApprovalSummary {
+  my_pending_count: number;
+  total_all: number;
+}
+
 export default function ApprovalHubPage() {
   const { user } = useSession();
   const [summary, setSummary] = useState<ApprovalSummary | null>(null);
   const [pfrSummary, setPfrSummary] = useState<FungsiRuangApprovalSummary | null>(null);
   const [tenderSummary, setTenderSummary] = useState<TenderApprovalSummary | null>(null);
+  const [penawaranSummary, setPenawaranSummary] = useState<PenawaranApprovalSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const canAccessRabOe = canAccessRabOeApproval(user?.role);
   const canAccessFungsiRuang = canAccessFungsiRuangApproval(user?.role);
   const canAccessTender = canAccessTenderApproval(user?.role);
   const canAccessKlarifikasi = canAccessKlarifikasiAanwijzingApproval(user?.role);
+  const canAccessPenawaran = canAccessPenawaranRekananApproval(user?.role);
   const canAccessAanwijzing = isApprovalAdmin(user?.role) || (user?.role?.toUpperCase().includes("MANAGER") && user?.role?.toUpperCase().includes("DEVELOPMENT"));
-  const canAccessNav = canAccessApprovalNavigation(user?.role, (user as any)?.akses_menu) || canAccessAanwijzing || canAccessKlarifikasi;
+  const canAccessNav = canAccessApprovalNavigation(user?.role, (user as any)?.akses_menu) || canAccessAanwijzing || canAccessKlarifikasi || canAccessPenawaran;
 
   const [aanwijzingPending, setAanwijzingPending] = useState(0);
   const [klarifikasiPending, setKlarifikasiPending] = useState(0);
@@ -113,6 +122,18 @@ export default function ApprovalHubPage() {
             .catch(() => {})
         );
       }
+      if (canAccessPenawaran) {
+        promises.push(
+          fetch("/api/dc-development/penawaran-rekanan/approval?tab=my-queue&limit=1")
+            .then((r) => r.json())
+            .then((j) => {
+              if (j.status === "success" && j.summary) {
+                setPenawaranSummary(j.summary);
+              }
+            })
+            .catch(() => {})
+        );
+      }
       await Promise.all(promises);
     } catch (err: any) {
       console.error("Gagal memuat ringkasan approval:", err);
@@ -149,6 +170,7 @@ export default function ApprovalHubPage() {
   const rabOePending = summary?.my_pending_count ?? 0;
   const pfrPending = pfrSummary?.my_pending_count ?? 0;
   const tenderPending = tenderSummary?.my_pending_count ?? 0;
+  const penawaranPending = penawaranSummary?.my_pending_count ?? 0;
 
   const approvalCards: (HubCategoryCardProps & { id: string })[] = [];
 
@@ -223,6 +245,21 @@ export default function ApprovalHubPage() {
       badge: klarifikasiPending > 0 ? `${klarifikasiPending} Perlu Tindakan` : "Semua Diproses",
       badgeVariant: klarifikasiPending > 0 ? "orange" : "success",
       stats: "SOP SAT/SOP/DCB/003",
+      actionLabel: "Buka Antrean",
+    });
+  }
+
+  if (canAccessPenawaran) {
+    approvalCards.push({
+      id: "penawaran-rekanan",
+      title: "Evaluasi Penawaran Rekanan",
+      description: "Evaluasi teknis & finansial penawaran tender kontraktor, verifikasi BoQ vs OE, serta negosiasi spesifikasi dan harga.",
+      href: "/dc-development/approval/penawaran-rekanan",
+      icon: Scale,
+      active: true,
+      badge: penawaranPending > 0 ? `${penawaranPending} Perlu Tindakan` : "Semua Diproses",
+      badgeVariant: penawaranPending > 0 ? "orange" : "success",
+      stats: "Tahap BBM & DC Specialist",
       actionLabel: "Buka Antrean",
     });
   }

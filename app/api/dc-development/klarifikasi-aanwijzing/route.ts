@@ -71,8 +71,13 @@ export async function GET(request: Request) {
             },
           },
         },
-        renovasi: true,
+        renovasi: {
+          include: {
+            dokumen: true,
+          },
+        },
         items: true,
+        dokumen: true,
         audit_logs: {
           orderBy: { created_at: 'asc' },
         },
@@ -220,7 +225,17 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { aanwijzing_id, catatan_maker, items = [], is_draft = false } = body;
+    const {
+      aanwijzing_id,
+      catatan_maker,
+      durasi_hari_awal,
+      durasi_hari_akhir,
+      status_durasi,
+      catatan_durasi,
+      items = [],
+      dokumen = [],
+      is_draft = false,
+    } = body;
 
     const aanwijzingId = parseInt(aanwijzing_id, 10);
     if (isNaN(aanwijzingId)) {
@@ -235,7 +250,12 @@ export async function POST(request: Request) {
       where: { id: aanwijzingId },
       include: {
         project: true,
-        renovasi: true,
+        renovasi: {
+          include: {
+            item_rab: true,
+            dokumen: true,
+          },
+        },
         klarifikasi: true,
       },
     });
@@ -327,15 +347,47 @@ export async function POST(request: Request) {
           total_item_baru: totalItemBaru,
           total_item_ubah_vol: totalItemUbahVol,
           catatan_maker: catatan_maker || null,
+          durasi_hari_awal: Number(durasi_hari_awal) || 0,
+          durasi_hari_akhir: Number(durasi_hari_akhir) || Number(durasi_hari_awal) || 0,
+          status_durasi: status_durasi || 'TETAP',
+          catatan_durasi: catatan_durasi || null,
+          tanggal_tender: body.tanggal_tender ? new Date(body.tanggal_tender) : new Date('2026-11-03T00:00:00.000Z'),
           created_by: currentUser.email,
           cabang: aanwijzing.cabang,
         },
       });
 
+      // Jika items yang dikirim kosong, otomatis masukkan seluruh item dari renovasi sebagai baseline "Sama dengan RAB/OE"
+      let finalItems = items;
+      if (!finalItems || finalItems.length === 0) {
+        finalItems = (aanwijzing.renovasi?.item_rab || []).map((orig: any) => {
+          const vol = Number(orig.volume) || 0;
+          const mat = Number(orig.harga_material) || 0;
+          const upah = Number(orig.harga_upah) || 0;
+          return {
+            tipe_perubahan: 'SAMA_DENGAN_RAB',
+            original_renovasi_item_id: orig.id,
+            lingkup: orig.lingkup || 'SIPIL',
+            kategori_pekerjaan: orig.kategori_pekerjaan || 'Pekerjaan Persiapan',
+            deskripsi: orig.deskripsi,
+            satuan: orig.satuan || 'm2',
+            volume_awal: vol,
+            volume_akhir: vol,
+            harga_material: mat,
+            harga_upah: upah,
+            total_biaya_awal: vol * (mat + upah),
+            total_biaya_akhir: vol * (mat + upah),
+            status_perubahan: 'Sama dengan RAB/OE',
+            catatan: null,
+            keterangan: 'Sama dengan RAB/OE',
+          };
+        });
+      }
+
       // Insert Items
-      if (items.length > 0) {
+      if (finalItems.length > 0) {
         await tx.dc_aanwijzing_klarifikasi_item.createMany({
-          data: items.map((it: any) => ({
+          data: finalItems.map((it: any) => ({
             klarifikasi_id: created.id,
             tipe_perubahan: it.tipe_perubahan,
             original_renovasi_item_id: it.original_renovasi_item_id ? parseInt(it.original_renovasi_item_id, 10) : null,
@@ -349,9 +401,49 @@ export async function POST(request: Request) {
             harga_upah: Number(it.harga_upah) || 0,
             total_biaya_awal: Number(it.total_biaya_awal) || 0,
             total_biaya_akhir: Number(it.total_biaya_akhir) || 0,
-            status_perubahan: it.status_perubahan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : 'Item Disesuaikan'),
+            status_perubahan: it.status_perubahan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : (it.tipe_perubahan === 'SAMA_DENGAN_RAB' ? 'Sama dengan RAB/OE' : 'Item Disesuaikan')),
             catatan: it.catatan || null,
-            keterangan: it.keterangan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : `Volume berubah dari ${it.volume_awal} ${it.satuan} menjadi ${it.volume_akhir} ${it.satuan}`),
+            keterangan: it.keterangan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : (it.tipe_perubahan === 'SAMA_DENGAN_RAB' ? 'Sama dengan RAB/OE' : `Volume berubah dari ${it.volume_awal} ${it.satuan} menjadi ${it.volume_akhir} ${it.satuan}`)),
+          })),
+        });
+      }
+
+      // Jika dokumen yang dikirim kosong, otomatis masukkan seluruh dokumen dari renovasi sebagai baseline "DARI_RAB"
+      let finalDokumen = dokumen;
+      if (!finalDokumen || finalDokumen.length === 0) {
+        finalDokumen = (aanwijzing.renovasi?.dokumen || []).map((d: any) => ({
+          kategori_file: d.kategori_file,
+          nama_file: d.nama_file,
+          nama_label: d.nama_label || d.nama_file,
+          file_url: d.file_url || null,
+          drive_file_id: d.drive_file_id || null,
+          mime_type: d.mime_type || null,
+          latitude: d.latitude ? Number(d.latitude) : null,
+          longitude: d.longitude ? Number(d.longitude) : null,
+          lokasi_wilayah: d.lokasi_wilayah || null,
+          timestamp_watermark: d.timestamp_watermark ? new Date(d.timestamp_watermark) : null,
+          sumber: 'DARI_RAB',
+          catatan: null,
+        }));
+      }
+
+      // Insert Dokumen Teknis & Foto Lingkungan
+      if (finalDokumen && Array.isArray(finalDokumen) && finalDokumen.length > 0) {
+        await tx.dc_aanwijzing_klarifikasi_dokumen.createMany({
+          data: finalDokumen.map((d: any) => ({
+            klarifikasi_id: created.id,
+            kategori_file: d.kategori_file,
+            nama_file: d.nama_file,
+            nama_label: d.nama_label || null,
+            file_url: d.file_url || null,
+            drive_file_id: d.drive_file_id || null,
+            mime_type: d.mime_type || null,
+            latitude: d.latitude ? Number(d.latitude) : null,
+            longitude: d.longitude ? Number(d.longitude) : null,
+            lokasi_wilayah: d.lokasi_wilayah || null,
+            timestamp_watermark: d.timestamp_watermark ? new Date(d.timestamp_watermark) : null,
+            sumber: d.sumber || 'DARI_RAB',
+            catatan: d.catatan || null,
           })),
         });
       }

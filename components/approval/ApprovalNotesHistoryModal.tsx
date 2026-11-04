@@ -192,7 +192,7 @@ export default function ApprovalNotesHistoryModal({
 
         {/* Scrollable Content: Notes Timeline */}
         <div className="p-5 md:p-6 overflow-y-auto space-y-4 flex-1">
-          {/* Rincian Butir Revisi jika ada */}
+          {/* Rincian Item Revisi jika ada */}
           {(mode === "revisi" || mode === "view") && revisionDetails.length > 0 && (
             <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/90 text-xs shadow-2xs">
               <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-amber-200/60">
@@ -213,10 +213,10 @@ export default function ApprovalNotesHistoryModal({
                         {item.category === "PARAMETER"
                           ? "Parameter"
                           : item.category === "GAMBAR"
-                          ? "Gambar Kerja"
-                          : item.category === "FOTO"
-                          ? "Foto Lingkungan"
-                          : "Item RAB"}
+                            ? "Gambar Kerja"
+                            : item.category === "FOTO"
+                              ? "Foto Lingkungan"
+                              : "Item RAB"}
                       </span>
                     </div>
                     {item.catatan ? (
@@ -255,9 +255,9 @@ export default function ApprovalNotesHistoryModal({
                     <div className={cn(
                       "absolute -left-6 top-1.5 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[10px] shadow-xs z-10",
                       item.action === "APPROVE" ? "bg-emerald-500 text-white" :
-                      item.action === "REVISI" ? "bg-amber-500 text-white" :
-                      item.action === "TOLAK" ? "bg-rose-500 text-white" :
-                      "bg-slate-400 text-white"
+                        item.action === "REVISI" ? "bg-amber-500 text-white" :
+                          item.action === "TOLAK" ? "bg-rose-500 text-white" :
+                            "bg-slate-400 text-white"
                     )}>
                       <BadgeIcon className="w-3 h-3" />
                     </div>

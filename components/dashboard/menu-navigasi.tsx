@@ -19,12 +19,13 @@ import {
   Building2,
   FileSignature,
   FileCheck,
+  Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/context/SessionContext";
-import { canAccessApprovalNavigation } from "@/lib/permissions";
+import { canAccessApprovalNavigation, canUserAccessPenawaranRekanan } from "@/lib/permissions";
 
-export type DcMenuId = "dc-profile" | "dc-documents" | "manajemen-user" | "master-harga" | "katalog-harga" | "renovasi-dc" | "fungsi-ruang" | "tender-kontraktor" | "undangan-aanwijzing" | "klarifikasi-aanwijzing" | "approval" | "daftar-dokumen" | "master-kontraktor";
+export type DcMenuId = "dc-profile" | "dc-documents" | "manajemen-user" | "master-harga" | "katalog-harga" | "renovasi-dc" | "fungsi-ruang" | "tender-kontraktor" | "undangan-aanwijzing" | "klarifikasi-aanwijzing" | "penawaran-rekanan" | "approval" | "daftar-dokumen" | "master-kontraktor";
 
 export type DcMenuItem = {
   id: DcMenuId;
@@ -40,6 +41,7 @@ export const dcMenus: DcMenuItem[] = [
   { id: "tender-kontraktor", title: "Pengajuan Proposal Tender", href: "/dc-development/tender", icon: FileSignature, group: "Proyek & Transaksi" },
   { id: "undangan-aanwijzing", title: "Undangan Aanwijzing", href: "/dc-development/undangan-aanwijzing", icon: ClipboardCheck, group: "Proyek & Transaksi" },
   { id: "klarifikasi-aanwijzing", title: "Klarifikasi Aanwijzing", href: "/dc-development/klarifikasi-aanwijzing", icon: FileCheck, group: "Proyek & Transaksi" },
+  { id: "penawaran-rekanan", title: "Penawaran Rekanan", href: "/dc-development/penawaran-rekanan", icon: Scale, group: "Proyek & Transaksi" },
   { id: "approval", title: "Approval", href: "/dc-development/approval", icon: ClipboardCheck, group: "Proyek & Transaksi" },
   { id: "dc-profile", title: "Profile DC", href: "/dc-development/profile", icon: Database, group: "Master Data" },
   { id: "dc-documents", title: "Dokumen DC", href: "/dc-development/dokumen-dc", icon: FolderArchive, group: "Master Data" },
@@ -115,6 +117,16 @@ export default function MenuNavigasi({ sidebarOpen, setSidebarOpen }: { sidebarO
       }
       if (menu.id === "klarifikasi-aanwijzing") {
         return isAll || userMenus.includes("klarifikasi-aanwijzing") || userMenus.includes("undangan-aanwijzing") || userMenus.includes("renovasi-dc");
+      }
+      if (menu.id === "penawaran-rekanan") {
+        return (
+          isAll ||
+          userMenus.includes("penawaran-rekanan") ||
+          userMenus.includes("klarifikasi-aanwijzing") ||
+          userMenus.includes("undangan-aanwijzing") ||
+          userMenus.includes("renovasi-dc") ||
+          canUserAccessPenawaranRekanan({ role })
+        );
       }
       if (menu.id === "daftar-dokumen") {
         return isAll || userMenus.includes("daftar-dokumen") || userMenus.includes("renovasi-dc") || userMenus.includes("dc-documents") || userMenus.includes("fungsi-ruang");

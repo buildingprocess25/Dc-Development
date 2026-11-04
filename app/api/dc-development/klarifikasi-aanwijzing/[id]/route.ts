@@ -60,9 +60,11 @@ export async function GET(
         renovasi: {
           include: {
             item_rab: true,
+            dokumen: true,
           },
         },
         items: true,
+        dokumen: true,
         audit_logs: {
           orderBy: { created_at: 'asc' },
         },
@@ -177,6 +179,7 @@ export async function PUT(
       where: { id: klarifikasiId },
       include: {
         items: true,
+        dokumen: true,
       },
     });
 
@@ -208,7 +211,16 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { catatan_maker, items = [], is_draft = false } = body;
+    const {
+      catatan_maker,
+      durasi_hari_awal,
+      durasi_hari_akhir,
+      status_durasi,
+      catatan_durasi,
+      items = [],
+      dokumen = [],
+      is_draft = false,
+    } = body;
 
     // VALIDASI SOP REVISI:
     if (existing.status === 'REVISI' && !is_draft) {
@@ -264,6 +276,29 @@ export async function PUT(
                 { status: 400 }
               );
             }
+          } else if (revItem.category === 'DURASI_PEKERJAAN') {
+            const isDurasiChanged = Number(durasi_hari_akhir) !== Number(existing.durasi_hari_akhir);
+            if (!isDurasiChanged) {
+              return NextResponse.json(
+                {
+                  status: 'error',
+                  message: `Durasi Pekerjaan wajib diperbaiki sesuai instruksi peninjau: "${revItem.catatan}".`,
+                },
+                { status: 400 }
+              );
+            }
+          } else if (revItem.category === 'GAMBAR_TEKNIS' || revItem.category === 'FOTO_LINGKUNGAN') {
+            const oldDocsJson = JSON.stringify(existing.dokumen.map((d: any) => ({ k: d.kategori_file, f: d.file_url, n: d.nama_file })));
+            const newDocsJson = JSON.stringify(dokumen.map((d: any) => ({ k: d.kategori_file, f: d.file_url, n: d.nama_file })));
+            if (oldDocsJson === newDocsJson) {
+              return NextResponse.json(
+                {
+                  status: 'error',
+                  message: `${revItem.label || 'Dokumen / Foto'} wajib diperbaiki / dilengkapi sesuai instruksi peninjau: "${revItem.catatan}".`,
+                },
+                { status: 400 }
+              );
+            }
           }
         }
       } else {
@@ -289,8 +324,16 @@ export async function PUT(
 
         const isCatatanChanged = (catatan_maker || '') !== (existing.catatan_maker || '');
         const isItemsChanged = oldItemsStr !== newItemsStr;
+        const isDurasiChanged = Number(durasi_hari_akhir) !== Number(existing.durasi_hari_akhir);
+        const oldDocsJson = JSON.stringify(existing.dokumen.map((d: any) => ({ k: d.kategori_file, f: d.file_url, n: d.nama_file })));
+        const newDocsJson = JSON.stringify(dokumen.map((d: any) => ({ k: d.kategori_file, f: d.file_url, n: d.nama_file })));
+        const isDokumenChanged = oldDocsJson !== newDocsJson;
+        const isTanggalTenderChanged =
+          body.tanggal_tender !== undefined &&
+          (body.tanggal_tender ? new Date(body.tanggal_tender).toISOString().split('T')[0] : '') !==
+            (existing.tanggal_tender ? new Date(existing.tanggal_tender).toISOString().split('T')[0] : '');
 
-        if (!isCatatanChanged && !isItemsChanged) {
+        if (!isCatatanChanged && !isItemsChanged && !isDurasiChanged && !isDokumenChanged && !isTanggalTenderChanged) {
           return NextResponse.json(
             {
               status: 'error',
@@ -360,9 +403,9 @@ export async function PUT(
             harga_upah: Number(it.harga_upah) || 0,
             total_biaya_awal: Number(it.total_biaya_awal) || 0,
             total_biaya_akhir: Number(it.total_biaya_akhir) || 0,
-            status_perubahan: it.status_perubahan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : 'Item Disesuaikan'),
+            status_perubahan: it.status_perubahan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : (it.tipe_perubahan === 'SAMA_DENGAN_RAB' ? 'Sama dengan RAB/OE' : 'Item Disesuaikan')),
             catatan: it.catatan || null,
-            keterangan: it.keterangan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : `Volume berubah dari ${it.volume_awal} ${it.satuan} menjadi ${it.volume_akhir} ${it.satuan}`),
+            keterangan: it.keterangan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : (it.tipe_perubahan === 'SAMA_DENGAN_RAB' ? 'Sama dengan RAB/OE' : `Volume berubah dari ${it.volume_awal} ${it.satuan} menjadi ${it.volume_akhir} ${it.satuan}`)),
           })),
         });
       }
@@ -372,13 +415,42 @@ export async function PUT(
         where: { id: klarifikasiId },
         data: {
           catatan_maker: catatan_maker || null,
+          durasi_hari_awal: Number(durasi_hari_awal) || 0,
+          durasi_hari_akhir: Number(durasi_hari_akhir) || Number(durasi_hari_awal) || 0,
+          status_durasi: status_durasi || 'TETAP',
+          catatan_durasi: catatan_durasi || null,
           total_item_baru: totalItemBaru,
           total_item_ubah_vol: totalItemUbahVol,
+          tanggal_tender: body.tanggal_tender ? new Date(body.tanggal_tender) : existing.tanggal_tender,
           status: nextStatus,
         },
       });
 
-      // 4. Audit Log
+      // 4. Update Dokumen Teknis & Foto Lingkungan
+      await tx.dc_aanwijzing_klarifikasi_dokumen.deleteMany({
+        where: { klarifikasi_id: klarifikasiId },
+      });
+      if (dokumen && Array.isArray(dokumen) && dokumen.length > 0) {
+        await tx.dc_aanwijzing_klarifikasi_dokumen.createMany({
+          data: dokumen.map((d: any) => ({
+            klarifikasi_id: klarifikasiId,
+            kategori_file: d.kategori_file,
+            nama_file: d.nama_file,
+            nama_label: d.nama_label || null,
+            file_url: d.file_url || null,
+            drive_file_id: d.drive_file_id || null,
+            mime_type: d.mime_type || null,
+            latitude: d.latitude ? Number(d.latitude) : null,
+            longitude: d.longitude ? Number(d.longitude) : null,
+            lokasi_wilayah: d.lokasi_wilayah || null,
+            timestamp_watermark: d.timestamp_watermark ? new Date(d.timestamp_watermark) : null,
+            sumber: d.sumber || 'BARU',
+            catatan: d.catatan || null,
+          })),
+        });
+      }
+
+      // 5. Audit Log
       await tx.dc_aanwijzing_klarifikasi_audit_log.create({
         data: {
           klarifikasi_id: klarifikasiId,

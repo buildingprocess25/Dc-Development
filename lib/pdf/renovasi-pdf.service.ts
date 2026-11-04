@@ -3,7 +3,7 @@ import path from 'path';
 import nunjucks from 'nunjucks';
 import puppeteer, { LaunchOptions } from 'puppeteer';
 import { prisma } from '@/lib/db';
-import { getDriveClient, downloadFileBuffer } from '@/lib/google-drive';
+import { getDriveClient, downloadFileBuffer, getDcAanwijzingFolderHierarchyId, uploadBufferToFolder } from '@/lib/google-drive';
 
 function getBrowserExecutablePath(): string | undefined {
   if (process.env.PUPPETEER_EXECUTABLE_PATH) {
@@ -456,8 +456,7 @@ export async function generateRenovasiPdfBuffer(renovasiId: number): Promise<Buf
 }
 
 /**
- * Generate PDF buffer khusus Lampiran Foto Lingkungan Eksisting
- */
+ * Generate PDF buffer khusus Lampiran Foto Lingkungan Eksisting */
 export async function generateFotoLingkunganPdfBuffer(renovasiId: number): Promise<Buffer> {
   const renovasi = await prisma.dc_renovasi.findUnique({
     where: { id: renovasiId },
@@ -525,5 +524,379 @@ export async function generateFotoLingkunganPdfBuffer(renovasiId: number): Promi
     return Buffer.from(pdfBuffer);
   } finally {
     await browser.close();
+  }
+}
+
+/**
+ * Generate PDF buffer Dokumen Resmi RAB/OE Pasca-Aanwijzing (Final Clean BoQ)
+ * Format identik dengan Penawaran RAB/OE standard, menggunakan item pekerjaan akhir setelah aanwijzing (tanpa komparasi, bersih hasil akhir).
+ */
+export async function generateRabOePascaAanwijzingPdfBuffer(klarifikasiId: number): Promise<Buffer> {
+  const klarifikasi = await prisma.dc_aanwijzing_klarifikasi.findUnique({
+    where: { id: klarifikasiId },
+    include: {
+      project: true,
+      renovasi: {
+        include: {
+          dokumen: true,
+          item_rab: { orderBy: [{ lingkup: 'asc' }, { kategori_pekerjaan: 'asc' }, { id: 'asc' }] },
+        },
+      },
+      items: {
+        orderBy: [{ lingkup: 'asc' }, { kategori_pekerjaan: 'asc' }, { id: 'asc' }],
+      },
+      dokumen: true,
+      audit_logs: { orderBy: { created_at: 'asc' } },
+      aanwijzing: true,
+    },
+  });
+
+  if (!klarifikasi) {
+    throw new Error(`Data Klarifikasi Aanwijzing ID ${klarifikasiId} tidak ditemukan.`);
+  }
+
+  // Cari seluruh user untuk pencocokan nama approver
+  const allUsers = await prisma.dc_users.findMany({
+    select: { email: true, nama: true },
+  });
+
+  const getUserName = (email: string) => {
+    if (!email) return '';
+    const cleanEmail = email.toLowerCase().replace('@gmai.com', '@gmail.com');
+    const u = allUsers.find(
+      (user) => user.email.toLowerCase() === email.toLowerCase() || user.email.toLowerCase() === cleanEmail
+    );
+    return u?.nama || email.split('@')[0];
+  };
+
+  const creatorName = getUserName(klarifikasi.created_by || klarifikasi.renovasi?.created_by || '');
+
+  // Susun Tanda Tangan dari Klarifikasi / Renovasi Audit Log
+  const logs = klarifikasi.audit_logs || [];
+  const isApproved = klarifikasi.status === 'APPROVED';
+
+  // Maker signature (Branch Building Koordinator)
+  const submitLog = logs.find((l: any) => l.action === 'SUBMIT' || l.action === 'RESUBMIT') || logs[0];
+  const makerDate = submitLog?.created_at ? formatDateTime(submitLog.created_at) : formatDateTime(klarifikasi.created_at);
+
+  // Approver 1: Branch Building & Maintenance Manager
+  const app1Log = logs.find(
+    (l: any) =>
+      l.action === 'APPROVE_BBM_MANAGER' ||
+      l.to_status === 'MENUNGGU_APPROVAL_DC_SPECIALIST' ||
+      (l.action?.includes('BBM') && l.action?.includes('APPROVE'))
+  );
+  const app1Approved = Boolean(app1Log) || isApproved || klarifikasi.status === 'MENUNGGU_APPROVAL_DC_SPECIALIST';
+  const app1Date = app1Log?.created_at ? formatDateTime(app1Log.created_at) : (app1Approved ? formatDateTime(klarifikasi.updated_at) : '');
+  const app1Name = app1Log?.user_name || (app1Log?.user_email ? getUserName(app1Log.user_email) : 'Branch B&M Manager');
+
+  // Approver 2: DC Development Specialist
+  const app2Log = logs.find(
+    (l: any) =>
+      l.action === 'APPROVE_DC_SPECIALIST' ||
+      l.to_status === 'APPROVED' ||
+      (l.action?.includes('SPECIALIST') && l.action?.includes('APPROVE'))
+  );
+  const app2Approved = Boolean(app2Log) || isApproved;
+  const app2Date = app2Log?.created_at ? formatDateTime(app2Log.created_at) : (app2Approved ? formatDateTime(klarifikasi.updated_at) : '');
+  const app2Name = app2Log?.user_name || (app2Log?.user_email ? getUserName(app2Log.user_email) : 'DC Development Specialist');
+
+  const signatures = {
+    creator: {
+      name: creatorName,
+      date: makerDate,
+      approved: true,
+    },
+    bm_manager: {
+      name: app1Name,
+      date: app1Date,
+      approved: app1Approved,
+    },
+    dc_specialist: {
+      name: app2Name,
+      date: app2Date,
+      approved: app2Approved,
+    },
+    dc_manager: {
+      name: isApproved ? 'DC Building & Dev. Manager' : '',
+      date: isApproved ? formatDateTime(klarifikasi.updated_at) : '',
+      approved: isApproved,
+    },
+  };
+
+  // Lampiran dokumen teknis & foto lingkungan
+  const rabDocs = klarifikasi.renovasi?.dokumen || [];
+  const klarifikasiDocs = klarifikasi.dokumen || [];
+  const allDocs = [...rabDocs, ...klarifikasiDocs];
+
+  const docSipilPdfRaw = allDocs.find(
+    (d: any) =>
+      d.kategori_file === 'GAMBAR_SIPIL_PDF' ||
+      (d.kategori_file === 'GAMBAR_SIPIL' && d.nama_file?.toLowerCase().endsWith('.pdf'))
+  );
+  const docSipilDwgRaw = allDocs.find(
+    (d: any) =>
+      d.kategori_file === 'GAMBAR_SIPIL_DWG' ||
+      (d.kategori_file === 'GAMBAR_SIPIL' && (d.nama_file?.toLowerCase().endsWith('.dwg') || d.nama_file?.toLowerCase().endsWith('.dxf')))
+  );
+  const docMePdfRaw = allDocs.find(
+    (d: any) =>
+      d.kategori_file === 'GAMBAR_ME_PDF' ||
+      (d.kategori_file === 'GAMBAR_ME' && d.nama_file?.toLowerCase().endsWith('.pdf'))
+  );
+  const docMeDwgRaw = allDocs.find(
+    (d: any) =>
+      d.kategori_file === 'GAMBAR_ME_DWG' ||
+      (d.kategori_file === 'GAMBAR_ME' && (d.nama_file?.toLowerCase().endsWith('.dwg') || d.nama_file?.toLowerCase().endsWith('.dxf')))
+  );
+
+  const doc_sipil_pdf = docSipilPdfRaw ? { name: docSipilPdfRaw.nama_file, url: docSipilPdfRaw.file_url } : null;
+  const doc_sipil_dwg = docSipilDwgRaw ? { name: docSipilDwgRaw.nama_file, url: docSipilDwgRaw.file_url } : null;
+  const doc_me_pdf = docMePdfRaw ? { name: docMePdfRaw.nama_file, url: docMePdfRaw.file_url } : null;
+  const doc_me_dwg = docMeDwgRaw ? { name: docMeDwgRaw.nama_file, url: docMeDwgRaw.file_url } : null;
+
+  const fotoDocs = allDocs.filter((d: any) => d.kategori_file === 'FOTO_LINGKUNGAN');
+  const doc_foto_folder_url = fotoDocs.length > 0 ? (fotoDocs[0].file_url || null) : null;
+  const docFotoPdfRaw = allDocs.find((d: any) => d.kategori_file === 'DOKUMEN_FOTO_LINGKUNGAN_PDF');
+  const doc_foto_pdf_url = docFotoPdfRaw ? docFotoPdfRaw.file_url : null;
+
+  const preparedPhotos = await prepareFotoItems(fotoDocs);
+  const foto_pages: FotoItemView[][] = [];
+  const CHUNK_SIZE = 4;
+  for (let i = 0; i < preparedPhotos.length; i += CHUNK_SIZE) {
+    foto_pages.push(preparedPhotos.slice(i, i + CHUNK_SIZE));
+  }
+
+  // Base64 Logos
+  let alfamart_logo_base64 = '';
+  const alfamartPath = path.resolve(process.cwd(), 'public/Alfamart-logo.png');
+  if (fs.existsSync(alfamartPath)) {
+    alfamart_logo_base64 = `data:image/png;base64,${fs.readFileSync(alfamartPath).toString('base64')}`;
+  }
+
+  let sparta_logo_base64 = '';
+  const spartaPath = path.resolve(process.cwd(), 'public/Sparta-Logo.png');
+  if (fs.existsSync(spartaPath)) {
+    sparta_logo_base64 = `data:image/png;base64,${fs.readFileSync(spartaPath).toString('base64')}`;
+  }
+
+  // Data Item Pasca-Aanwijzing: Gunakan nilai akhir (cukup yang akhirnya setelahnya aja!)
+  const rawItems = klarifikasi.items || [];
+  const finalItems = rawItems.map((it: any) => {
+    const vol = Number(it.volume_akhir) || 0;
+    const mat = Number(it.harga_material) || 0;
+    const upah = Number(it.harga_upah) || 0;
+    const total = Number(it.total_biaya_akhir) || vol * (mat + upah);
+    return {
+      lingkup: (it.lingkup || 'SIPIL').toUpperCase(),
+      kategori_pekerjaan: it.kategori_pekerjaan || 'Pekerjaan Persiapan',
+      deskripsi: it.deskripsi,
+      catatan: it.catatan || it.keterangan || null,
+      satuan: it.satuan || 'Ls',
+      volume: vol,
+      harga_material: mat,
+      harga_upah: upah,
+      total_material: vol * mat,
+      total_upah: vol * upah,
+      total_biaya: total,
+    };
+  });
+
+  const kategoriMap = new Map<string, { totalMaterial: number; totalUpah: number; totalHarga: number; items: RabGroupItem[] }>();
+
+  for (const item of finalItems) {
+    const katName = `${item.lingkup} - ${item.kategori_pekerjaan}`;
+    if (!kategoriMap.has(katName)) {
+      kategoriMap.set(katName, { totalMaterial: 0, totalUpah: 0, totalHarga: 0, items: [] });
+    }
+    const cat = kategoriMap.get(katName)!;
+    cat.totalMaterial += item.total_material;
+    cat.totalUpah += item.total_upah;
+    cat.totalHarga += item.total_biaya;
+
+    cat.items.push({
+      deskripsi: item.deskripsi,
+      catatan: item.catatan,
+      satuan: item.satuan,
+      volume_formatted: formatNumber(item.volume),
+      harga_material_formatted: formatNumber(item.harga_material),
+      harga_upah_formatted: formatNumber(item.harga_upah),
+      total_material_formatted: formatNumber(item.total_material),
+      total_biaya_formatted: formatNumber(item.total_biaya),
+    });
+  }
+
+  const rekap_kategori: RekapKategoriItem[] = [];
+  const rincian_grouped: RincianGroupItem[] = [];
+  let subtotalKategori = 0;
+
+  for (const [katName, val] of kategoriMap.entries()) {
+    subtotalKategori += val.totalHarga;
+    rekap_kategori.push({
+      nama: katName,
+      total_material_formatted: formatNumber(val.totalMaterial),
+      total_upah_formatted: formatNumber(val.totalUpah),
+      total_harga_formatted: formatNumber(val.totalHarga),
+    });
+
+    rincian_grouped.push({
+      kategori: katName,
+      subtotal_material_formatted: formatNumber(val.totalMaterial),
+      subtotal_biaya_formatted: formatNumber(val.totalHarga),
+      items: val.items,
+    });
+  }
+
+  const grandTotal = subtotalKategori;
+  const total_pages = 3 + foto_pages.length;
+
+  const mockRenovasi = {
+    nomor_pengajuan: `${klarifikasi.renovasi?.nomor_pengajuan || 'RAB-OE'}-AANWIJZING`,
+    jenis_renovasi: klarifikasi.renovasi?.jenis_renovasi || 'Renovasi DC',
+    cabang: klarifikasi.cabang || klarifikasi.project?.cabang,
+    lingkup_pekerjaan: klarifikasi.renovasi?.lingkup_pekerjaan || 'Sipil & ME',
+    durasi_hari: klarifikasi.durasi_hari_akhir || klarifikasi.durasi_hari_awal || 46,
+    satuan_durasi: 'Hari',
+    status: 'APPROVED (PASCA-AANWIJZING)',
+    created_at: klarifikasi.created_at,
+  };
+
+  // Compile template Nunjucks
+  const templatePath = path.resolve(process.cwd(), 'templates/pdf/rab-oe.njk');
+  const templateContent = fs.readFileSync(templatePath, 'utf-8');
+
+  const renderedHtml = nunjucks.renderString(templateContent, {
+    renovasi: mockRenovasi,
+    project: klarifikasi.project,
+    creator_name: creatorName,
+    submitted_at_formatted: formatDate(klarifikasi.created_at),
+    grand_total_formatted: formatNumber(grandTotal),
+    alfamart_logo_base64,
+    sparta_logo_base64,
+    alfamart_logo_path: alfamart_logo_base64,
+    sparta_logo_path: sparta_logo_base64,
+    watermark_logo_path: sparta_logo_base64,
+    doc_sipil_pdf,
+    doc_sipil_dwg,
+    doc_me_pdf,
+    doc_me_dwg,
+    total_foto_count: fotoDocs.length,
+    doc_foto_folder_url,
+    doc_foto_pdf_url,
+    foto_items: preparedPhotos,
+    foto_pages,
+    signatures,
+    rekap_kategori,
+    total_kategori_formatted: formatNumber(grandTotal),
+    pembulatan_formatted: '0',
+    ppn_formatted: '0',
+    rincian_grouped,
+    total_pages: String(total_pages),
+  });
+
+  const execPath = getBrowserExecutablePath();
+  const launchOptions: LaunchOptions = {
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  };
+  if (execPath) {
+    launchOptions.executablePath = execPath;
+  }
+
+  const browser = await puppeteer.launch(launchOptions);
+  try {
+    const page = await browser.newPage();
+    await page.setContent(renderedHtml, { waitUntil: 'load' });
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+    });
+    return Buffer.from(pdfBuffer);
+  } finally {
+    await browser.close();
+  }
+}
+
+/**
+ * Background Sync RAB/OE Pasca-Aanwijzing ke Google Drive
+ */
+export async function syncRabOePascaAanwijzingToGoogleDrive(
+  klarifikasiId: number
+): Promise<{ file_url: string; drive_file_id?: string } | null> {
+  try {
+    const klarifikasi = await prisma.dc_aanwijzing_klarifikasi.findUnique({
+      where: { id: klarifikasiId },
+      include: {
+        project: true,
+        aanwijzing: true,
+      },
+    });
+
+    if (!klarifikasi) return null;
+
+    const pdfBuffer = await generateRabOePascaAanwijzingPdfBuffer(klarifikasiId);
+    const sanitizedNo = (klarifikasi.nomor_klarifikasi || `BA_${klarifikasi.id}`).replace(/[\/\\:]/g, '_');
+    const fileName = `RAB_OE_Pasca_Aanwijzing_${sanitizedNo}_${klarifikasi.project?.kode || 'DC'}.pdf`;
+
+    const drive = await getDriveClient();
+    const folderId = await getDcAanwijzingFolderHierarchyId(
+      drive,
+      klarifikasi.cabang || klarifikasi.project?.cabang || 'UMUM',
+      klarifikasi.project?.kode || 'PROYEK',
+      klarifikasi.project?.nama_proyek || 'AANWIJZING',
+      klarifikasi.project?.inisial || null,
+      klarifikasi.aanwijzing?.nomor_undangan || klarifikasi.nomor_klarifikasi
+    );
+
+    const uploaded = await uploadBufferToFolder(
+      drive,
+      folderId,
+      pdfBuffer,
+      fileName,
+      'application/pdf'
+    );
+
+    if (uploaded?.id) {
+      const finalUrl = uploaded.webViewLink || `https://drive.google.com/file/d/${uploaded.id}/view`;
+
+      const existingDoc = await prisma.dc_aanwijzing_klarifikasi_dokumen.findFirst({
+        where: {
+          klarifikasi_id: klarifikasiId,
+          kategori_file: 'DOKUMEN_RAB_OE_PASCA_AANWIJZING_PDF',
+        },
+      });
+
+      if (existingDoc) {
+        await prisma.dc_aanwijzing_klarifikasi_dokumen.update({
+          where: { id: existingDoc.id },
+          data: {
+            file_url: finalUrl,
+            drive_file_id: uploaded.id,
+            nama_file: fileName,
+          },
+        });
+      } else {
+        await prisma.dc_aanwijzing_klarifikasi_dokumen.create({
+          data: {
+            klarifikasi_id: klarifikasiId,
+            kategori_file: 'DOKUMEN_RAB_OE_PASCA_AANWIJZING_PDF',
+            nama_file: fileName,
+            nama_label: 'Dokumen Resmi RAB/OE Pasca-Aanwijzing',
+            file_url: finalUrl,
+            drive_file_id: uploaded.id,
+            mime_type: 'application/pdf',
+            sumber: 'KLARIFIKASI',
+          },
+        });
+      }
+
+      console.log(`[GDrive] Successfully synced RAB/OE Pasca-Aanwijzing ${klarifikasi.nomor_klarifikasi} to Drive (${uploaded.id})`);
+      return { file_url: finalUrl, drive_file_id: uploaded.id };
+    }
+    return null;
+  } catch (error) {
+    console.warn(`[GDrive] Background sync RAB/OE Pasca-Aanwijzing ${klarifikasiId} failed:`, (error as Error)?.message);
+    return null;
   }
 }

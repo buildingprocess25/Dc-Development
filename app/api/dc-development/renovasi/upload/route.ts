@@ -1,11 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getDriveClient, getDcRenovasiFolderHierarchyId, uploadFileToFolder } from '@/lib/google-drive';
+import { getSession } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { status: 'error', message: 'Sesi anda telah berakhir. Silakan login kembali.' },
+        { status: 401 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const cabang = formData.get('cabang') as string || 'TANPA CABANG';

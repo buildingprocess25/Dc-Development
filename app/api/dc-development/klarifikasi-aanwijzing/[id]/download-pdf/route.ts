@@ -37,8 +37,11 @@ export async function GET(
       );
     }
 
-    // Jika file_url Google Drive sudah tersimpan di database, kembalikan SECARA INSTAN
-    if (klarifikasi.file_url && (klarifikasi.file_url.startsWith('http://') || klarifikasi.file_url.startsWith('https://'))) {
+    const { searchParams } = new URL(request.url);
+    const forceRefresh = searchParams.get('refresh') === '1';
+
+    // Jika file_url Google Drive sudah tersimpan di database dan tidak force refresh, kembalikan SECARA INSTAN
+    if (!forceRefresh && klarifikasi.file_url && (klarifikasi.file_url.startsWith('http://') || klarifikasi.file_url.startsWith('https://'))) {
       return NextResponse.json({
         status: 'success',
         data: {

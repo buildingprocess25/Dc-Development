@@ -84,15 +84,23 @@ function generateJsPdfFallback(data: any): Buffer {
   doc.text(`No. Undangan: ${data.aanwijzing.nomor_undangan || '-'}`, 115, 39);
   doc.text(`Lokasi: ${data.project.alamat || data.project.cabang}`, 14, 44);
   doc.text(`Tanggal Rapat: ${data.tgl_aanwijzing_indo}`, 115, 44);
+  doc.text(`Durasi Pekerjaan: ${data.durasi_hari_akhir || data.durasi_hari_awal || 0} Hari (${data.status_durasi || 'TETAP'})`, 14, 49);
+  if (data.is_durasi_berubah) {
+    doc.text(`Awal: ${data.durasi_hari_awal || 0} Hari | Selisih: ${data.selisih_durasi > 0 ? `+${data.selisih_durasi}` : data.selisih_durasi} Hari`, 115, 49);
+  }
 
   // Paragraf Pembuka
   doc.setFontSize(8);
   const leadText =
     'Berdasarkan pengamatan kondisi bangunan eksisting yang akan di renovasi terhadap rencana renovasi pada saat aanwijzing, terdapat beberapa hal yang menjadi perhatian sebagai berikut:';
-  doc.text(leadText, 14, 50, { maxWidth: 182 });
+  doc.text(leadText, 14, 55, { maxWidth: 182 });
 
-  const sipilItems = data.items_sipil || (data.items || []).filter((it: any) => it.lingkup === 'SIPIL');
-  const meItems = data.items_me || (data.items || []).filter((it: any) => it.lingkup !== 'SIPIL');
+  const sipilItems =
+    data.items_sipil ||
+    (data.items || []).filter((it: any) => (it.lingkup || 'SIPIL').toUpperCase() === 'SIPIL');
+  const meItems =
+    data.items_me ||
+    (data.items || []).filter((it: any) => (it.lingkup || '').toUpperCase() === 'ME');
 
   const mapRows = (itemsList: any[]) =>
     itemsList.map((it: any, idx: number) => {
@@ -108,7 +116,7 @@ function generateJsPdfFallback(data: any): Buffer {
         formatRupiah(upah),
         formatRupiah(hrgSatuan),
         formatRupiah(total),
-        it.status_perubahan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : 'Item Disesuaikan'),
+        it.status_perubahan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : (it.tipe_perubahan === 'SAMA_DENGAN_RAB' ? 'Sama dengan RAB/OE' : 'Item Disesuaikan')),
         it.catatan || it.keterangan || '-',
       ];
     });
@@ -120,13 +128,13 @@ function generateJsPdfFallback(data: any): Buffer {
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(230, 95, 43);
-  doc.text('A. Item Pekerjaan Sipil', 14, 57);
+  doc.text('A. Item Pekerjaan Sipil (Penyesuaian / Baru)', 14, 62);
 
   autoTable(doc, {
-    startY: 60,
+    startY: 65,
     head: [['No', 'Item Pekerjaan', 'Volume', 'Material', 'Upah', 'Satuan', 'Total Biaya', 'Status', 'Catatan']],
-    body: sipilRows.length ? sipilRows : [['-', 'Tidak ada item pekerjaan Sipil', '-', '-', '-', '-', '-', '-', '-']],
-    foot: [['', 'Jumlah Pekerjaan Sipil :', '', '', '', '', data.subtotal_sipil_rp || '-', '', '']],
+    body: sipilRows.length ? sipilRows : [['-', 'Tidak ada penyesuaian volume atau penambahan item pekerjaan Sipil (mengacu RAB/OE)', '-', '-', '-', '-', '-', '-', '-']],
+    foot: [['', 'Jumlah Pekerjaan Sipil Disepakati :', '', '', '', '', data.subtotal_changed_sipil_rp || data.subtotal_sipil_rp || '-', '', '']],
     theme: 'grid',
     headStyles: { fillColor: [255, 247, 237], textColor: [194, 65, 12], fontStyle: 'bold', fontSize: 7 },
     footStyles: { fillColor: [255, 247, 237], textColor: [194, 65, 12], fontStyle: 'bold', fontSize: 7.5 },
@@ -139,13 +147,13 @@ function generateJsPdfFallback(data: any): Buffer {
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(230, 95, 43);
-  doc.text('B. Item Pekerjaan ME', 14, nextY);
+  doc.text('B. Item Pekerjaan ME (Penyesuaian / Baru)', 14, nextY);
 
   autoTable(doc, {
     startY: nextY + 3,
     head: [['No', 'Item Pekerjaan', 'Volume', 'Material', 'Upah', 'Satuan', 'Total Biaya', 'Status', 'Catatan']],
-    body: meRows.length ? meRows : [['-', 'Tidak ada item pekerjaan ME', '-', '-', '-', '-', '-', '-', '-']],
-    foot: [['', 'Jumlah Pekerjaan ME :', '', '', '', '', data.subtotal_me_rp || '-', '', '']],
+    body: meRows.length ? meRows : [['-', 'Tidak ada penyesuaian volume atau penambahan item pekerjaan ME (mengacu RAB/OE)', '-', '-', '-', '-', '-', '-', '-']],
+    foot: [['', 'Jumlah Pekerjaan ME Disepakati :', '', '', '', '', data.subtotal_changed_me_rp || data.subtotal_me_rp || '-', '', '']],
     theme: 'grid',
     headStyles: { fillColor: [255, 247, 237], textColor: [194, 65, 12], fontStyle: 'bold', fontSize: 7 },
     footStyles: { fillColor: [255, 247, 237], textColor: [194, 65, 12], fontStyle: 'bold', fontSize: 7.5 },
@@ -166,11 +174,16 @@ function generateJsPdfFallback(data: any): Buffer {
   doc.text(data.grand_total_biaya_rp || '-', 192, finalY + 8.5, { align: 'right' });
   finalY += 12;
 
-  // Paragraf Penutup
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
+  // Paragraf Penutup (Tepat sebelum Tanda Tangan)
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'italic');
   doc.setTextColor(31, 41, 55);
-  doc.text('Demikian berita acara ini dibuat agar dimasukan dalam penawaran tender.', 14, finalY + 7);
+  doc.text(
+    'Demikian Berita Acara Klarifikasi Hasil Aanwijzing ini dibuat dengan sebenar-benarnya sebagai dasar acuan resmi penawaran tender dan penyusunan kontrak rekanan.',
+    14,
+    finalY + 6,
+    { maxWidth: 182 }
+  );
 
   // Matriks Tanda Tangan 3 Kolom
   const sigY = finalY + 14;
@@ -299,7 +312,11 @@ export async function generateBeritaAcaraAanwijzingPdf(klarifikasiInput: number 
       where: { id: klarifikasiInput },
       include: {
         project: true,
-        renovasi: true,
+        renovasi: {
+          include: {
+            dokumen: true,
+          },
+        },
         aanwijzing: {
           include: {
             peserta: {
@@ -310,6 +327,7 @@ export async function generateBeritaAcaraAanwijzingPdf(klarifikasiInput: number 
           },
         },
         items: true,
+        dokumen: true,
         audit_logs: {
           orderBy: { created_at: 'asc' },
         },
@@ -406,7 +424,8 @@ export async function generateBeritaAcaraAanwijzingPdf(klarifikasiInput: number 
     const hrgSatuan = mat + upah;
     const total = Number(it.total_biaya_akhir) || 0;
     grandTotalBiaya += total;
-    if (it.lingkup === 'SIPIL') {
+    const scopeUpper = (it.lingkup || 'SIPIL').trim().toUpperCase();
+    if (scopeUpper === 'SIPIL') {
       subtotalSipil += total;
     } else {
       subtotalMe += total;
@@ -414,7 +433,8 @@ export async function generateBeritaAcaraAanwijzingPdf(klarifikasiInput: number 
 
     return {
       ...it,
-      status_perubahan: it.status_perubahan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : 'Item Disesuaikan'),
+      lingkup: scopeUpper,
+      status_perubahan: it.status_perubahan || (it.tipe_perubahan === 'ITEM_BARU' ? 'Item Baru Ditambahkan' : (it.tipe_perubahan === 'SAMA_DENGAN_RAB' ? 'Sama dengan RAB/OE' : 'Item Disesuaikan')),
       catatan: it.catatan || it.keterangan || '-',
       harga_material_rp: formatRupiah(mat),
       harga_upah_rp: formatRupiah(upah),
@@ -426,8 +446,150 @@ export async function generateBeritaAcaraAanwijzingPdf(klarifikasiInput: number 
     };
   });
 
-  const itemsSipil = formattedItems.filter((it: any) => it.lingkup === 'SIPIL');
-  const itemsMe = formattedItems.filter((it: any) => it.lingkup !== 'SIPIL');
+  const itemsSipil = formattedItems.filter((it: any) => (it.lingkup || 'SIPIL').trim().toUpperCase() === 'SIPIL');
+  const itemsMe = formattedItems.filter((it: any) => (it.lingkup || '').trim().toUpperCase() === 'ME');
+
+  // Filter HANYA item yang mengalami penyesuaian (Item Baru atau Volume Berubah atau Harga Berubah)
+  const isChangedItem = (it: any) => {
+    if (it.tipe_perubahan === 'ITEM_BARU') return true;
+    if (it.tipe_perubahan === 'UBAH_VOLUME') return true;
+    if (it.tipe_perubahan === 'SAMA_DENGAN_RAB') return false;
+    const volAwal = Number(it.volume_awal) || 0;
+    const volAkhir = Number(it.volume_akhir) || 0;
+    const totalAwal = Number(it.total_biaya_awal) || 0;
+    const totalAkhir = Number(it.total_biaya_akhir) || 0;
+    return volAwal !== volAkhir || totalAwal !== totalAkhir;
+  };
+
+  const changedItems = formattedItems.filter(isChangedItem);
+  const changedItemsSipil = changedItems.filter((it: any) => (it.lingkup || 'SIPIL').trim().toUpperCase() === 'SIPIL');
+  const changedItemsMe = changedItems.filter((it: any) => (it.lingkup || '').trim().toUpperCase() === 'ME');
+
+  let subtotalChangedSipil = 0;
+  for (const it of changedItemsSipil) {
+    subtotalChangedSipil += Number(it.total_biaya_akhir) || 0;
+  }
+  let subtotalChangedMe = 0;
+  for (const it of changedItemsMe) {
+    subtotalChangedMe += Number(it.total_biaya_akhir) || 0;
+  }
+  const grandTotalChangedBiaya = subtotalChangedSipil + subtotalChangedMe;
+
+  // Durasi Pekerjaan Proyek (Baseline RAB vs Klarifikasi)
+  const durasiAwal = klarifikasi.durasi_hari_awal ?? klarifikasi.renovasi?.durasi_hari ?? 0;
+  const durasiAkhir = klarifikasi.durasi_hari_akhir ?? durasiAwal;
+  const isDurasiBerubah = durasiAkhir !== durasiAwal;
+  const statusDurasi = klarifikasi.status_durasi || (isDurasiBerubah ? 'BERUBAH' : 'TETAP');
+  const selisihDurasi = durasiAkhir - durasiAwal;
+
+  // Dokumen Teknis & Foto Lingkungan (Kolom 1: Acuan RAB vs Kolom 2: Klarifikasi)
+  const rabDocs = klarifikasi.renovasi?.dokumen || [];
+  const klarifikasiDocs = klarifikasi.dokumen || [];
+
+  const findDocInList = (list: any[], slotKey: string) => {
+    return list.find((d: any) => {
+      const k = d.kategori_file;
+      const fn = (d.nama_file || '').toLowerCase();
+      if (slotKey === 'GAMBAR_SIPIL_PDF') return k === 'GAMBAR_SIPIL_PDF' || (k === 'GAMBAR_SIPIL' && fn.endsWith('.pdf'));
+      if (slotKey === 'GAMBAR_SIPIL_DWG') return k === 'GAMBAR_SIPIL_DWG' || (k === 'GAMBAR_SIPIL' && (fn.endsWith('.dwg') || fn.endsWith('.cad')));
+      if (slotKey === 'GAMBAR_ME_PDF') return k === 'GAMBAR_ME_PDF' || (k === 'GAMBAR_ME' && fn.endsWith('.pdf'));
+      if (slotKey === 'GAMBAR_ME_DWG') return k === 'GAMBAR_ME_DWG' || (k === 'GAMBAR_ME' && (fn.endsWith('.dwg') || fn.endsWith('.cad')));
+      return false;
+    });
+  };
+
+  const gambarTeknisList = [
+    { key: 'GAMBAR_SIPIL_PDF', label: 'Sipil (PDF)' },
+    { key: 'GAMBAR_SIPIL_DWG', label: 'Sipil (CAD / DWG)' },
+    { key: 'GAMBAR_ME_PDF', label: 'ME (PDF)' },
+    { key: 'GAMBAR_ME_DWG', label: 'ME (CAD / DWG)' },
+  ].map((slot) => {
+    const rabDoc = findDocInList(rabDocs, slot.key);
+    const klarifikasiDoc = klarifikasiDocs.find((d: any) => {
+      const fn = (d.nama_file || '').toLowerCase();
+      const matchSlot =
+        d.kategori_file === slot.key ||
+        (slot.key === 'GAMBAR_SIPIL_PDF' && d.kategori_file === 'GAMBAR_SIPIL' && fn.endsWith('.pdf')) ||
+        (slot.key === 'GAMBAR_SIPIL_DWG' && d.kategori_file === 'GAMBAR_SIPIL' && (fn.endsWith('.dwg') || fn.endsWith('.cad'))) ||
+        (slot.key === 'GAMBAR_ME_PDF' && d.kategori_file === 'GAMBAR_ME' && fn.endsWith('.pdf')) ||
+        (slot.key === 'GAMBAR_ME_DWG' && d.kategori_file === 'GAMBAR_ME' && (fn.endsWith('.dwg') || fn.endsWith('.cad')));
+      return matchSlot && (d.sumber === 'REVISI' || d.sumber === 'BARU');
+    });
+    const hasRevision = Boolean(klarifikasiDoc);
+    const activeDoc = hasRevision ? klarifikasiDoc : rabDoc;
+    const sumberStatus = hasRevision
+      ? (klarifikasiDoc?.sumber === 'BARU' ? 'BARU' : 'REVISI')
+      : (rabDoc ? 'RAB_AWAL' : '-');
+    const sumberLabel = hasRevision
+      ? (klarifikasiDoc?.sumber === 'BARU' ? 'BARU' : 'REVISI')
+      : (rabDoc ? 'RAB AWAL' : '-');
+
+    return {
+      label: slot.label,
+      nama_file: activeDoc?.nama_file || 'Belum diunggah',
+      file_url: activeDoc?.file_url || null,
+      sumber: sumberStatus,
+      sumber_label: sumberLabel,
+      catatan: hasRevision ? (klarifikasiDoc?.catatan || null) : null,
+      has_revision: hasRevision,
+      rab_nama_file: rabDoc?.nama_file || 'Tidak ada pada RAB',
+      rab_file_url: rabDoc?.file_url || null,
+      baru_nama_file: hasRevision ? (klarifikasiDoc?.nama_file || '-') : 'Sama dengan RAB',
+      baru_file_url: hasRevision ? (klarifikasiDoc?.file_url || null) : (rabDoc?.file_url || null),
+      status_label: sumberLabel,
+      is_attached: Boolean(activeDoc?.file_url),
+    };
+  });
+
+  const revisedGambarTeknisList = gambarTeknisList.filter((g) => g.has_revision);
+
+  // Cek apakah foto RAB digantikan oleh foto REVISI pada Klarifikasi Aanwijzing
+  const isRabPhotoReplaced = (rabPhoto: any) => {
+    const rabName = (rabPhoto.nama_label || rabPhoto.nama_file || '').trim().toLowerCase();
+    const rabFileName = (rabPhoto.nama_file || '').trim().toLowerCase();
+    const rabUrl = (rabPhoto.file_url || '').trim();
+
+    return klarifikasiDocs.some((kDoc: any) => {
+      if (kDoc.kategori_file !== 'FOTO_LINGKUNGAN' || kDoc.sumber !== 'REVISI') return false;
+      const cat = (kDoc.catatan || '').toLowerCase();
+      // 1. Cek apakah catatan menyebutkan nama foto RAB (misal: 'Foto revisi pengganti untuk eksisting RAB: "Ninja 1"')
+      if (rabName && (cat.includes(`"${rabName}"`) || cat.includes(rabName))) return true;
+      if (rabFileName && (cat.includes(`"${rabFileName}"`) || cat.includes(rabFileName))) return true;
+      // 2. Cek apakah ada metadata revisi_dari
+      if (kDoc.revisi_dari_url && rabUrl && kDoc.revisi_dari_url === rabUrl) return true;
+      if (kDoc.revisi_dari_id && rabPhoto.id && String(kDoc.revisi_dari_id) === String(rabPhoto.id)) return true;
+      if (kDoc.revisi_dari_nama && (kDoc.revisi_dari_nama.toLowerCase() === rabName || kDoc.revisi_dari_nama.toLowerCase() === rabFileName)) return true;
+      return false;
+    });
+  };
+
+  const rabFotoList = rabDocs
+    .filter((d: any) => d.kategori_file === 'FOTO_LINGKUNGAN' && !isRabPhotoReplaced(d))
+    .map((f: any) => ({
+      nama_file: f.nama_label || f.nama_file,
+      file_url: f.file_url,
+      sumber: 'RAB_AWAL',
+      sumber_label: 'RAB AWAL',
+      catatan: null,
+      gps_coordinate: f.latitude && f.longitude ? `${f.latitude.toFixed(6)}, ${f.longitude.toFixed(6)}` : '-',
+      lokasi_wilayah: f.lokasi_wilayah || '-',
+      timestamp_watermark: f.timestamp_watermark ? formatDateTimeIndo(f.timestamp_watermark) : '-',
+    }));
+
+  const baruFotoList = klarifikasiDocs
+    .filter((d: any) => d.kategori_file === 'FOTO_LINGKUNGAN' && (d.sumber === 'BARU' || d.sumber === 'REVISI'))
+    .map((f: any) => ({
+      nama_file: f.nama_label || f.nama_file,
+      file_url: f.file_url,
+      sumber: f.sumber || 'BARU',
+      catatan: f.catatan || (f.sumber === 'REVISI' ? (f.revisi_dari_nama ? `Pengganti foto: ${f.revisi_dari_nama}` : 'Foto Revisi Pengganti') : null),
+      sumber_label: f.sumber === 'REVISI' ? 'REVISI' : 'BARU',
+      gps_coordinate: f.latitude && f.longitude ? `${f.latitude.toFixed(6)}, ${f.longitude.toFixed(6)}` : '-',
+      lokasi_wilayah: f.lokasi_wilayah || '-',
+      timestamp_watermark: f.timestamp_watermark ? formatDateTimeIndo(f.timestamp_watermark) : '-',
+    }));
+
+  const fotoLingkunganList = [...rabFotoList, ...baruFotoList];
 
   const templateData = {
     klarifikasi,
@@ -437,6 +599,26 @@ export async function generateBeritaAcaraAanwijzingPdf(klarifikasiInput: number 
     items: formattedItems,
     items_sipil: itemsSipil,
     items_me: itemsMe,
+    changed_items: changedItems,
+    changed_items_sipil: changedItemsSipil,
+    changed_items_me: changedItemsMe,
+    has_changed_items: changedItems.length > 0,
+    subtotal_changed_sipil_rp: formatRupiah(subtotalChangedSipil),
+    subtotal_changed_me_rp: formatRupiah(subtotalChangedMe),
+    grand_total_changed_rp: formatRupiah(grandTotalChangedBiaya),
+    durasi_hari_awal: durasiAwal,
+    durasi_hari_akhir: durasiAkhir,
+    status_durasi: statusDurasi,
+    catatan_durasi: klarifikasi.catatan_durasi || '',
+    is_durasi_berubah: isDurasiBerubah,
+    selisih_durasi: selisihDurasi,
+    gambar_teknis_list: gambarTeknisList,
+    revised_gambar_teknis_list: revisedGambarTeknisList,
+    has_revised_drawings: revisedGambarTeknisList.length > 0,
+    foto_lingkungan_list: fotoLingkunganList,
+    rab_foto_list: rabFotoList,
+    baru_foto_list: baruFotoList,
+    has_new_photos: baruFotoList.length > 0,
     subtotal_sipil_rp: formatRupiah(subtotalSipil),
     subtotal_me_rp: formatRupiah(subtotalMe),
     grand_total_biaya_rp: formatRupiah(grandTotalBiaya),

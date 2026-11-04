@@ -999,9 +999,13 @@ export default function FormRenovasi() {
     customName?: string
   ): Promise<any> => {
     const formData = new FormData();
-    // Sanitasi nama berkas ke ASCII standar agar tidak memicu bug Content-Disposition pada multipart parser
-    const safeAsciiName = (file.name || "file").replace(/[^\x20-\x7E]/g, "_");
-    formData.append("file", file, safeAsciiName);
+    // Sanitasi nama berkas ke format alfanumerik aman untuk menghindari bug Content-Disposition multipart parser
+    const originalExt = file.name.includes(".") ? file.name.substring(file.name.lastIndexOf(".")) : "";
+    const baseName = (file.name || "file").replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+    const cleanFileName = `${baseName || "file"}${originalExt}`;
+    const sanitizedFile = new File([file], cleanFileName, { type: file.type || "application/octet-stream" });
+    
+    formData.append("file", sanitizedFile);
     formData.append("cabang", selectedProject?.cabang || "CABANG");
     formData.append("kode", selectedProject?.kode || "XXX");
     formData.append("nama_proyek", selectedProject?.nama_proyek || "PROYEK");
@@ -1317,12 +1321,12 @@ export default function FormRenovasi() {
       const masterItem = masterItemId
         ? masterItems.find((m) => Number(m.id) === Number(masterItemId))
         : deskripsi
-        ? masterItems.find(
+          ? masterItems.find(
             (m) =>
               (m.deskripsi_otomatis || "").trim().toLowerCase() === deskripsi.trim().toLowerCase() ||
               (m.item_material || "").trim().toLowerCase() === deskripsi.trim().toLowerCase()
           )
-        : null;
+          : null;
 
       if (masterItem) {
         // Ambil harga cabang proyek jika ada dan harganya > 0
@@ -1381,13 +1385,13 @@ export default function FormRenovasi() {
         prev.map((row) =>
           row.id === rowId
             ? {
-                ...row,
-                master_item_id: masterId,
-                deskripsi: itemData.deskripsi_otomatis || itemData.item_material || "",
-                harga_material: 0,
-                harga_upah: 0,
-                is_custom: false
-              }
+              ...row,
+              master_item_id: masterId,
+              deskripsi: itemData.deskripsi_otomatis || itemData.item_material || "",
+              harga_material: 0,
+              harga_upah: 0,
+              is_custom: false
+            }
             : row
         )
       );
@@ -1399,13 +1403,13 @@ export default function FormRenovasi() {
         prev.map((row) =>
           row.id === rowId
             ? {
-                ...row,
-                master_item_id: null,
-                deskripsi: option.label,
-                harga_material: 0,
-                harga_upah: 0,
-                is_custom: true
-              }
+              ...row,
+              master_item_id: null,
+              deskripsi: option.label,
+              harga_material: 0,
+              harga_upah: 0,
+              is_custom: true
+            }
             : row
         )
       );
@@ -1416,13 +1420,13 @@ export default function FormRenovasi() {
         prev.map((row) =>
           row.id === rowId
             ? {
-                ...row,
-                master_item_id: masterId,
-                deskripsi: option.label,
-                harga_material: 0,
-                harga_upah: 0,
-                is_custom: false
-              }
+              ...row,
+              master_item_id: masterId,
+              deskripsi: option.label,
+              harga_material: 0,
+              harga_upah: 0,
+              is_custom: false
+            }
             : row
         )
       );
@@ -2331,7 +2335,7 @@ export default function FormRenovasi() {
                     </label>
                     {docsSipilPdf.length > 0 ? (
                       <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/80 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Terunggah
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Lihat Dokumen
                       </span>
                     ) : (
                       <span className="text-[11px] font-medium text-slate-400">
@@ -2496,7 +2500,7 @@ export default function FormRenovasi() {
                     </label>
                     {docsSipilDwg.length > 0 ? (
                       <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/80 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Terunggah
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Lihat Dokumen
                       </span>
                     ) : (
                       <span className="text-[11px] font-medium text-slate-400">
@@ -2660,7 +2664,7 @@ export default function FormRenovasi() {
                     </label>
                     {docsMePdf.length > 0 ? (
                       <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/80 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Terunggah
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Lihat Dokumen
                       </span>
                     ) : (
                       <span className="text-[11px] font-medium text-slate-400">
@@ -2825,7 +2829,7 @@ export default function FormRenovasi() {
                     </label>
                     {docsMeDwg.length > 0 ? (
                       <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/80 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Terunggah
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Lihat Dokumen
                       </span>
                     ) : (
                       <span className="text-[11px] font-medium text-slate-400">
@@ -3369,10 +3373,10 @@ export default function FormRenovasi() {
                                 <div
                                   key={row.id}
                                   className={`p-3 sm:p-3.5 bg-white rounded-xl border shadow-2xs flex flex-col gap-2.5 transition-all hover:shadow-xs w-full max-w-full overflow-hidden ${flaggedRab && !isRabMod
-                                      ? "border-amber-300 ring-2 ring-amber-300/40 bg-amber-50/15"
-                                      : flaggedRab && isRabMod
-                                        ? "border-emerald-300/80 bg-emerald-50/10"
-                                        : "border-slate-200/90 hover:border-slate-300"
+                                    ? "border-amber-300 ring-2 ring-amber-300/40 bg-amber-50/15"
+                                    : flaggedRab && isRabMod
+                                      ? "border-emerald-300/80 bg-emerald-50/10"
+                                      : "border-slate-200/90 hover:border-slate-300"
                                     }`}
                                 >
                                   {/* Baris 1: Nomor, Selector Item, Subtotal Item, Tombol Hapus */}

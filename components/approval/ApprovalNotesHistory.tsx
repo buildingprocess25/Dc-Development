@@ -27,7 +27,7 @@ export interface ApprovalNotesHistoryProps {
   createdBy?: string | null;
   /** Tanggal pembuatan */
   createdAt?: string | Date | null;
-  /** Butir rincian bagian yang wajib diperbaiki (jika ada pada revisi RAB/OE) */
+  /** Item rincian bagian yang wajib diperbaiki (jika ada pada revisi RAB/OE) */
   revisionDetails?: RevisionDetailItem[];
   /** Judul kartu (default: "Riwayat Persetujuan & Catatan Reviewer") */
   title?: string;
@@ -255,12 +255,12 @@ export default function ApprovalNotesHistory({
                       isApprove
                         ? "bg-emerald-50/50 border-emerald-200/80 text-emerald-950"
                         : isRevisi
-                        ? "bg-orange-50/60 border-orange-200/80 text-orange-950"
-                        : isTolak
-                        ? "bg-rose-50/60 border-rose-200/80 text-rose-950"
-                        : isResubmit
-                        ? "bg-blue-50/60 border-blue-200/80 text-blue-950"
-                        : "bg-slate-50 border-slate-200 text-slate-800"
+                          ? "bg-orange-50/60 border-orange-200/80 text-orange-950"
+                          : isTolak
+                            ? "bg-rose-50/60 border-rose-200/80 text-rose-950"
+                            : isResubmit
+                              ? "bg-blue-50/60 border-blue-200/80 text-blue-950"
+                              : "bg-slate-50 border-slate-200 text-slate-800"
                     )}
                   >
                     <div className="flex items-center justify-between text-[11px] flex-wrap gap-1">
@@ -320,10 +320,10 @@ export default function ApprovalNotesHistory({
                         {d.category === "PARAMETER"
                           ? "Parameter"
                           : d.category === "GAMBAR"
-                          ? "Gambar Kerja"
-                          : d.category === "FOTO"
-                          ? "Foto Lingkungan"
-                          : "Item RAB"}
+                            ? "Gambar Kerja"
+                            : d.category === "FOTO"
+                              ? "Foto Lingkungan"
+                              : "Item RAB"}
                       </span>
                     </div>
                     {d.catatan && (

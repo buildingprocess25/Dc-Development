@@ -531,18 +531,51 @@
     </tr>
   </table>
 
+  <!-- Section 2: Kesepakatan Durasi Pekerjaan Proyek -->
+  <div class="section-title">II. Kesepakatan Durasi Pekerjaan Proyek</div>
+  {% if is_durasi_berubah %}
+  <table class="info-table" style="border-left-color: #E65F2B; margin-bottom: 8px;">
+    <tr>
+      <td class="label" style="width: 140px;">Durasi Awal (Penawaran RAB)</td>
+      <td class="value">: <strong>{{ durasi_hari_awal }} Hari</strong></td>
+      <td class="label" style="width: 140px;">Status Kesepakatan</td>
+      <td class="value">:
+        <span class="status-badge" style="background-color: #fff7ed; color: #c2410c; border-color: #fed7aa;">
+          BERUBAH ({% if selisih_durasi > 0 %}+{% endif %}{{ selisih_durasi }} HARI)
+        </span>
+      </td>
+    </tr>
+    <tr>
+      <td class="label">Durasi Akhir Klarifikasi</td>
+      <td class="value">: <strong style="color: #E65F2B;">{{ durasi_hari_akhir }} Hari</strong></td>
+      <td class="label">Catatan Alasan Durasi</td>
+      <td class="value">: {{ catatan_durasi or '-' }}</td>
+    </tr>
+  </table>
+  {% else %}
+  <div style="border: 1px solid #e2e8f0; background-color: #f8fafc; border-left: 3px solid #059669; padding: 6px 10px; border-radius: 4px; margin-bottom: 8px; font-size: 8.5px; color: #1e293b;">
+    <strong>Durasi Pelaksanaan Pekerjaan:</strong> {{ durasi_hari_awal }} Hari
+    <span style="display: inline-block; margin-left: 8px; font-weight: bold; color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 1.5px 6px; border-radius: 3px; font-size: 7.5px;">
+      TETAP SESUAI PENAWARAN RAB/OE (TIDAK BERUBAH)
+    </span>
+    {% if catatan_durasi %}
+      <div style="font-size: 7.5px; color: #64748b; margin-top: 2px;">Catatan: &ldquo;{{ catatan_durasi }}&rdquo;</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <!-- Teks Pengantar SOP Resmi -->
   <div class="lead-paragraph">
     Berdasarkan pengamatan kondisi fisik bangunan eksisting dan klarifikasi teknis pada saat rapat aanwijzing lapangan, disepakati penyesuaian volume, harga, serta penambahan item pekerjaan baru sebagai dasar acuan resmi penawaran tender:
   </div>
 
-  <!-- Section 2: Daftar Penyesuaian Volume & Penambahan Item Pekerjaan -->
-  <div class="section-title">II. Daftar Penyesuaian Volume &amp; Penambahan Item Pekerjaan</div>
+  <!-- Section 3: Daftar Rincian Owner Estimate (OE) Lengkap Hasil Klarifikasi Aanwijzing -->
+  <div class="section-title">III. Rincian Owner Estimate (OE) Lengkap Hasil Klarifikasi Aanwijzing</div>
 
   <!-- A. Item Pekerjaan Sipil -->
   <div class="subsection-header">
     <span class="subsection-badge">A</span>
-    <span>Item Pekerjaan Sipil</span>
+    <span>Rincian Pekerjaan Sipil OE (Lengkap Pasca-Klarifikasi)</span>
   </div>
   <table class="data-table">
     <thead>
@@ -593,14 +626,16 @@
           <td style="text-align: center;">
             {% if item.tipe_perubahan == 'ITEM_BARU' or 'Baru' in item.status_perubahan %}
               <span class="tag-baru">ITEM BARU</span>
-            {% elif 'RAB Awal' in item.status_perubahan %}
-              <span class="tag-ubah">RAB AWAL</span>
             {% elif 'Volume & Harga' in item.status_perubahan %}
               <span class="tag-harga">VOL &amp; HRG</span>
             {% elif 'Volume' in item.status_perubahan %}
               <span class="tag-ubah">VOL UBAH</span>
-            {% else %}
+            {% elif 'Harga' in item.status_perubahan %}
               <span class="tag-harga">HRG UBAH</span>
+            {% elif 'RAB Awal' in item.status_perubahan or 'Dikembalikan' in item.status_perubahan or item.tipe_perubahan == 'SAMA_DENGAN_RAB' %}
+              <span class="tag-ubah">SESUAI RAB</span>
+            {% else %}
+              <span class="tag-harga">DISESUAIKAN</span>
             {% endif %}
           </td>
           <td style="font-size: 7.5px; color: #4b5563; font-style: italic; white-space: pre-line;">
@@ -610,8 +645,8 @@
         {% endfor %}
       {% else %}
         <tr>
-          <td colspan="9" style="text-align: center; color: #6b7280; padding: 10px;">
-            Tidak ada penyesuaian volume atau penambahan item pekerjaan Sipil.
+          <td colspan="9" style="text-align: center; color: #64748b; padding: 9px; font-style: italic; background-color: #f8fafc;">
+            Tidak ada item pekerjaan Sipil yang tercatat pada berkas ini.
           </td>
         </tr>
       {% endif %}
@@ -620,7 +655,7 @@
     <tfoot>
       <tr style="background-color: #fff7ed; font-weight: bold; border-top: 1.5px solid #fed7aa;">
         <td colspan="6" style="text-align: right; padding: 5px 8px; font-size: 8.5px; text-transform: uppercase; color: #9a3412;">
-          Jumlah Pekerjaan Sipil :
+          Subtotal Pekerjaan Sipil OE :
         </td>
         <td style="text-align: right; padding: 5px 8px; font-size: 9px; color: #E65F2B; font-family: monospace; white-space: nowrap;">
           {{ subtotal_sipil_rp }}
@@ -634,7 +669,7 @@
   <!-- B. Item Pekerjaan ME -->
   <div class="subsection-header" style="margin-top: 12px;">
     <span class="subsection-badge">B</span>
-    <span>Item Pekerjaan ME (Mechanical &amp; Electrical)</span>
+    <span>Rincian Pekerjaan ME OE (Lengkap Pasca-Klarifikasi)</span>
   </div>
   <table class="data-table">
     <thead>
@@ -685,14 +720,16 @@
           <td style="text-align: center;">
             {% if item.tipe_perubahan == 'ITEM_BARU' or 'Baru' in item.status_perubahan %}
               <span class="tag-baru">ITEM BARU</span>
-            {% elif 'RAB Awal' in item.status_perubahan %}
-              <span class="tag-ubah">RAB AWAL</span>
             {% elif 'Volume & Harga' in item.status_perubahan %}
               <span class="tag-harga">VOL &amp; HRG</span>
             {% elif 'Volume' in item.status_perubahan %}
               <span class="tag-ubah">VOL UBAH</span>
-            {% else %}
+            {% elif 'Harga' in item.status_perubahan %}
               <span class="tag-harga">HRG UBAH</span>
+            {% elif 'RAB Awal' in item.status_perubahan or 'Dikembalikan' in item.status_perubahan or item.tipe_perubahan == 'SAMA_DENGAN_RAB' %}
+              <span class="tag-ubah">SESUAI RAB</span>
+            {% else %}
+              <span class="tag-harga">DISESUAIKAN</span>
             {% endif %}
           </td>
           <td style="font-size: 7.5px; color: #4b5563; font-style: italic; white-space: pre-line;">
@@ -702,8 +739,8 @@
         {% endfor %}
       {% else %}
         <tr>
-          <td colspan="9" style="text-align: center; color: #6b7280; padding: 10px;">
-            Tidak ada penyesuaian volume atau penambahan item pekerjaan ME.
+          <td colspan="9" style="text-align: center; color: #64748b; padding: 9px; font-style: italic; background-color: #f8fafc;">
+            Tidak ada item pekerjaan ME yang tercatat pada berkas ini.
           </td>
         </tr>
       {% endif %}
@@ -712,7 +749,7 @@
     <tfoot>
       <tr style="background-color: #fff7ed; font-weight: bold; border-top: 1.5px solid #fed7aa;">
         <td colspan="6" style="text-align: right; padding: 5px 8px; font-size: 8.5px; text-transform: uppercase; color: #9a3412;">
-          Jumlah Pekerjaan ME :
+          Subtotal Pekerjaan ME OE :
         </td>
         <td style="text-align: right; padding: 5px 8px; font-size: 9px; color: #E65F2B; font-family: monospace; white-space: nowrap;">
           {{ subtotal_me_rp }}
@@ -723,20 +760,130 @@
     {% endif %}
   </table>
 
-  <!-- Ringkasan Total Biaya Penyesuaian Aanwijzing (Jumlah Keduanya) -->
+  <!-- Ringkasan Total Biaya Penyesuaian Aanwijzing -->
   <div class="grand-total-summary">
-    <div class="grand-total-title">Jumlah Total (Sipil + ME) :</div>
+    <div class="grand-total-title">Total Nilai Owner Estimate (OE) Pasca-Aanwijzing (Sipil + ME) :</div>
     <div class="grand-total-amount">{{ grand_total_biaya_rp }}</div>
   </div>
 
-  <!-- Teks Penutup Resmi -->
-  <div class="closing-paragraph">
-    Demikian Berita Acara Klarifikasi Hasil Aanwijzing ini dibuat dengan sebenar-benarnya sebagai dasar acuan resmi penawaran tender dan penyusunan kontrak rekanan.
-  </div>
+  <!-- Section 4: Lampiran Gambar Teknis (Sipil & ME) -->
+  <div class="section-title">IV. Lampiran Gambar Teknis (Sipil &amp; ME)</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width: 25px; text-align: center;">No</th>
+        <th style="width: 130px;">Kategori Berkas</th>
+        <th>Nama Berkas Gambar Teknis</th>
+        <th style="width: 90px; text-align: center;">Sumber Berkas</th>
+        <th style="width: 110px; text-align: center;">Tautan Google Drive</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in gambar_teknis_list %}
+      <tr>
+        <td style="text-align: center; color: #6b7280;">{{ loop.index }}</td>
+        <td><strong>{{ g.label }}</strong></td>
+        <td style="font-size: 8px;">
+          <div style="font-weight: bold; {% if g.has_revision %}color: #c2410c;{% endif %}">{{ g.nama_file }}</div>
+          {% if g.catatan %}
+            <div style="font-size: 7px; color: #7c2d12; font-style: italic; margin-top: 1px;">Catatan: &ldquo;{{ g.catatan }}&rdquo;</div>
+          {% endif %}
+        </td>
+        <td style="text-align: center;">
+          {% if g.sumber == 'REVISI' %}
+            <span class="tag-harga">REVISI</span>
+          {% elif g.sumber == 'BARU' %}
+            <span class="tag-baru">BARU</span>
+          {% elif g.sumber == 'RAB_AWAL' or g.sumber == 'DARI_RAB' %}
+            <span class="tag-ubah">RAB AWAL</span>
+          {% else %}
+            <span style="color: #9ca3af; font-size: 7.5px;">-</span>
+          {% endif %}
+        </td>
+        <td style="text-align: center;">
+          {% if g.file_url %}
+            <a href="{{ g.file_url }}" target="_blank" style="color: #E65F2B; text-decoration: underline; font-weight: bold; font-size: 8px;">
+              Buka File Drive &nearr;
+            </a>
+          {% else %}
+            <span style="color: #9ca3af; font-size: 7.5px;">Tidak Tersedia</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 
-  <!-- Section 3: Daftar Peserta Rapat Aanwijzing -->
+  <!-- Section 5: Dokumentasi Foto Lingkungan & Eksisting Proyek -->
+  <div class="section-title">V. Dokumentasi Foto Lingkungan &amp; Eksisting Proyek</div>
+  {% if foto_lingkungan_list and foto_lingkungan_list.length > 0 %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width: 25px; text-align: center;">No</th>
+        <th>Keterangan / Label Foto</th>
+        <th style="width: 150px;">Koordinat GPS &amp; Lokasi</th>
+        <th style="width: 120px;">Waktu Watermark</th>
+        <th style="width: 85px; text-align: center;">Sumber</th>
+        <th style="width: 90px; text-align: center;">Tautan Asli</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in foto_lingkungan_list %}
+      <tr>
+        <td style="text-align: center; color: #6b7280;">{{ loop.index }}</td>
+        <td>
+          <strong style="{% if f.sumber == 'REVISI' %}color: #b45309;{% elif f.sumber == 'BARU' %}color: #047857;{% else %}color: #111827;{% endif %}">
+            {{ f.nama_file }}
+          </strong>
+          {% if f.catatan %}
+            <div style="font-size: 7px; color: #64748b; font-style: italic; margin-top: 1px;">{{ f.catatan }}</div>
+          {% endif %}
+        </td>
+        <td style="font-size: 7.5px; color: #4b5563;">
+          <div>{{ f.gps_coordinate }}</div>
+          {% if f.lokasi_wilayah and f.lokasi_wilayah != '-' %}
+            <div style="color: #6b7280;">{{ f.lokasi_wilayah }}</div>
+          {% endif %}
+        </td>
+        <td style="font-size: 7.5px; color: #374151;">{{ f.timestamp_watermark }}</td>
+        <td style="text-align: center;">
+          {% if f.sumber == 'REVISI' %}
+            <span class="tag-harga">REVISI</span>
+          {% elif f.sumber == 'BARU' %}
+            <span class="tag-baru">BARU</span>
+          {% else %}
+            <span class="tag-ubah">RAB AWAL</span>
+          {% endif %}
+        </td>
+        <td style="text-align: center;">
+          {% if f.file_url %}
+            <a href="{{ f.file_url }}" target="_blank" style="color: #E65F2B; text-decoration: underline; font-weight: bold; font-size: 8px;">
+              Buka Foto &nearr;
+            </a>
+          {% else %}
+            <span style="color: #9ca3af; font-size: 7.5px;">-</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="border: 1px solid #e2e8f0; background-color: #f8fafc; border-left: 3px solid #0284c7; padding: 6px 10px; border-radius: 4px; margin-bottom: 10px; font-size: 8.5px; color: #1e293b;">
+    <strong>Dokumentasi Foto Lingkungan &amp; Lapangan:</strong>
+    <span style="display: inline-block; margin-left: 8px; font-weight: bold; color: #0369a1; background: #f0f9ff; border: 1px solid #bae6fd; padding: 1px 6px; border-radius: 3px; font-size: 7.5px;">
+      TETAP SESUAI PENAWARAN RAB/OE
+    </span>
+    <div style="font-size: 7.5px; color: #64748b; margin-top: 2px;">
+      Seluruh dokumentasi kondisi fisik lapangan mengacu penuh pada foto berkas Penawaran RAB/OE awal.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Section 6: Daftar Peserta Rapat Aanwijzing -->
   {% if peserta_list and peserta_list.length > 0 %}
-  <div class="section-title">III. Daftar Rekanan Kontraktor Peserta Rapat Aanwijzing</div>
+  <div class="section-title">VI. Daftar Rekanan Kontraktor Peserta Rapat Aanwijzing</div>
   <table class="data-table">
     <thead>
       <tr>
@@ -787,6 +934,11 @@
     </tbody>
   </table>
   {% endif %}
+
+  <!-- Teks Penutup Resmi (Dipindahkan ke setelah Daftar Rekanan Peserta, sebelum Tanda Tangan) -->
+  <div class="closing-paragraph">
+    Demikian Berita Acara Klarifikasi Hasil Aanwijzing ini dibuat dengan sebenar-benarnya sebagai dasar acuan resmi penawaran tender dan penyusunan kontrak rekanan.
+  </div>
 
   <!-- Matriks 3 Kolom Tanda Tangan Berjenjang (DIBUAT -> MENGETAHUI -> DISETUJUI) -->
   <div class="signatures-section">

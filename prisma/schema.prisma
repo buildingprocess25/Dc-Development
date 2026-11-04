@@ -59,6 +59,7 @@ model dc_project {
   tenders                   dc_tender[]
   aanwijzings               dc_aanwijzing[]
   dc_aanwijzing_klarifikasi dc_aanwijzing_klarifikasi[]
+  penawaran_rekanan         dc_penawaran_rekanan[]
 }
 
 model dc_dokumen {
@@ -381,6 +382,7 @@ model dc_master_vendor {
 
   peserta_tender     dc_tender_peserta[]
   peserta_aanwijzing dc_aanwijzing_vendor[]
+  penawaran_rekanan  dc_penawaran_rekanan[]
 }
 
 // --- Pengajuan Kontraktor & Konsultan Tender MODULE ---
@@ -591,6 +593,15 @@ model dc_aanwijzing_klarifikasi {
   total_item_ubah_vol Int     @default(0)
   catatan_maker       String? @db.Text
 
+  // Durasi Pekerjaan (Awal vs Klarifikasi)
+  durasi_hari_awal  Int     @default(0)
+  durasi_hari_akhir Int     @default(0)
+  status_durasi     String? @default("TETAP") // "TETAP" | "BERUBAH"
+  catatan_durasi    String? @db.Text
+
+  // Tanggal Pelaksanaan Tender Rekanan
+  tanggal_tender    DateTime?
+
   // Arsip Dokumen PDF Resmi di Google Drive
   file_url      String?
   drive_file_id String?
@@ -604,14 +615,38 @@ model dc_aanwijzing_klarifikasi {
   project    dc_project    @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   renovasi   dc_renovasi   @relation(fields: [renovasi_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  items      dc_aanwijzing_klarifikasi_item[]
-  audit_logs dc_aanwijzing_klarifikasi_audit_log[]
+  items             dc_aanwijzing_klarifikasi_item[]
+  dokumen           dc_aanwijzing_klarifikasi_dokumen[]
+  audit_logs        dc_aanwijzing_klarifikasi_audit_log[]
+  penawaran_rekanan dc_penawaran_rekanan[]
 
   @@index([aanwijzing_id])
   @@index([project_id])
   @@index([renovasi_id])
   @@index([created_by])
   @@index([cabang])
+}
+
+model dc_aanwijzing_klarifikasi_dokumen {
+  id                  Int       @id @default(autoincrement())
+  klarifikasi_id      Int
+  kategori_file       String // "GAMBAR_SIPIL_PDF" | "GAMBAR_SIPIL_DWG" | "GAMBAR_ME_PDF" | "GAMBAR_ME_DWG" | "FOTO_LINGKUNGAN"
+  nama_file           String
+  nama_label          String? // Nama / Deskripsi foto
+  file_url            String? // Link Google Drive
+  drive_file_id       String?
+  mime_type           String?
+  latitude            Float?
+  longitude           Float?
+  lokasi_wilayah      String?
+  timestamp_watermark DateTime?
+  sumber              String    @default("BARU") // "DARI_RAB" | "BARU" | "REVISI"
+  catatan             String?   @db.Text
+  created_at          DateTime  @default(now())
+
+  klarifikasi dc_aanwijzing_klarifikasi @relation(fields: [klarifikasi_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([klarifikasi_id])
 }
 
 model dc_aanwijzing_klarifikasi_item {
@@ -639,8 +674,9 @@ model dc_aanwijzing_klarifikasi_item {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  klarifikasi   dc_aanwijzing_klarifikasi @relation(fields: [klarifikasi_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  original_item dc_renovasi_item?         @relation(fields: [original_renovasi_item_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  klarifikasi     dc_aanwijzing_klarifikasi    @relation(fields: [klarifikasi_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  original_item   dc_renovasi_item?            @relation(fields: [original_renovasi_item_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  penawaran_items dc_penawaran_rekanan_item[]
 
   @@index([klarifikasi_id])
   @@index([original_renovasi_item_id])
@@ -663,3 +699,156 @@ model dc_aanwijzing_klarifikasi_audit_log {
   @@index([klarifikasi_id])
   @@index([user_email])
 }
+
+// --- Penawaran Rekanan & Gantt Tender Module ---
+
+model dc_penawaran_rekanan {
+  id                           Int      @id @default(autoincrement())
+  nomor_penawaran              String   @unique // e.g. TDR/DC/2611/0001
+  project_id                   Int
+  klarifikasi_id               Int
+  vendor_id                    Int
+  vendor_nama                  String
+  vendor_email                 String
+  cabang                       String
+
+  // Status Alur Penawaran:
+  // "DRAFT" | "DIAJUKAN" | "EVALUASI_DC_SPECIALIST" | "NEGOSIASI_REKANAN" | "DIAJUKAN_ULANG" | "MENANG" | "TIDAK_MENANG"
+  status                       String   @default("DRAFT")
+
+  total_biaya_sipil            Float    @default(0)
+  total_biaya_me               Float    @default(0)
+  grand_total                  Float    @default(0)
+  durasi_pekerjaan_hari        Int      @default(0)
+
+  catatan_kontraktor           String?  @db.Text
+  catatan_internal_bbm         String?  @db.Text // RAHASIA DARI KONTRAKTOR
+  catatan_negosiasi_specialist String?  @db.Text // Dikirim ke kontraktor
+  catatan_pemenang             String?  @db.Text
+
+  // Kelengkapan Dokumen & Asuransi Penawaran Rekanan
+  kontraktor_logo_url          String?  @db.Text
+  kontraktor_logo_drive_id     String?
+  analisa_harga_url            String?  @db.Text
+  analisa_harga_drive_id       String?
+  analisa_harga_nama           String?
+  asuransi_no_polis            String?
+  asuransi_masa_berlaku        DateTime?
+  asuransi_file_url            String?  @db.Text
+  asuransi_file_drive_id       String?
+  asuransi_file_nama           String?
+
+  created_by                   String   // email kontraktor
+  created_at                   DateTime @default(now())
+  updated_at                   DateTime @updatedAt
+
+  project     dc_project                @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  klarifikasi dc_aanwijzing_klarifikasi @relation(fields: [klarifikasi_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  vendor      dc_master_vendor          @relation(fields: [vendor_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  items        dc_penawaran_rekanan_item[]
+  gantt_items  dc_penawaran_rekanan_gantt[]
+  dependencies dc_penawaran_rekanan_dependency[]
+  audit_logs   dc_penawaran_rekanan_audit_log[]
+
+  @@index([project_id])
+  @@index([klarifikasi_id])
+  @@index([vendor_id])
+  @@index([created_by])
+  @@index([cabang])
+}
+
+model dc_penawaran_rekanan_item {
+  id                    Int      @id @default(autoincrement())
+  penawaran_id          Int
+  klarifikasi_item_id   Int?     // Referensi ke dc_aanwijzing_klarifikasi_item
+  lingkup               String   // "SIPIL" | "ME"
+  kategori_pekerjaan    String
+  deskripsi             String   @db.Text
+  satuan                String   @default("m2")
+  volume                Float    @default(0) // Locked volume dari Aanwijzing
+
+  // Input Harga Kontraktor
+  harga_material        Float    @default(0)
+  harga_upah            Float    @default(0)
+  total_harga           Float    @default(0) // volume * (harga_material + harga_upah)
+
+  // Bukti Pendukung Upload
+  file_bukti_url        String?  @db.Text
+  file_bukti_drive_id   String?
+  file_bukti_nama       String?
+
+  // Evaluasi & Negosiasi Flags
+  is_flagged_bbm        Boolean  @default(false)
+  catatan_bbm           String?  @db.Text
+  is_flagged_specialist Boolean  @default(false)
+  catatan_specialist    String?  @db.Text
+
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  penawaran             dc_penawaran_rekanan              @relation(fields: [penawaran_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  klarifikasi_item      dc_aanwijzing_klarifikasi_item?   @relation(fields: [klarifikasi_item_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  gantt_item            dc_penawaran_rekanan_gantt?
+
+  predecessor_links     dc_penawaran_rekanan_dependency[] @relation("ItemPredecessor")
+  successor_links       dc_penawaran_rekanan_dependency[] @relation("ItemSuccessor")
+
+  @@index([penawaran_id])
+  @@index([klarifikasi_item_id])
+}
+
+model dc_penawaran_rekanan_gantt {
+  id                        Int      @id @default(autoincrement())
+  penawaran_id              Int
+  item_id                   Int      @unique
+  start_day                 Int      @default(1) // Hari ke (1..N)
+  duration_days             Int      @default(1) // Durasi hari
+  end_day                   Int      @default(1) // start_day + duration_days - 1
+
+  // Negosiasi Durasi
+  is_flagged_durasi         Boolean  @default(false)
+  catatan_durasi_specialist String?  @db.Text
+
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
+
+  penawaran                 dc_penawaran_rekanan      @relation(fields: [penawaran_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  item                      dc_penawaran_rekanan_item @relation(fields: [item_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([penawaran_id])
+}
+
+model dc_penawaran_rekanan_dependency {
+  id             Int      @id @default(autoincrement())
+  penawaran_id   Int
+  predecessor_id Int
+  successor_id   Int
+  created_at     DateTime @default(now())
+
+  penawaran      dc_penawaran_rekanan        @relation(fields: [penawaran_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  predecessor    dc_penawaran_rekanan_item   @relation("ItemPredecessor", fields: [predecessor_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  successor      dc_penawaran_rekanan_item   @relation("ItemSuccessor", fields: [successor_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([predecessor_id, successor_id])
+  @@index([penawaran_id])
+}
+
+model dc_penawaran_rekanan_audit_log {
+  id           Int      @id @default(autoincrement())
+  penawaran_id Int
+  user_email   String
+  user_name    String
+  user_role    String
+  action       String   // "SUBMIT" | "REVIEW_BBM" | "NEGOSIASI_SPECIALIST" | "RESUBMIT" | "PILIH_PEMENANG"
+  from_status  String
+  to_status    String
+  notes        String?  @db.Text
+  created_at   DateTime @default(now())
+
+  penawaran    dc_penawaran_rekanan @relation(fields: [penawaran_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([penawaran_id])
+  @@index([user_email])
+}
+

@@ -19,6 +19,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormItemKlarifikasiTable, KlarifikasiItemPayload } from "./FormItemKlarifikasiTable";
+import { FormDurasiKlarifikasiCard } from "./FormDurasiKlarifikasiCard";
+import { FormTanggalTenderCard } from "./FormTanggalTenderCard";
+import { FormGambarTeknisKlarifikasiCard, KlarifikasiDokumenItem } from "./FormGambarTeknisKlarifikasiCard";
+import { FormFotoLingkunganKlarifikasiCard } from "./FormFotoLingkunganKlarifikasiCard";
 import { DetailKlarifikasiModal } from "./DetailKlarifikasiModal";
 import { FeedbackModal } from "@/components/ui/feedback-modal";
 import { SearchableSelectInput } from "@/components/ui/searchable-select";
@@ -51,11 +55,62 @@ export function FormKlarifikasiAanwijzing({
     initialData?.aanwijzing || null
   );
 
-  // Form Fields
+  // Form Fields: Items
   const [itemsPayload, setItemsPayload] = useState<KlarifikasiItemPayload[]>(
     () => initialData?.items || []
   );
   const [catatanMaker, setCatatanMaker] = useState(initialData?.catatan_maker || "");
+
+  // Form Fields: Durasi Pekerjaan (Awal vs Klarifikasi)
+  const [durasiHariAwal, setDurasiHariAwal] = useState<number>(() => {
+    return initialData?.durasi_hari_awal ?? initialData?.renovasi?.durasi_hari ?? 0;
+  });
+  const [durasiHariAkhir, setDurasiHariAkhir] = useState<number>(() => {
+    return (
+      initialData?.durasi_hari_akhir ??
+      initialData?.durasi_hari_awal ??
+      initialData?.renovasi?.durasi_hari ??
+      0
+    );
+  });
+  const [catatanDurasi, setCatatanDurasi] = useState<string>(() => {
+    return initialData?.catatan_durasi || "";
+  });
+
+  // Form Field: Tanggal Pelaksanaan Tender Rekanan
+  const [tanggalTender, setTanggalTender] = useState<string>(() => {
+    if (initialData?.tanggal_tender) {
+      try {
+        const d = new Date(initialData.tanggal_tender);
+        return d.toISOString().split("T")[0];
+      } catch {
+        return "2026-11-03";
+      }
+    }
+    return "2026-11-03";
+  });
+
+  // Form Fields: Dokumen Teknis (Sipil & ME, PDF & DWG) & Foto Lingkungan
+  const [dokumenKlarifikasi, setDokumenKlarifikasi] = useState<KlarifikasiDokumenItem[]>(() => {
+    if (initialData?.dokumen && Array.isArray(initialData.dokumen) && initialData.dokumen.length > 0) {
+      return initialData.dokumen;
+    }
+    const rabDocs = initialData?.renovasi?.dokumen || [];
+    return rabDocs.map((d: any) => ({
+      kategori_file: d.kategori_file,
+      nama_file: d.nama_file,
+      nama_label: d.nama_label || d.nama_file,
+      file_url: d.file_url,
+      drive_file_id: d.drive_file_id,
+      mime_type: d.mime_type,
+      latitude: d.latitude,
+      longitude: d.longitude,
+      lokasi_wilayah: d.lokasi_wilayah,
+      timestamp_watermark: d.timestamp_watermark,
+      sumber: "DARI_RAB",
+    }));
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleItemsChange = useCallback((items: KlarifikasiItemPayload[]) => {
@@ -103,6 +158,60 @@ export function FormKlarifikasiAanwijzing({
     const found = readyList.find((a) => a.id === id);
     setSelectedAanwijzing(found || null);
     setItemsPayload([]);
+
+    if (found) {
+      const durasi = found.renovasi?.durasi_hari || 0;
+      setDurasiHariAwal(durasi);
+      setDurasiHariAkhir(durasi);
+      setCatatanDurasi("");
+
+      // Inisialisasi seluruh item dari renovasi dengan status awal "Sama dengan RAB/OE"
+      const rabItems = found.renovasi?.item_rab || [];
+      setItemsPayload(
+        rabItems.map((orig: any) => {
+          const vol = Number(orig.volume) || 0;
+          const mat = Number(orig.harga_material) || 0;
+          const upah = Number(orig.harga_upah) || 0;
+          return {
+            tipe_perubahan: "SAMA_DENGAN_RAB" as const,
+            original_renovasi_item_id: orig.id,
+            lingkup: orig.lingkup || "SIPIL",
+            kategori_pekerjaan: orig.kategori_pekerjaan || "Pekerjaan",
+            deskripsi: orig.deskripsi,
+            satuan: orig.satuan || "m2",
+            volume_awal: vol,
+            volume_akhir: vol,
+            harga_material: mat,
+            harga_upah: upah,
+            total_biaya_awal: vol * (mat + upah),
+            total_biaya_akhir: vol * (mat + upah),
+            status_perubahan: "Sama dengan RAB/OE",
+            catatan: "",
+            keterangan: "Sama dengan RAB/OE",
+          };
+        })
+      );
+
+      const rabDocs = found.renovasi?.dokumen || [];
+      setDokumenKlarifikasi(
+        rabDocs.map((d: any) => ({
+          kategori_file: d.kategori_file,
+          nama_file: d.nama_file,
+          nama_label: d.nama_label || d.nama_file,
+          file_url: d.file_url,
+          drive_file_id: d.drive_file_id,
+          mime_type: d.mime_type,
+          latitude: d.latitude,
+          longitude: d.longitude,
+          lokasi_wilayah: d.lokasi_wilayah,
+          timestamp_watermark: d.timestamp_watermark,
+          sumber: "DARI_RAB",
+        }))
+      );
+    } else {
+      setItemsPayload([]);
+      setDokumenKlarifikasi([]);
+    }
   };
 
   // Original items dari renovasi.item_rab
@@ -126,9 +235,10 @@ export function FormKlarifikasiAanwijzing({
 
   const [isReviewOpen, setIsReviewOpen] = useState(false);
 
-  // Hitung jumlah item baru & item ubah vol
+  // Hitung jumlah item baru, item ubah vol, dan item tetap (sama dgn RAB)
   const totalItemBaru = itemsPayload.filter((it) => it.tipe_perubahan === "ITEM_BARU").length;
   const totalItemUbahVol = itemsPayload.filter((it) => it.tipe_perubahan === "UBAH_VOLUME").length;
+  const totalItemTetap = itemsPayload.filter((it) => it.tipe_perubahan === "SAMA_DENGAN_RAB").length;
 
   // Objek sintesis data Berita Acara untuk Review Modal
   const reviewKlarifikasiData = useMemo(() => {
@@ -142,11 +252,27 @@ export function FormKlarifikasiAanwijzing({
       created_at: initialData?.created_at || new Date().toISOString(),
       project: selectedAanwijzing?.project || initialData?.project,
       aanwijzing: selectedAanwijzing || initialData?.aanwijzing,
+      renovasi: selectedAanwijzing?.renovasi || initialData?.renovasi,
       items: itemsPayload,
+      durasi_hari_awal: durasiHariAwal,
+      durasi_hari_akhir: durasiHariAkhir,
+      status_durasi: durasiHariAkhir !== durasiHariAwal ? "BERUBAH" : "TETAP",
+      catatan_durasi: catatanDurasi,
+      dokumen: dokumenKlarifikasi,
       catatan_maker: catatanMaker,
       audit_logs: initialData?.audit_logs || [],
     };
-  }, [selectedAanwijzing, initialData, user, itemsPayload, catatanMaker]);
+  }, [
+    selectedAanwijzing,
+    initialData,
+    user,
+    itemsPayload,
+    durasiHariAwal,
+    durasiHariAkhir,
+    catatanDurasi,
+    dokumenKlarifikasi,
+    catatanMaker,
+  ]);
 
   const isRevision = initialData?.status === "REVISI";
 
@@ -190,19 +316,46 @@ export function FormKlarifikasiAanwijzing({
         }
       } else if (revItem.category === "CATATAN_MAKER") {
         isModified = (catatanMaker || "").trim() !== (revItem.initialValue || "").trim();
+      } else if (revItem.category === "DURASI_PEKERJAAN") {
+        const initDurasi = revItem.initialValue?.durasi_hari_akhir ?? initialData?.durasi_hari_akhir ?? durasiHariAwal;
+        const initCatatan = revItem.initialValue?.catatan_durasi ?? initialData?.catatan_durasi ?? "";
+        isModified =
+          Number(durasiHariAkhir) !== Number(initDurasi) ||
+          (catatanDurasi || "").trim() !== (initCatatan || "").trim();
+      } else if (revItem.category === "GAMBAR_TEKNIS") {
+        const oldDrawings = (initialData?.dokumen || []).filter((d: any) => d.kategori_file?.startsWith("GAMBAR_"));
+        const currentDrawings = dokumenKlarifikasi.filter((d) => d.kategori_file?.startsWith("GAMBAR_"));
+        const oldUrls = oldDrawings.map((d: any) => `${d.kategori_file}:${d.file_url}`).sort().join("|");
+        const currentUrls = currentDrawings.map((d) => `${d.kategori_file}:${d.file_url}`).sort().join("|");
+        isModified = oldUrls !== currentUrls;
+      } else if (revItem.category === "FOTO_LINGKUNGAN") {
+        const oldPhotos = (initialData?.dokumen || []).filter((d: any) => d.kategori_file === "FOTO_LINGKUNGAN");
+        const currentPhotos = dokumenKlarifikasi.filter((d) => d.kategori_file === "FOTO_LINGKUNGAN");
+        const oldUrls = oldPhotos.map((d: any) => d.file_url).sort().join("|");
+        const currentUrls = currentPhotos.map((d) => d.file_url).sort().join("|");
+        isModified = oldPhotos.length !== currentPhotos.length || oldUrls !== currentUrls;
       }
       return {
         item: revItem,
         isModified,
       };
     });
-  }, [detailRevisiList, itemsPayload, catatanMaker]);
+  }, [
+    detailRevisiList,
+    itemsPayload,
+    catatanMaker,
+    durasiHariAkhir,
+    durasiHariAwal,
+    catatanDurasi,
+    dokumenKlarifikasi,
+    initialData,
+  ]);
 
   const totalFlaggedCount = flaggedItemsWithStatus.length;
   const modifiedFlaggedCount = flaggedItemsWithStatus.filter((f) => f.isModified).length;
   const allFlaggedModified = totalFlaggedCount > 0 ? modifiedFlaggedCount === totalFlaggedCount : true;
 
-  // Cek jika approver tidak menandai butir spesifik, apakah maker telah mengubah minimal 1 field
+  // Cek jika approver tidak menandai Item spesifik, apakah maker telah mengubah minimal 1 field
   const isAnyFieldModified = useMemo(() => {
     if (mode !== "edit" || !initialData) return true;
     const oldItems = initialData.items || [];
@@ -227,8 +380,20 @@ export function FormKlarifikasiAanwijzing({
       }))
     );
     const catatanChanged = (catatanMaker || "").trim() !== (initialData.catatan_maker || "").trim();
-    return oldStr !== newStr || catatanChanged;
-  }, [mode, initialData, itemsPayload, catatanMaker]);
+    const durasiChanged =
+      Number(durasiHariAkhir) !== Number(initialData.durasi_hari_akhir ?? initialData.durasi_hari_awal ?? 0) ||
+      (catatanDurasi || "").trim() !== (initialData.catatan_durasi || "").trim();
+
+    const oldDocs = (initialData.dokumen || []).map((d: any) => `${d.kategori_file}:${d.file_url}`).sort().join("|");
+    const currentDocs = dokumenKlarifikasi.map((d) => `${d.kategori_file}:${d.file_url}`).sort().join("|");
+    const dokumenChanged = oldDocs !== currentDocs;
+    const oldTanggal = initialData.tanggal_tender
+      ? new Date(initialData.tanggal_tender).toISOString().split("T")[0]
+      : "";
+    const tanggalTenderChanged = oldTanggal !== tanggalTender;
+
+    return oldStr !== newStr || catatanChanged || durasiChanged || dokumenChanged || tanggalTenderChanged;
+  }, [mode, initialData, itemsPayload, catatanMaker, durasiHariAkhir, catatanDurasi, dokumenKlarifikasi, tanggalTender]);
 
   const canSubmitRevision = isRevision
     ? totalFlaggedCount > 0
@@ -254,6 +419,39 @@ export function FormKlarifikasiAanwijzing({
   const catatanMakerFlag = useMemo(() => {
     return flaggedItemsWithStatus.find((f) => f.item.category === "CATATAN_MAKER");
   }, [flaggedItemsWithStatus]);
+
+  const durasiFlag = useMemo(() => {
+    return flaggedItemsWithStatus.find((f) => f.item.category === "DURASI_PEKERJAAN");
+  }, [flaggedItemsWithStatus]);
+
+  const gambarFlag = useMemo(() => {
+    return flaggedItemsWithStatus.find((f) => f.item.category === "GAMBAR_TEKNIS");
+  }, [flaggedItemsWithStatus]);
+
+  const fotoFlag = useMemo(() => {
+    return flaggedItemsWithStatus.find((f) => f.item.category === "FOTO_LINGKUNGAN");
+  }, [flaggedItemsWithStatus]);
+
+  // Rab Dokumen & Foto List untuk baseline comparison
+  const rabDokumenList = useMemo(() => {
+    return selectedAanwijzing?.renovasi?.dokumen || initialData?.renovasi?.dokumen || [];
+  }, [selectedAanwijzing, initialData]);
+
+  const rabFotoList = useMemo(() => {
+    return rabDokumenList.filter((d: any) => d.kategori_file === "FOTO_LINGKUNGAN");
+  }, [rabDokumenList]);
+
+  // Project Info untuk Folder Google Drive
+  const projectInfo = useMemo(() => {
+    const proj = selectedAanwijzing?.project || initialData?.project;
+    return {
+      cabang: selectedAanwijzing?.cabang || initialData?.cabang || "",
+      kode: proj?.kode || "",
+      nama_proyek: proj?.nama_proyek || "",
+      inisial: proj?.inisial || null,
+      nomor_undangan: selectedAanwijzing?.nomor_undangan || initialData?.aanwijzing?.nomor_undangan || "",
+    };
+  }, [selectedAanwijzing, initialData]);
 
   // Fungsi validasi form
   const validateForm = () => {
@@ -309,15 +507,43 @@ export function FormKlarifikasiAanwijzing({
       return false;
     }
 
-    // 4. Validasi SOP Revisi
+    // 4. Validasi Perubahan Durasi Pekerjaan (Wajib Catatan jika berubah)
+    if (durasiHariAkhir !== durasiHariAwal && !catatanDurasi.trim()) {
+      setFeedback({
+        open: true,
+        type: "error",
+        title: "Catatan Perubahan Durasi Wajib Diisi",
+        message: `Durasi pekerjaan disesuaikan dari ${durasiHariAwal} hari menjadi ${durasiHariAkhir} hari. Harap berikan catatan alasan penyesuaian durasi.`,
+      });
+      return false;
+    }
+
+    // 5. Validasi Catatan Gambar Teknis (Wajib Catatan jika mengunggah gambar revisi baru)
+    const revisedDrawingsWithoutNote = dokumenKlarifikasi.filter(
+      (d) =>
+        (d.kategori_file || "").startsWith("GAMBAR_") &&
+        (d.sumber === "REVISI" || d.sumber === "BARU") &&
+        (!d.catatan || !d.catatan.trim())
+    );
+    if (revisedDrawingsWithoutNote.length > 0) {
+      setFeedback({
+        open: true,
+        type: "error",
+        title: "Catatan Gambar Teknis Wajib Diisi",
+        message: `Anda mengunggah berkas revisi baru untuk gambar kerja teknis (${revisedDrawingsWithoutNote.map((d) => d.nama_file).join(", ")}). Harap isi catatan alasan perubahan gambar sebelum mengajukan.`,
+      });
+      return false;
+    }
+
+    // 6. Validasi SOP Revisi
     if (isRevision) {
       if (totalFlaggedCount > 0 && !allFlaggedModified) {
         const remaining = totalFlaggedCount - modifiedFlaggedCount;
         setFeedback({
           open: true,
           type: "error",
-          title: "Butir Revisi Belum Lengkap",
-          message: `Peninjau menandai ${totalFlaggedCount} butir pekerjaan yang wajib diperbaiki. Masih terdapat ${remaining} butir yang belum disesuaikan. Harap perbaiki seluruh butir yang ditandai sebelum mengajukan ulang.`,
+          title: "Item Revisi Belum Lengkap",
+          message: `Peninjau menandai ${totalFlaggedCount} Item pekerjaan yang wajib diperbaiki. Masih terdapat ${remaining} item yang belum disesuaikan. Harap perbaiki seluruh item yang ditandai sebelum mengajukan ulang.`,
         });
         return false;
       }
@@ -332,6 +558,19 @@ export function FormKlarifikasiAanwijzing({
         });
         return false;
       }
+    }
+
+    // 7. Validasi berkas foto yang sedang dalam proses upload ke Google Drive
+    const isStillUploading = dokumenKlarifikasi.some((d) => d.uploading === true);
+    if (isStillUploading) {
+      setFeedback({
+        open: true,
+        type: "error",
+        title: "Proses Unggah Belum Selesai",
+        message:
+          "Masih terdapat foto yang sedang dalam proses sinkronisasi ke Google Drive. Harap tunggu beberapa detik hingga seluruh berkas selesai diunggah.",
+      });
+      return false;
     }
 
     return true;
@@ -366,6 +605,12 @@ export function FormKlarifikasiAanwijzing({
           aanwijzing_id: selectedAanwijzingId,
           catatan_maker: catatanMaker,
           items: itemsPayload,
+          durasi_hari_awal: durasiHariAwal,
+          durasi_hari_akhir: durasiHariAkhir,
+          status_durasi: durasiHariAkhir !== durasiHariAwal ? "BERUBAH" : "TETAP",
+          catatan_durasi: catatanDurasi,
+          tanggal_tender: tanggalTender,
+          dokumen: dokumenKlarifikasi,
           is_draft: isDraft,
         }),
       });
@@ -441,13 +686,13 @@ export function FormKlarifikasiAanwijzing({
             instructionNotes={
               latestRevisionNote
                 ? [
-                    {
-                      id: "1",
-                      author: "Peninjau / Approver",
-                      date: initialData?.updated_at || new Date().toISOString(),
-                      note: latestRevisionNote,
-                    },
-                  ]
+                  {
+                    id: "1",
+                    author: "Peninjau / Approver",
+                    date: initialData?.updated_at || new Date().toISOString(),
+                    note: latestRevisionNote,
+                  },
+                ]
                 : []
             }
             flaggedItems={flaggedItemsWithStatus}
@@ -521,14 +766,19 @@ export function FormKlarifikasiAanwijzing({
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase font-bold text-slate-400">Rekap Perubahan Saat Ini</div>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                  +{totalItemBaru} Item Baru
+              <div className="text-[10px] uppercase font-bold text-slate-400">Rekap Status Item Proyek</div>
+              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                  {totalItemTetap} Sama dgn RAB
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
                   {totalItemUbahVol} Disesuaikan
                 </span>
+                {totalItemBaru > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    +{totalItemBaru} Item Baru
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -544,6 +794,74 @@ export function FormKlarifikasiAanwijzing({
             cabang={selectedAanwijzing?.cabang || initialData?.cabang || ""}
             flaggedItemsMap={flaggedItemsMap}
             onChange={handleItemsChange}
+          />
+        )}
+
+        {/* Input Penyesuaian Durasi Pekerjaan Proyek */}
+        {(selectedAanwijzing || initialData) && (
+          <FormDurasiKlarifikasiCard
+            durasiAwal={durasiHariAwal}
+            durasiAkhir={durasiHariAkhir}
+            onChangeDurasi={setDurasiHariAkhir}
+            catatanDurasi={catatanDurasi}
+            onChangeCatatan={setCatatanDurasi}
+            isRevision={mode === "edit" || initialData?.status === "REVISI"}
+            pinpoint={
+              durasiFlag
+                ? {
+                  isFlagged: true,
+                  catatan: durasiFlag.item.catatan,
+                  isModified: durasiFlag.isModified,
+                }
+                : undefined
+            }
+          />
+        )}
+
+        {/* Input Jadwal Pelaksanaan Tender Rekanan */}
+        {(selectedAanwijzing || initialData) && (
+          <FormTanggalTenderCard
+            tanggalTender={tanggalTender}
+            onChangeTanggal={setTanggalTender}
+            isRevision={mode === "edit" || initialData?.status === "REVISI"}
+          />
+        )}
+
+        {/* Input & Manajemen Gambar Teknis (Sipil & ME, PDF & DWG) */}
+        {(selectedAanwijzing || initialData) && (
+          <FormGambarTeknisKlarifikasiCard
+            rabDokumenList={rabDokumenList}
+            klarifikasiDokumenList={dokumenKlarifikasi}
+            onChangeDokumen={setDokumenKlarifikasi}
+            projectInfo={projectInfo}
+            pinpoint={
+              gambarFlag
+                ? {
+                  isFlagged: true,
+                  catatan: gambarFlag.item.catatan,
+                  isModified: gambarFlag.isModified,
+                }
+                : undefined
+            }
+          />
+        )}
+
+        {/* Input & Manajemen Foto Lingkungan & Eksisting Proyek */}
+        {(selectedAanwijzing || initialData) && (
+          <FormFotoLingkunganKlarifikasiCard
+            rabFotoList={rabFotoList}
+            klarifikasiFotoList={dokumenKlarifikasi}
+            onChangeFotos={setDokumenKlarifikasi}
+            projectInfo={projectInfo}
+            pinpoint={
+              fotoFlag
+                ? {
+                  isFlagged: true,
+                  catatan: fotoFlag.item.catatan,
+                  isModified: fotoFlag.isModified,
+                }
+                : undefined
+            }
           />
         )}
 
@@ -587,8 +905,8 @@ export function FormKlarifikasiAanwijzing({
                   {selectedAanwijzing?.project?.nama_proyek
                     ? `${selectedAanwijzing.project.nama_proyek} (${selectedAanwijzing.cabang})`
                     : initialData?.project?.nama_proyek
-                    ? `${initialData.project.nama_proyek} (${initialData.cabang})`
-                    : "Penyusunan Berita Acara"}
+                      ? `${initialData.project.nama_proyek} (${initialData.cabang})`
+                      : "Penyusunan Berita Acara"}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -626,7 +944,7 @@ export function FormKlarifikasiAanwijzing({
                 title={
                   isRevision && !canSubmitRevision
                     ? totalFlaggedCount > 0
-                      ? `Harap perbaiki seluruh ${totalFlaggedCount} butir revisi yang ditandai (${modifiedFlaggedCount}/${totalFlaggedCount} selesai)`
+                      ? `Harap perbaiki seluruh ${totalFlaggedCount} item revisi yang ditandai (${modifiedFlaggedCount}/${totalFlaggedCount} selesai)`
                       : "Harap ubah minimal satu data sebelum mengajukan ulang"
                     : undefined
                 }

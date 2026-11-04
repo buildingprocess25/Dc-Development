@@ -30,6 +30,11 @@ import {
   ShieldCheck,
   Eye,
   Search,
+  Clock,
+  ArrowRight,
+  ExternalLink,
+  Image as ImageIcon,
+  FileCode,
 } from "lucide-react";
 import ApprovalStepper from "@/components/approval/ApprovalStepper";
 import ApprovalNotesHistory from "@/components/approval/ApprovalNotesHistory";
@@ -64,8 +69,51 @@ export function DetailKlarifikasiModal({
   isSubmitting: externalSubmitting,
   isRevision = false,
 }: DetailKlarifikasiModalProps) {
-  const [activeTab, setActiveTab] = useState<"ITEMS" | "PESERTA">("ITEMS");
+  const [activeTab, setActiveTab] = useState<"ITEMS" | "DOKUMEN" | "FOTO" | "PESERTA">("ITEMS");
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  // Data Penyesuaian Durasi Pekerjaan
+  const durasiAwal = klarifikasi?.durasi_hari_awal ?? klarifikasi?.renovasi?.durasi_hari ?? 0;
+  const durasiAkhir = klarifikasi?.durasi_hari_akhir ?? durasiAwal;
+  const statusDurasi = klarifikasi?.status_durasi || (durasiAkhir !== durasiAwal ? "BERUBAH" : "TETAP");
+  const catatanDurasi = klarifikasi?.catatan_durasi || "";
+  const selisihDurasi = durasiAkhir - durasiAwal;
+
+  // Data Dokumen Teknis & Foto Lingkungan (Kolom 1: RAB vs Kolom 2: Klarifikasi)
+  const rabDokumenList = klarifikasi?.renovasi?.dokumen || [];
+  const klarifikasiDokumenList = klarifikasi?.dokumen || [];
+
+  const findRabDoc = (slotKey: string) => {
+    return rabDokumenList.find((d: any) => {
+      const k = d.kategori_file;
+      const fn = (d.nama_file || "").toLowerCase();
+      if (slotKey === "GAMBAR_SIPIL_PDF") {
+        return k === "GAMBAR_SIPIL_PDF" || (k === "GAMBAR_SIPIL" && fn.endsWith(".pdf"));
+      }
+      if (slotKey === "GAMBAR_SIPIL_DWG") {
+        return k === "GAMBAR_SIPIL_DWG" || (k === "GAMBAR_SIPIL" && fn.endsWith(".dwg"));
+      }
+      if (slotKey === "GAMBAR_ME_PDF") {
+        return k === "GAMBAR_ME_PDF" || (k === "GAMBAR_ME" && fn.endsWith(".pdf"));
+      }
+      if (slotKey === "GAMBAR_ME_DWG") {
+        return k === "GAMBAR_ME_DWG" || (k === "GAMBAR_ME" && fn.endsWith(".dwg"));
+      }
+      return false;
+    });
+  };
+
+  const findRevisionDoc = (slotKey: string) => {
+    return klarifikasiDokumenList.find(
+      (d: any) => d.kategori_file === slotKey && (d.sumber === "REVISI" || d.sumber === "BARU")
+    );
+  };
+
+  const rabFotoList = rabDokumenList.filter((d: any) => d.kategori_file === "FOTO_LINGKUNGAN");
+  const baruFotoList = klarifikasiDokumenList.filter(
+    (d: any) => d.kategori_file === "FOTO_LINGKUNGAN" && (d.sumber === "BARU" || d.sumber === "REVISI")
+  );
+  const totalFotoCount = rabFotoList.length + baruFotoList.length;
 
   // Approval Action States
   const [actionType, setActionType] = useState<"APPROVE" | "REVISI" | null>(null);
@@ -325,7 +373,7 @@ export function DetailKlarifikasiModal({
             )}
 
             {/* Info Metadata Box */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 grid grid-cols-1 md:grid-cols-4 gap-3 text-xs shadow-2xs">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs shadow-2xs">
               <div>
                 <div className="text-[10px] uppercase font-bold text-slate-400">Nama Proyek</div>
                 <div className="font-bold text-slate-800 mt-0.5 truncate">
@@ -342,6 +390,22 @@ export function DetailKlarifikasiModal({
                   <span className="truncate">{klarifikasi.project?.alamat || klarifikasi.cabang || "-"}</span>
                 </div>
                 <div className="text-[11px] text-slate-500">Cabang {klarifikasi.cabang || "-"}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">Jadwal Tender Rekanan</div>
+                <div className="font-bold text-[#E65F2B] mt-0.5 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-[#E65F2B] shrink-0" />
+                  <span>
+                    {klarifikasi.tanggal_tender
+                      ? new Date(klarifikasi.tanggal_tender).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "03 Nov 2026"}
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-500">Batas Waktu: 23:59 WIB</div>
               </div>
               <div>
                 <div className="text-[10px] uppercase font-bold text-slate-400">No. Surat Undangan</div>
@@ -367,6 +431,84 @@ export function DetailKlarifikasiModal({
               </div>
             </div>
 
+            {/* Durasi Pekerjaan Proyek (Baseline RAB vs Klarifikasi) */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-orange-50 border border-orange-200 text-[#E65F2B] flex items-center justify-center shrink-0">
+                    <Clock className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      Durasi Pekerjaan Proyek
+                    </span>
+                    <span className="text-xs font-bold text-slate-800">
+                      Perbandingan Kesepakatan Pelaksanaan
+                    </span>
+                  </div>
+                </div>
+
+                <span
+                  className={cn(
+                    "text-[10px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wider",
+                    statusDurasi === "BERUBAH"
+                      ? "bg-amber-50 text-amber-800 border-amber-300"
+                      : "bg-emerald-50 text-emerald-800 border-emerald-300"
+                  )}
+                >
+                  {statusDurasi === "BERUBAH"
+                    ? `BERUBAH (${selisihDurasi > 0 ? `+${selisihDurasi}` : selisihDurasi} HARI)`
+                    : "TETAP SESUAI RAB"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Durasi Awal (Penawaran RAB)
+                  </span>
+                  <span className="text-sm font-bold text-slate-700 mt-0.5 block">
+                    {durasiAwal} Hari
+                  </span>
+                </div>
+
+                <div
+                  className={cn(
+                    "p-3 rounded-xl border",
+                    statusDurasi === "BERUBAH"
+                      ? "bg-orange-50/60 border-orange-200"
+                      : "bg-slate-50 border-slate-200/70"
+                  )}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Durasi Klarifikasi Aanwijzing
+                  </span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span
+                      className={cn(
+                        "text-sm font-bold",
+                        statusDurasi === "BERUBAH" ? "text-[#E65F2B]" : "text-slate-800"
+                      )}
+                    >
+                      {durasiAkhir} Hari
+                    </span>
+                    {statusDurasi === "BERUBAH" && (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full">
+                        {selisihDurasi > 0 ? `+${selisihDurasi}` : selisihDurasi} Hari
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {catatanDurasi && (
+                <div className="pt-1 text-xs text-slate-600 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+                  <span className="font-bold text-slate-700 mr-1">Catatan Durasi:</span>
+                  <span className="italic">&quot;{catatanDurasi}&quot;</span>
+                </div>
+              )}
+            </div>
+
             {/* Catatan Tambahan Maker (Jika Ada) */}
             {(klarifikasi.catatan_maker || klarifikasi.catatan) && (
               <div className="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-1 shadow-2xs">
@@ -380,29 +522,49 @@ export function DetailKlarifikasiModal({
               </div>
             )}
 
-            {/* Sub-tab Switcher: Perubahan Item vs Peserta Aanwijzing */}
+            {/* Sub-tab Switcher */}
             <div>
-              <div className="flex border-b border-slate-200 gap-2 mb-3">
+              <div className="flex border-b border-slate-200 gap-2 mb-3 overflow-x-auto">
                 <button
                   type="button"
                   onClick={() => setActiveTab("ITEMS")}
-                  className={`pb-2 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer inline-flex items-center gap-1.5 ${
-                    activeTab === "ITEMS"
+                  className={`pb-2 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer inline-flex items-center gap-1.5 shrink-0 ${activeTab === "ITEMS"
                       ? "border-[#E65F2B] text-[#E65F2B]"
                       : "border-transparent text-slate-500 hover:text-slate-800"
-                  }`}
+                    }`}
                 >
                   <Layers className="w-4 h-4" />
                   <span>Daftar Perubahan Item ({items.length})</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveTab("PESERTA")}
-                  className={`pb-2 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer inline-flex items-center gap-1.5 ${
-                    activeTab === "PESERTA"
+                  onClick={() => setActiveTab("DOKUMEN")}
+                  className={`pb-2 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer inline-flex items-center gap-1.5 shrink-0 ${activeTab === "DOKUMEN"
                       ? "border-[#E65F2B] text-[#E65F2B]"
                       : "border-transparent text-slate-500 hover:text-slate-800"
-                  }`}
+                    }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Gambar Teknis</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("FOTO")}
+                  className={`pb-2 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer inline-flex items-center gap-1.5 shrink-0 ${activeTab === "FOTO"
+                      ? "border-[#E65F2B] text-[#E65F2B]"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
+                    }`}
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  <span>Foto Lingkungan ({totalFotoCount})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("PESERTA")}
+                  className={`pb-2 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer inline-flex items-center gap-1.5 shrink-0 ${activeTab === "PESERTA"
+                      ? "border-[#E65F2B] text-[#E65F2B]"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
+                    }`}
                 >
                   <Users className="w-4 h-4" />
                   <span>Peserta Aanwijzing ({pesertaList.length})</span>
@@ -503,13 +665,16 @@ export function DetailKlarifikasiModal({
                                   </td>
                                   <td className="py-2.5 px-3 text-center">
                                     <span
-                                      className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${
+                                      className={cn(
+                                        "inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap",
                                         isBaru
                                           ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                          : "bg-blue-50 text-blue-800 border-blue-200"
-                                      }`}
+                                          : (it.tipe_perubahan === "SAMA_DENGAN_RAB" || it.status_perubahan === "Sama dengan RAB/OE" || (!it.tipe_perubahan && it.volume_awal === it.volume_akhir && it.total_biaya_awal === it.total_biaya_akhir))
+                                            ? "bg-slate-100 text-slate-600 border-slate-200"
+                                            : "bg-blue-50 text-blue-800 border-blue-200"
+                                      )}
                                     >
-                                      {it.status_perubahan || (isBaru ? "Item Baru Ditambahkan" : "Item Disesuaikan")}
+                                      {it.status_perubahan || (isBaru ? "Item Baru Ditambahkan" : "Sama dengan RAB/OE")}
                                     </span>
                                   </td>
                                   <td className="py-2.5 px-3 text-slate-700 text-xs font-medium whitespace-pre-line leading-relaxed">
@@ -628,13 +793,16 @@ export function DetailKlarifikasiModal({
                                   </td>
                                   <td className="py-2.5 px-3 text-center">
                                     <span
-                                      className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${
+                                      className={cn(
+                                        "inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap",
                                         isBaru
                                           ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                          : "bg-blue-50 text-blue-800 border-blue-200"
-                                      }`}
+                                          : (it.tipe_perubahan === "SAMA_DENGAN_RAB" || it.status_perubahan === "Sama dengan RAB/OE" || (!it.tipe_perubahan && it.volume_awal === it.volume_akhir && it.total_biaya_awal === it.total_biaya_akhir))
+                                            ? "bg-slate-100 text-slate-600 border-slate-200"
+                                            : "bg-blue-50 text-blue-800 border-blue-200"
+                                      )}
                                     >
-                                      {it.status_perubahan || (isBaru ? "Item Baru Ditambahkan" : "Item Disesuaikan")}
+                                      {it.status_perubahan || (isBaru ? "Item Baru Ditambahkan" : "Sama dengan RAB/OE")}
                                     </span>
                                   </td>
                                   <td className="py-2.5 px-3 text-slate-700 text-xs font-medium whitespace-pre-line leading-relaxed">
@@ -681,6 +849,483 @@ export function DetailKlarifikasiModal({
                 </div>
               )}
 
+              {/* Tab Content: DOKUMEN (Gambar Teknis Sipil & ME, PDF & DWG: Kolom 1 RAB vs Kolom 2 Klarifikasi) */}
+              {activeTab === "DOKUMEN" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    {[
+                      {
+                        key: "GAMBAR_SIPIL_PDF",
+                        title: "Gambar Teknis Sipil (PDF)",
+                        subtitle: "Dokumen gambar arsitektur / struktur format PDF",
+                        icon: FileText,
+                        colorScheme: {
+                          bg: "bg-rose-50",
+                          border: "border-rose-200/80",
+                          text: "text-rose-600",
+                        },
+                      },
+                      {
+                        key: "GAMBAR_SIPIL_DWG",
+                        title: "Gambar Teknis Sipil (CAD / DWG)",
+                        subtitle: "File gambar kerja arsitektur / struktur format DWG",
+                        icon: FileCode,
+                        colorScheme: {
+                          bg: "bg-indigo-50",
+                          border: "border-indigo-200/80",
+                          text: "text-indigo-600",
+                        },
+                      },
+                      {
+                        key: "GAMBAR_ME_PDF",
+                        title: "Gambar Teknis ME (PDF)",
+                        subtitle: "Dokumen gambar elektrikal / mekanikal format PDF",
+                        icon: FileText,
+                        colorScheme: {
+                          bg: "bg-amber-50",
+                          border: "border-amber-200/80",
+                          text: "text-amber-600",
+                        },
+                      },
+                      {
+                        key: "GAMBAR_ME_DWG",
+                        title: "Gambar Teknis ME (CAD / DWG)",
+                        subtitle: "File gambar kerja elektrikal / mekanikal format DWG",
+                        icon: FileCode,
+                        colorScheme: {
+                          bg: "bg-blue-50",
+                          border: "border-blue-200/80",
+                          text: "text-blue-600",
+                        },
+                      },
+                    ].map((slot) => {
+                      const rabDoc = findRabDoc(slot.key);
+                      const revisionDoc = findRevisionDoc(slot.key);
+                      const Icon = slot.icon;
+
+                      return (
+                        <div
+                          key={slot.key}
+                          className={cn(
+                            "bg-white rounded-2xl border p-4 shadow-2xs space-y-3 transition-all",
+                            revisionDoc
+                              ? "border-orange-300 ring-1 ring-orange-200/50"
+                              : "border-slate-200/80 hover:border-slate-300"
+                          )}
+                        >
+                          {/* Header Slot */}
+                          <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={cn(
+                                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border",
+                                  slot.colorScheme.bg,
+                                  slot.colorScheme.border,
+                                  slot.colorScheme.text
+                                )}
+                              >
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="text-xs font-bold text-slate-800 truncate">{slot.title}</h4>
+                                <p className="text-[10px] text-slate-400 truncate">{slot.subtitle}</p>
+                              </div>
+                            </div>
+
+                            {/* Status Chip */}
+                            <div>
+                              {revisionDoc ? (
+                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-orange-50 text-[#E65F2B] border border-orange-200 whitespace-nowrap">
+                                  Ada Revisi Baru
+                                </span>
+                              ) : rabDoc ? (
+                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                                  Tetap Mengacu RAB
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 whitespace-nowrap">
+                                  Belum Ada Berkas
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Dua Kolom Berdampingan: Kolom 1 (RAB) vs Kolom 2 (Klarifikasi) */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                            {/* KOLOM 1: Berkas Acuan Penawaran RAB/OE */}
+                            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col justify-between gap-3">
+                              <div>
+                                <div className="flex items-center justify-between gap-1 mb-1.5">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    Kolom 1: Berkas Acuan Penawaran RAB/OE
+                                  </span>
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700">
+                                    Baseline RAB
+                                  </span>
+                                </div>
+
+                                {rabDoc ? (
+                                  <div className="space-y-1">
+                                    <div className="text-xs font-bold text-slate-800 truncate" title={rabDoc.nama_file}>
+                                      {rabDoc.nama_file}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400">
+                                      Berkas acuan resmi dari Penawaran RAB/OE proyek (Read-Only).
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="py-2 text-[11px] text-slate-400 italic">
+                                    Tidak ada berkas acuan pada penawaran RAB/OE.
+                                  </div>
+                                )}
+                              </div>
+
+                              {rabDoc?.file_url && (
+                                <a
+                                  href={rabDoc.file_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 transition-colors shadow-2xs"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Buka Berkas Acuan RAB di Drive</span>
+                                </a>
+                              )}
+                            </div>
+
+                            {/* KOLOM 2: Berkas Klarifikasi Aanwijzing (Kolom Baru) */}
+                            <div
+                              className={cn(
+                                "p-3.5 rounded-xl border flex flex-col justify-between gap-3 transition-colors",
+                                revisionDoc ? "border-orange-200 bg-orange-50/20" : "border-slate-200 bg-white"
+                              )}
+                            >
+                              <div>
+                                <div className="flex items-center justify-between gap-1 mb-1.5">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                                    Kolom 2: Berkas Klarifikasi Aanwijzing
+                                  </span>
+                                  {revisionDoc ? (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-[#E65F2B] border border-orange-200">
+                                      Revisi Baru
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                      Sama dgn RAB
+                                    </span>
+                                  )}
+                                </div>
+
+                                {revisionDoc ? (
+                                  <div className="space-y-1.5">
+                                    <div className="text-xs font-bold text-slate-900 truncate" title={revisionDoc.nama_file}>
+                                      {revisionDoc.nama_file}
+                                    </div>
+                                    <div className="text-[10px] text-[#E65F2B] font-semibold">
+                                      Berkas revisi baru hasil kesepakatan klarifikasi aanwijzing.
+                                    </div>
+                                    {revisionDoc.catatan && (
+                                      <div className="p-2 rounded-lg bg-orange-100/60 border border-orange-200/80 text-[11px] text-slate-700 mt-1">
+                                        <span className="font-bold text-orange-950 mr-1">Catatan Revisi:</span>
+                                        <span className="italic">&quot;{revisionDoc.catatan}&quot;</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="py-2 text-[11px] text-slate-500">
+                                    {rabDoc
+                                      ? "Tetap menggunakan berkas acuan RAB di Kolom 1 (belum ada perubahan)."
+                                      : "Belum ada berkas klarifikasi terunggah."}
+                                  </div>
+                                )}
+                              </div>
+
+                              {revisionDoc?.file_url && (
+                                <a
+                                  href={revisionDoc.file_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 hover:bg-[#E65F2B] text-[#E65F2B] hover:text-white border border-orange-200 text-xs font-bold transition-all shadow-2xs"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                  <span>Buka Berkas Revisi di Drive</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab Content: FOTO (Foto Lingkungan & Eksisting Proyek: Kolom 1 RAB vs Kolom 2 Klarifikasi) */}
+              {activeTab === "FOTO" && (
+                <div className="space-y-5">
+                  {/* BAGIAN 1: Foto Dokumentasi Eksisting Penawaran RAB/OE (Kolom 1) */}
+                  <div className="space-y-3 bg-slate-50/70 p-4 rounded-2xl border border-slate-200">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                          1
+                        </span>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                            Kolom 1: Foto Dokumentasi Eksisting Penawaran RAB/OE
+                          </h4>
+                          <p className="text-[10px] text-slate-400">
+                            Dokumentasi foto acuan dari berkas penawaran RAB/OE proyek (Read-Only).
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-200/80 text-slate-700">
+                        {rabFotoList.length} Foto Acuan RAB
+                      </span>
+                    </div>
+
+                    {rabFotoList.length === 0 ? (
+                      <div className="p-6 border border-dashed border-slate-200 bg-white rounded-xl text-center text-xs text-slate-400 italic">
+                        Tidak ada dokumentasi foto lingkungan pada berkas penawaran RAB/OE.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                        {rabFotoList.map((f: any, idx: number) => {
+                          const displayName = f.nama_label || f.nama_file || `Foto RAB #${idx + 1}`;
+                          const replacedBy = baruFotoList.find(
+                            (b: any) =>
+                              b.sumber === "REVISI" &&
+                              ((b.revisi_dari_url && b.revisi_dari_url === f.file_url) ||
+                                (b.revisi_dari_id && f.id && String(b.revisi_dari_id) === String(f.id)) ||
+                                (b.revisi_dari_nama && b.revisi_dari_nama === displayName))
+                          );
+                          const isIncluded = klarifikasiDokumenList.some(
+                            (k: any) =>
+                              k.kategori_file === "FOTO_LINGKUNGAN" &&
+                              (k.file_url === f.file_url || (k.id && f.id && String(k.id) === String(f.id)) || k.nama_file === f.nama_file)
+                          );
+                          const isReplaced = Boolean(replacedBy);
+                          const isExcluded = !isReplaced && !isIncluded;
+
+                          return (
+                            <div
+                              key={`rab_foto_${f.id ?? 'item'}_${idx}_${f.file_url || f.nama_file || ''}`}
+                              className={cn(
+                                "rounded-2xl border overflow-hidden shadow-2xs flex flex-col justify-between transition-all",
+                                isReplaced
+                                  ? "bg-amber-50/30 border-amber-300 ring-1 ring-amber-200/50"
+                                  : isExcluded
+                                    ? "bg-slate-100/70 border-slate-300 opacity-75"
+                                    : "bg-white border-slate-200 hover:border-slate-300"
+                              )}
+                            >
+                              <div>
+                                <div className="relative h-40 bg-slate-100 overflow-hidden">
+                                  {f.file_url ? (
+                                    <img
+                                      src={f.file_url}
+                                      alt={displayName}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLElement).style.display = "none";
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
+                                      <ImageIcon className="w-8 h-8" />
+                                    </div>
+                                  )}
+                                  <span
+                                    className={cn(
+                                      "absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider backdrop-blur-md shadow-2xs",
+                                      isReplaced
+                                        ? "bg-amber-100/95 text-amber-900 border-amber-300"
+                                        : isExcluded
+                                          ? "bg-rose-100/95 text-rose-800 border-rose-300"
+                                          : "bg-white/90 text-slate-700 border-slate-200"
+                                    )}
+                                  >
+                                    {isReplaced
+                                      ? "Diganti di Kolom 2"
+                                      : isExcluded
+                                        ? "Dikecualikan"
+                                        : `Eksisting RAB #${idx + 1}`}
+                                  </span>
+                                </div>
+
+                                <div className="p-3 space-y-1.5 text-xs">
+                                  <div
+                                    className={cn(
+                                      "font-bold line-clamp-1",
+                                      isExcluded ? "text-slate-400 line-through" : "text-slate-800"
+                                    )}
+                                    title={displayName}
+                                  >
+                                    {displayName}
+                                  </div>
+
+                                  {(f.latitude || f.longitude || f.lokasi_wilayah) && (
+                                    <div className="text-[11px] text-slate-500 flex items-start gap-1">
+                                      <MapPin className="w-3.5 h-3.5 text-[#E65F2B] shrink-0 mt-0.5" />
+                                      <span className="line-clamp-2">
+                                        {f.lokasi_wilayah || `${f.latitude?.toFixed(6)}, ${f.longitude?.toFixed(6)}`}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {f.timestamp_watermark && (
+                                    <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                                      <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                                      <span>
+                                        {new Date(f.timestamp_watermark).toLocaleString("id-ID", {
+                                          dateStyle: "medium",
+                                          timeStyle: "short",
+                                        })}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {f.file_url && (
+                                <div className="p-3 pt-0">
+                                  <a
+                                    href={f.file_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-colors"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                                    <span>Buka Foto Asli RAB</span>
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* BAGIAN 2: Foto Tambahan / Revisi Klarifikasi Aanwijzing (Kolom 2) */}
+                  <div className="space-y-3 bg-white p-4 rounded-2xl border border-orange-200/80 shadow-2xs">
+                    <div className="flex items-center justify-between gap-2 flex-wrap border-b border-orange-100 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded bg-[#E65F2B] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                          2
+                        </span>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                            Kolom 2: Foto Tambahan / Revisi Klarifikasi Aanwijzing
+                          </h4>
+                          <p className="text-[10px] text-slate-400">
+                            Dokumentasi foto baru yang diambil langsung di lapangan atau diunggah saat aanwijzing.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-orange-100 text-[#E65F2B] border border-orange-200">
+                        {baruFotoList.length} Foto Klarifikasi Baru
+                      </span>
+                    </div>
+
+                    {baruFotoList.length === 0 ? (
+                      <div className="p-6 border border-dashed border-orange-200 bg-orange-50/10 rounded-xl text-center text-xs text-slate-400 italic">
+                        Belum ada foto tambahan yang diunggah pada klarifikasi aanwijzing.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                        {baruFotoList.map((f: any, idx: number) => {
+                          const displayName = f.nama_label || f.nama_file || `Foto Baru #${idx + 1}`;
+                          const isRevision = f.sumber === "REVISI";
+                          return (
+                            <div
+                              key={`baru_foto_${f.id ?? 'item'}_${idx}_${f.file_url || f.nama_file || ''}`}
+                              className="bg-white rounded-2xl border border-orange-200 overflow-hidden shadow-2xs flex flex-col justify-between hover:border-orange-300 transition-all"
+                            >
+                              <div>
+                                <div className="relative h-40 bg-slate-100 overflow-hidden">
+                                  {f.file_url ? (
+                                    <img
+                                      src={f.file_url}
+                                      alt={displayName}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLElement).style.display = "none";
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
+                                      <ImageIcon className="w-8 h-8" />
+                                    </div>
+                                  )}
+                                  <span
+                                    className={cn(
+                                      "absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider backdrop-blur-md shadow-2xs",
+                                      isRevision
+                                        ? "bg-amber-500/90 text-white border-amber-400"
+                                        : "bg-emerald-500/90 text-white border-emerald-400"
+                                    )}
+                                  >
+                                    {isRevision ? "Foto Revisi" : `Klarifikasi Baru #${idx + 1}`}
+                                  </span>
+                                </div>
+
+                                <div className="p-3 space-y-1.5 text-xs">
+                                  <div className="font-bold text-slate-900 line-clamp-1" title={displayName}>
+                                    {displayName}
+                                  </div>
+
+                                  {f.revisi_dari_nama && (
+                                    <div className="text-[10px] text-amber-800 bg-amber-50 p-1 rounded border border-amber-200 truncate">
+                                      Pengganti: <span className="font-semibold">{f.revisi_dari_nama}</span>
+                                    </div>
+                                  )}
+
+                                  {(f.latitude || f.longitude || f.lokasi_wilayah) && (
+                                    <div className="text-[11px] text-slate-500 flex items-start gap-1">
+                                      <MapPin className="w-3.5 h-3.5 text-[#E65F2B] shrink-0 mt-0.5" />
+                                      <span className="line-clamp-2">
+                                        {f.lokasi_wilayah || `${f.latitude?.toFixed(6)}, ${f.longitude?.toFixed(6)}`}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {f.timestamp_watermark && (
+                                    <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                                      <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                                      <span>
+                                        {new Date(f.timestamp_watermark).toLocaleString("id-ID", {
+                                          dateStyle: "medium",
+                                          timeStyle: "short",
+                                        })}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {f.file_url && (
+                                <div className="p-3 pt-0">
+                                  <a
+                                    href={f.file_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-[#E65F2B] text-[#E65F2B] hover:text-white border border-orange-200 text-xs font-bold transition-all"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <span>Buka Foto di Drive</span>
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Tab Content: PESERTA */}
               {activeTab === "PESERTA" && (
                 <div className="border border-slate-200/80 rounded-xl overflow-x-auto shadow-2xs bg-white">
@@ -713,11 +1358,10 @@ export function DetailKlarifikasiModal({
                               <td className="py-2.5 px-3 text-slate-500">{p.email || "-"}</td>
                               <td className="py-2.5 px-3 text-center">
                                 <span
-                                  className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                                    isHadir
+                                  className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${isHadir
                                       ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                       : "bg-rose-50 text-rose-700 border border-rose-200"
-                                  }`}
+                                    }`}
                                 >
                                   {isHadir ? "HADIR FISIK" : "TIDAK HADIR"}
                                 </span>

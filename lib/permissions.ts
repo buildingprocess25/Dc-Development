@@ -424,12 +424,13 @@ export const canAccessApprovalNavigation = (
 ): boolean => {
   if (!userRole) return false;
 
-  // Syarat Utama 1: Role harus salah satu dari approver RAB/OE, approver Fungsi Ruang, approver Tender, approver Klarifikasi Aanwijzing, atau Administrator
+  // Syarat Utama 1: Role harus salah satu dari approver RAB/OE, approver Fungsi Ruang, approver Tender, approver Klarifikasi Aanwijzing, approver Penawaran Rekanan, atau Administrator
   const isAllowedRole =
     canAccessRabOeApproval(userRole) ||
     canAccessFungsiRuangApproval(userRole) ||
     canAccessTenderApproval(userRole) ||
-    canAccessKlarifikasiAanwijzingApproval(userRole);
+    canAccessKlarifikasiAanwijzingApproval(userRole) ||
+    canAccessPenawaranRekananApproval(userRole);
   if (!isAllowedRole) return false;
 
   // Syarat Utama 2: Jika user memiliki konfigurasi akses_menu spesifik dari Manajemen User
@@ -1833,6 +1834,127 @@ export const canUserApproveKlarifikasiAanwijzing = (user: any, item: any): boole
 
   return false;
 };
+
+/**
+ * Memeriksa apakah user dapat mengakses modul Penawaran Rekanan
+ */
+export const canUserAccessPenawaranRekanan = (user: { role?: string; email?: string; nama_pt?: string | null } | null | undefined): boolean => {
+  if (!user || !user.role) return false;
+  const role = user.role.toUpperCase();
+  return (
+    role.includes('SUPER_ADMIN') ||
+    role.includes('ADMIN') ||
+    role.includes('KONTRAKTOR') ||
+    role.includes('VENDOR') ||
+    role.includes('KONSULTAN') ||
+    Boolean(user.nama_pt) ||
+    role.includes('BUILDING & MAINTENANCE MANAGER') ||
+    role.includes('B&M MANAGER') ||
+    role.includes('SPECIALIST') ||
+    role.includes('KOORDINATOR')
+  );
+};
+
+/**
+ * Validasi apakah user adalah BBM Manager (atau Admin) yang berwenang melakukan evaluasi awal penawaran
+ */
+export const canUserEvaluatePenawaranBbm = (user: { role?: string; coverage_cabang?: string | null } | null | undefined): boolean => {
+  if (!user || !user.role) return false;
+  const role = user.role.trim().toUpperCase();
+  if (isApprovalAdmin(role)) return true;
+  return (
+    (role.includes('BRANCH BUILDING') && role.includes('MANAGER')) ||
+    role.includes('B&M MANAGER') ||
+    role.includes('BM MANAGER')
+  );
+};
+
+/**
+ * Validasi apakah user adalah DC Specialist (atau Admin) yang berwenang melakukan negosiasi dan penetapan pemenang
+ */
+export const canUserEvaluatePenawaranSpecialist = (user: { role?: string; coverage_cabang?: string | null } | null | undefined): boolean => {
+  if (!user || !user.role) return false;
+  const role = user.role.trim().toUpperCase();
+  if (isApprovalAdmin(role)) return true;
+  return (
+    role.includes('DC SPECIALIST') ||
+    role.includes('DEVELOPMENT SPECIALIST') ||
+    role.includes('DC BUILDING & DEVELOPMENT MANAGER')
+  );
+};
+
+/**
+ * Cek apakah user berhak mengakses menu atau antrean Approval Evaluasi Penawaran Rekanan
+ */
+export const canAccessPenawaranRekananApproval = (userRole: string | undefined | null): boolean => {
+  if (!userRole) return false;
+  const role = userRole.trim().toUpperCase();
+  if (isApprovalAdmin(role) || role.includes('HEAD_OFFICE')) return true;
+  return canUserEvaluatePenawaranBbm({ role }) || canUserEvaluatePenawaranSpecialist({ role });
+};
+
+/**
+ * Cek apakah berkas penawaran pada status tertentu membutuhkan aksi (actionable) bagi role pengguna saat ini.
+ * Aturan Threshold 1 Miliar:
+ * - < 1 Miliar (grandTotal < 1.000.000.000): Ditangani oleh Branch Building & Maintenance (BBM) Manager.
+ * - >= 1 Miliar (grandTotal >= 1.000.000.000): Ditangani oleh DC Development Specialist.
+ * - Admin SPARTA berwenang melakukan supervisi pada kedua kategori.
+ */
+export const canUserActionPenawaranQueue = (
+  userRole: string | undefined | null,
+  status: string,
+  grandTotal?: number
+): boolean => {
+  if (!userRole) return false;
+  const role = userRole.trim().toUpperCase();
+  const st = (status || '').toUpperCase();
+
+  // Hanya status DIAJUKAN dan DIAJUKAN_ULANG yang memerlukan tindakan approval review
+  if (st !== 'DIAJUKAN' && st !== 'DIAJUKAN_ULANG') {
+    return false;
+  }
+
+  if (isApprovalAdmin(role) || role.includes('HEAD_OFFICE')) {
+    return true;
+  }
+
+  const isBbm = canUserEvaluatePenawaranBbm({ role });
+  const isSpecialist = canUserEvaluatePenawaranSpecialist({ role });
+
+  if (typeof grandTotal === 'number') {
+    if (grandTotal < 1_000_000_000) {
+      return isBbm; // < 1M hanya untuk BBM Manager
+    } else {
+      return isSpecialist; // >= 1M hanya untuk DC Specialist
+    }
+  }
+
+  // Fallback jika grandTotal tidak tersedia:
+  return isBbm || isSpecialist;
+};
+
+/**
+ * Validasi apakah pengguna berwenang memilih/menetapkan pemenang tender
+ * Aturan Threshold 1 Miliar:
+ * - Nilai Paket / Penawaran < 1 Miliar: Dipilih oleh BBM Manager (atau Admin)
+ * - Nilai Paket / Penawaran >= 1 Miliar: Dipilih oleh DC Development Specialist (atau Admin)
+ */
+export const canUserSelectWinner = (
+  user: { role?: string; coverage_cabang?: string | null } | null | undefined,
+  totalNilai: number
+): boolean => {
+  if (!user || !user.role) return false;
+  const role = user.role.trim().toUpperCase();
+  if (isApprovalAdmin(role) || role.includes('HEAD_OFFICE')) return true;
+
+  if (totalNilai < 1_000_000_000) {
+    return canUserEvaluatePenawaranBbm(user);
+  } else {
+    return canUserEvaluatePenawaranSpecialist(user);
+  }
+};
+
+
 
 
 

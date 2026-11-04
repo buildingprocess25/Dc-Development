@@ -82,7 +82,7 @@ export async function POST(
     const hasGranularItems = Array.isArray(detail_revisi) && detail_revisi.length > 0;
 
     // SOP ATURAN REVISI:
-    // 1. Jika tidak ada butir item yang diceklis, catatan general wajib diisi.
+    // 1. Jika tidak ada item yang diceklis, catatan general wajib diisi.
     if (action === 'REVISI' && !hasGranularItems && (!notes || !notes.trim())) {
       return NextResponse.json(
         {
@@ -93,14 +93,14 @@ export async function POST(
       );
     }
 
-    // 2. Jika ada butir yang diceklis, setiap butir wajib memiliki catatan instruksi perbaikan
+    // 2. Jika ada item yang diceklis, setiap item wajib memiliki catatan instruksi perbaikan
     if (action === 'REVISI' && hasGranularItems) {
       for (const revItem of detail_revisi) {
         if (!revItem.catatan || !String(revItem.catatan).trim()) {
           return NextResponse.json(
             {
               status: 'error',
-              message: `Butir revisi "${revItem.label || revItem.id}" wajib memiliki catatan instruksi perbaikan.`,
+              message: `Item revisi "${revItem.label || revItem.id}" wajib memiliki catatan instruksi perbaikan.`,
             },
             { status: 400 }
           );
@@ -118,7 +118,7 @@ export async function POST(
     if (action === 'REVISI') {
       nextStatus = 'REVISI';
       auditAction = 'REVISI';
-      auditNotes = (notes && notes.trim()) || (hasGranularItems ? `Revisi ${detail_revisi.length} butir pekerjaan yang ditandai.` : 'Revisi berkas klarifikasi aanwijzing.');
+      auditNotes = (notes && notes.trim()) || (hasGranularItems ? `Revisi ${detail_revisi.length} Item pekerjaan yang ditandai.` : 'Revisi berkas klarifikasi aanwijzing.');
       responseMsg = 'Dokumen Berita Acara berhasil dikembalikan kepada pembuat untuk diperbaiki (Status: REVISI).';
     } else {
       // APPROVE
